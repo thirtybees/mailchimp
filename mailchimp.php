@@ -21,6 +21,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+require_once dirname(__FILE__).'/classes/autoload.php';
 require_once dirname(__FILE__).'/lib/autoload.php';
 
 class MailChimp extends Module
@@ -129,6 +130,8 @@ class MailChimp extends Module
         $this->displayName = $this->l('MailChimp');
         $this->description = $this->l('Synchronize with MailChimp');
 
+        $this->controllers = array('hook');
+
         // Paths
         $this->module_path = _PS_MODULE_DIR_.$this->name.'/';
         $this->admin_tpl_path = _PS_MODULE_DIR_.$this->name.'/views/templates/admin/';
@@ -176,7 +179,8 @@ class MailChimp extends Module
             !$this->registerHook('displayHeader') ||
             !$this->registerHook('displayBackOfficeHeader') ||
             !$this->registerHook('displayAdminHomeQuickLinks') ||
-            !Configuration::updateValue(strtoupper($this->name).'_START', 1)
+            !Configuration::updateValue(strtoupper($this->name).'_START', 1) ||
+            !MailChimpRegisteredWebhook::createDatabase()
         ) {
             return false;
         }
@@ -194,7 +198,8 @@ class MailChimp extends Module
         if (!parent::uninstall() ||
             !Configuration::deleteByName(strtoupper($this->name).'_START') ||
             !Configuration::deleteByName(self::SETTINGS) ||
-            !Configuration::deleteByName(self::FORM)
+            !Configuration::deleteByName(self::FORM) ||
+            !MailChimpRegisteredWebhook::dropDatabase()
         ) {
             return false;
         }
@@ -387,19 +392,21 @@ class MailChimp extends Module
     public function importCustomers()
     {
         // Get List id
-        $listId = Tools::getValue('list');
-        if (!Tools::isSubmit('list') || !$listId) {
+        $idList = Tools::getValue('list');
+        if (!Tools::isSubmit('list') || !$idList) {
             $this->message = array('text' => $this->l('List is required! Please select one.'), 'type' => 'error');
 
             return;
         }
+
+        $this->checkWebhook($idList);
 
         // Get Customers list
         $sql = new DbQuery();
         $sql->select('c.`firstname`, c.`lastname`, c.`email`, c.`id_lang`');
         $sql->from('customer', 'c');
         $sql->where('c.`newsletter` = 1');
-        $customers = Db::getInstance(_PS_USE_SQL_SLAVE)->executeS($sql);
+        $customers = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
 
         // listBatchSubscribe configuration
 //        $optin = (Tools::getValue('optin')) ? true : false; //send optin emails
@@ -418,7 +425,7 @@ class MailChimp extends Module
         $batch = $mailChimp->newBatch();
         $batchId = 0;
         foreach ($customers as $customer) {
-            $batch->post((string) $batchId, "lists/{$listId}/members", array(
+            $batch->post((string) $batchId, "lists/{$idList}/members", array(
                 'email_address' => $customer['email'],
                 'status' => 'subscribed',
                 'merge_fields' => array('FNAME' => $customer['firstname'], 'LNAME' => $customer['lastname']),
@@ -603,5 +610,63 @@ class MailChimp extends Module
         }
 
         return 'en';
+    }
+
+    protected function checkWebhook($idList)
+    {
+        $allWebhooks = MailChimpRegisteredWebhook::getWebhooks($idList);
+        foreach ($allWebhooks as &$webhook) {
+            $webhook = $webhook['url'];
+        }
+
+        // Take first active language and store ID
+        $languages = Language::getLanguages(true);
+        $idLang = $languages[0]['id_lang'];
+
+        $shops = Shop::getShops(true);
+        $idShop = $shops[0]['id_shop'];
+
+        $callbackUrl = Context::getContext()->link->getModuleLink($this->name, 'hook', array(), $idLang, $idShop, false);
+
+        if (!in_array($callbackUrl, $allWebhooks)) {
+            return $this->registerWebhook($idList, $callbackUrl);
+        }
+
+        return true;
+    }
+
+    protected function registerWebhook($idList, $url = null)
+    {
+        if (!$url) {
+            // Take first active language and store ID
+            $languages = Language::getLanguages(true);
+            $idLang = $languages[0]['id_lang'];
+
+            $shops = Shop::getShops(true);
+            $idShop = $shops[0]['id_shop'];
+
+            $url = Context::getContext()->link->getModuleLink($this->name, 'hook', array(), $idLang, $idShop, false);
+        }
+
+        $mailChimp = new \ThirtyBees\MailChimp\MailChimp($this->apiKey);
+        $result = $mailChimp->post("lists/{$idList}/webhooks", array(
+            'url' => $url,
+            'events' => array(
+                'subscribe' => true,
+                'unsubscribe' => true,
+                'profile' => false,
+                'cleaned' => true,
+                'upemail' => true,
+                'campaign' => false,
+            ),
+            'sources' => array(
+                'user' => true,
+                'admin' => true,
+                'api' => false,
+            ),
+            'list_id' => $idList,
+        ));
+
+        return (bool) $result;
     }
 }

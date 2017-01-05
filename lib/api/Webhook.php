@@ -22,11 +22,11 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * @author    Thirty Bees <modules@thirtybees.com>
- * @author    Drew McLellan
- * @copyright 2017 Thirty Bees
- * @copyright 2013-2017 Drew McLellan
- * @license   https://opensource.org/licenses/MIT  Academic Free License (MIT)
+ *  @author    Thirty Bees <modules@thirtybees.com>
+ *  @author    Drew McLellan
+ *  @copyright 2017 Thirty Bees
+ *  @copyright 2013-2017 Drew McLellan
+ *  @license   https://opensource.org/licenses/MIT  Academic Free License (MIT)
  */
 
 namespace ThirtyBees\MailChimp;
