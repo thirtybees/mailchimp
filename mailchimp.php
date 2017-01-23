@@ -94,13 +94,19 @@ class MailChimp extends Module
         if (Tools::isSubmit('submitApiKey')) {
             // Check if MailChimp API key is valid
             try {
-                // TODO: Find a different way to validate API key rather than creating an object that is not used at all
+                // TODO: Find a different way to validate API key rather than making a request
                 $mailchimp = new \ThirtyBees\MailChimp\MailChimp(Tools::getValue('mailchimpApiKey'));
+                $mailchimp->verifySsl = false;
+                $getLists = $mailchimp->get('lists');
                 $update = Configuration::updateValue('KEY_API_KEY', Tools::getValue('mailchimpApiKey'));
-                if ($update) {
-                    $this->_html .= $this->displayConfirmation($this->l('You have successfully updated your MailChimp API key.'));
+                if (!$getLists) {
+                    $this->_html .= $this->displayError($this->l('An error occurred. Please check your API key.'));
                 } else {
-                    $this->_html .= $this->displayError($this->l('An error occurred while saving API key.'));
+                    if ($update) {
+                        $this->_html .= $this->displayConfirmation($this->l('You have successfully updated your MailChimp API key.'));
+                    } else {
+                        $this->_html .= $this->displayError($this->l('An error occurred while saving API key.'));
+                    }
                 }
             } catch (Exception $e) {
                 // Remove existing value
@@ -162,11 +168,13 @@ class MailChimp extends Module
         if (isset($apiKey) && $apiKey != '') {
             // Check if API key is valid
             try {
-                $mailchimp = new \ThirtyBees\MailChimp\MailChimp('5ba80483dd26ae6523bc7fc98ed8aa92-us15');
+                $mailchimp = new \ThirtyBees\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
                 $mailchimp->verifySsl = false;
                 $getLists = $mailchimp->get('lists');
-                $lists = $getLists['lists'];
-                $validKey = true;
+                if ($getLists) {
+                    $lists = $getLists['lists'];
+                    $validKey = true;
+                }
             } catch (Exception $e) {
                 $this->_html .= $this->displayError($e->getMessage());
             }
