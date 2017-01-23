@@ -69,10 +69,10 @@ class MailChimp extends Module
     {
         if (
             !parent::uninstall()
-            || !Configuration::deleteByName(KEY_API_KEY)
-            || !Configuration::deleteByName(KEY_CONFIRMATION_EMAIL)
-            || !Configuration::deleteByName(KEY_UPDATE_EXISTING)
-            || !Configuration::deleteByName(KEY_IMPORT_ALL)
+            || !Configuration::deleteByName('KEY_API_KEY')
+            || !Configuration::deleteByName('KEY_CONFIRMATION_EMAIL')
+            || !Configuration::deleteByName('KEY_UPDATE_EXISTING')
+            || !Configuration::deleteByName('KEY_IMPORT_ALL')
 
         ) {
             return false;
@@ -90,11 +90,19 @@ class MailChimp extends Module
     private function _postProcess()
     {
         if (Tools::isSubmit('submitApiKey')) {
-            $update = Configuration::updateValue('KEY_API_KEY', Tools::getValue('mailchimpApiKey'));
-            if ($update) {
-                $this->_html .= $this->displayConfirmation($this->l('You have successfully updated your MailChimp API key.'));
-            } else {
-                $this->_html .= $this->displayError($this->l('An error occurred while saving API key.'));
+            // check if API key is valid
+            try {
+                $mailchimp = new \ThirtyBees\MailChimp\MailChimp(Tools::getValue('mailchimpApiKey'));
+                $update = Configuration::updateValue('KEY_API_KEY', Tools::getValue('mailchimpApiKey'));
+                if ($update) {
+                    $this->_html .= $this->displayConfirmation($this->l('You have successfully updated your MailChimp API key.'));
+                } else {
+                    $this->_html .= $this->displayError($this->l('An error occurred while saving API key.'));
+                }
+            } catch (Exception $e) {
+                // remove existing value
+                Configuration::deleteByName('KEY_API_KEY');
+                $this->_html .= $this->displayError($e->getMessage());
             }
         } else if (Tools::isSubmit('submitSettings')) {
             $update1 = Configuration::updateValue('KEY_CONFIRMATION_EMAIL', Tools::getValue('confirmationEmail'));
@@ -143,6 +151,7 @@ class MailChimp extends Module
 
         $fields[] = $fieldsForm1;
 
+        // show settings form only if api key is set and working
         $apiKey = Configuration::get('KEY_API_KEY');
         if (isset($apiKey) && $apiKey != '') {
 
