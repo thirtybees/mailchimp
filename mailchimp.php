@@ -26,6 +26,7 @@ require_once dirname(__FILE__) . '/lib/autoload.php';
 class MailChimp extends Module
 {
     const KEY_API_KEY = 'MAILCHIMP_API_KEY';
+    const KEY_IMPORT_LIST= 'MAILCHIMP_IMPORT_LIST';
     const KEY_CONFIRMATION_EMAIL = 'MAILCHIMP_CONFIRMATION_EMAIL';
     const KEY_UPDATE_EXISTING = 'MAILCHIMP_UPDATE_EXISTING';
     const KEY_IMPORT_ALL = 'MAILCHIMP_IMPORT_ALL';
@@ -70,6 +71,7 @@ class MailChimp extends Module
         if (
             !parent::uninstall()
             || !Configuration::deleteByName('KEY_API_KEY')
+            || !Configuration::deleteByName('KEY_IMPORT_LIST')
             || !Configuration::deleteByName('KEY_CONFIRMATION_EMAIL')
             || !Configuration::deleteByName('KEY_UPDATE_EXISTING')
             || !Configuration::deleteByName('KEY_IMPORT_ALL')
@@ -90,8 +92,9 @@ class MailChimp extends Module
     private function _postProcess()
     {
         if (Tools::isSubmit('submitApiKey')) {
-            // check if API key is valid
+            // Check if MailChimp API key is valid
             try {
+                // TODO: Find a different way to validate API key rather than creating an object that is not used at all
                 $mailchimp = new \ThirtyBees\MailChimp\MailChimp(Tools::getValue('mailchimpApiKey'));
                 $update = Configuration::updateValue('KEY_API_KEY', Tools::getValue('mailchimpApiKey'));
                 if ($update) {
@@ -100,11 +103,12 @@ class MailChimp extends Module
                     $this->_html .= $this->displayError($this->l('An error occurred while saving API key.'));
                 }
             } catch (Exception $e) {
-                // remove existing value
+                // Remove existing value
                 Configuration::deleteByName('KEY_API_KEY');
                 $this->_html .= $this->displayError($e->getMessage());
             }
         } else if (Tools::isSubmit('submitSettings')) {
+            $update1 = Configuration::updateValue('KEY_IMPORT_LIST', Tools::getValue('importList'));
             $update1 = Configuration::updateValue('KEY_CONFIRMATION_EMAIL', Tools::getValue('confirmationEmail'));
             $update2 = Configuration::updateValue('KEY_UPDATE_EXISTING', Tools::getValue('updateExisting'));
             $update3 = Configuration::updateValue('KEY_IMPORT_ALL', Tools::getValue('importAll'));
@@ -151,11 +155,37 @@ class MailChimp extends Module
 
         $fields[] = $fieldsForm1;
 
-        // show settings form only if api key is set and working
+        // Show settings form only if API key is set and working
         $apiKey = Configuration::get('KEY_API_KEY');
+        $validKey = false;
+        $lists = array();
         if (isset($apiKey) && $apiKey != '') {
+            // Check if API key is valid
+            try {
+                $mailchimp = new \ThirtyBees\MailChimp\MailChimp('5ba80483dd26ae6523bc7fc98ed8aa92-us15');
+                $mailchimp->verifySsl = false;
+                $getLists = $mailchimp->get('lists');
+                $lists = $getLists['lists'];
+                $validKey = true;
+            } catch (Exception $e) {
+                $this->_html .= $this->displayError($e->getMessage());
+            }
+        }
 
+        if ($validKey) {
             $inputs2 = array();
+
+            $inputs2[] = array(
+                'type' => 'select',
+                'label' => $this->l('Import to List'),
+                'name' => 'importList',
+                'desc' => $this->l('Please select a MailChimp list to import subscriptions to.'),
+                'options' => array(
+                    'query' => $lists,
+                    'id' => 'id',
+                    'name' => 'name',
+                ),
+            );
 
             $inputs2[] = array(
                 'type' => 'switch',
@@ -245,6 +275,7 @@ class MailChimp extends Module
     {
         return array(
             'mailchimpApiKey' => Configuration::get('KEY_API_KEY'),
+            'importList' => Configuration::get('KEY_IMPORT_LIST'),
             'confirmationEmail' => Configuration::get('KEY_CONFIRMATION_EMAIL'),
             'updateExisting' => Configuration::get('KEY_UPDATE_EXISTING'),
             'importAll' => Configuration::get('KEY_IMPORT_ALL'),
