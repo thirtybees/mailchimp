@@ -121,7 +121,6 @@ class MailChimp extends Module
         if (
             !parent::install()
             || !$this->registerHook('displayBackOfficeHeader')
-            || !$this->registerHook('orderConfirmation') // guest checkout
             || !$this->registerHook('actionCustomerAccountAdd') // front office account creation
             || !$this->registerHook('actionAdminCustomersControllerSaveAfter') // back office update customer
         ) {
@@ -591,28 +590,6 @@ class MailChimp extends Module
         if ($this->context->controller->controller_name) {
             if (Tools::isSubmit('module_name') && Tools::getValue('module_name') == 'mailchimp') {
                 $this->context->controller->addJS($this->_path . 'views/js/mailchimp.js');
-            }
-        }
-    }
-
-    public function hookOrderConfirmation($params)
-    {
-        // Try to load customer
-        $object = new Customer($this->context->cookie->id_customer);
-        if ($object && $object->id > 0) {
-            $subscription = (bool)$object->newsletter ? SUBSCRIPTION_SUBSCRIBED : SUBSCRIPTION_UNSUBSCRIBED;
-            $iso = Language::getIsoById($object->id_lang);
-            $customer = new MailChimpSubscriber(
-                $object->email,
-                $subscription,
-                $object->firstname,
-                $object->lastname,
-                $object->ip_registration_newsletter,
-                $this->getMailchimpLanguageByIso($iso),
-                $object->newsletter_date_add
-            );
-            if (!$this->addOrUpdateSubscription($customer)) {
-                PrestaShopLogger::addLog('MailChimp customer subscription failed: ' . $this->_mailchimp->getLastError());
             }
         }
     }
