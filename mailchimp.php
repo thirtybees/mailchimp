@@ -124,6 +124,7 @@ class MailChimp extends Module
             || !$this->registerHook('displayHeader')
             || !$this->registerHook('displayBackOfficeHeader')
             || !$this->registerHook('displayAdminHomeQuickLinks')
+            || !$this->registerHook('actionAdminCustomersControllerSaveAfter')
         ) {
             return false;
         }
@@ -419,15 +420,6 @@ class MailChimp extends Module
         );
     }
 
-    public function hookDisplayBackOfficeHeader($params)
-    {
-        if ($this->context->controller->controller_name) {
-            if (Tools::isSubmit('module_name') && Tools::getValue('module_name') == 'mailchimp') {
-                $this->context->controller->addJS($this->_path . 'views/js/mailchimp.js');
-            }
-        }
-    }
-
     private function _importList($list)
     {
         // Prepare the request
@@ -593,5 +585,36 @@ class MailChimp extends Module
             \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $lang);
         }
         return $lang;
+    }
+
+    public function hookDisplayBackOfficeHeader($params)
+    {
+        if ($this->context->controller->controller_name) {
+            if (Tools::isSubmit('module_name') && Tools::getValue('module_name') == 'mailchimp') {
+                $this->context->controller->addJS($this->_path . 'views/js/mailchimp.js');
+            }
+        }
+    }
+
+    public function hookActionAdminCustomersControllerSaveAfter($params)
+    {
+        if (Tools::isSubmit('newsletter')) {
+            // TODO: Make sure this is bulletproof
+            $object = $params['return'];
+            $subscription = (bool)Tools::getValue('newsletter') ? SUBSCRIPTION_SUBSCRIBED : SUBSCRIPTION_UNSUBSCRIBED;
+            $iso = Language::getIsoById($object->id_lang);
+            $customer = new MailChimpSubscriber(
+                $object->email,
+                $subscription,
+                $object->firstname,
+                $object->lastname,
+                $_SERVER['REMOTE_ADDR'],
+                $this->getMailchimpLanguageByIso($iso),
+                date('Y-m-d H:i:s')
+            );
+            if (!$this->addOrUpdateSubscription($customer)) {
+                PrestaShopLogger::addLog('MailChimp customer subscription failed: ' . $this->_mailchimp->getLastError());
+            }
+        }
     }
 }
