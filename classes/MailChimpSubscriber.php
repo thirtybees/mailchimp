@@ -32,6 +32,9 @@ class MailChimpSubscriber
     private $subscription;
     private $fname;
     private $lname;
+    private $ipSignup;
+    private $language; // example: "de"
+    private $timestampSignup;  // example: "2013-01-18T16:48:09+00:00"
 
     /**
      * MailChimpSubscriber constructor.
@@ -39,24 +42,33 @@ class MailChimpSubscriber
      * @param $subscription
      * @param $fname
      * @param $lname
+     * @param $ipSignup
+     * @param $language
+     * @param $timestampSignup
      */
-    public function __construct($email, $subscription, $fname, $lname)
+    public function __construct($email, $subscription, $fname, $lname, $ipSignup, $language, $timestampSignup)
     {
         $this->email = $email;
         $this->subscription = $subscription;
         $this->fname = $fname;
         $this->lname = $lname;
+        $this->ipSignup = $ipSignup;
+        $this->language = $language;
+        $this->timestampSignup = $timestampSignup;
     }
 
     public function getInJSONFormat()
     {
         $json = array(
-            'email' => $this->email,
-            'status' => $this->_getSubscriptionStatus($this->subscription),
-            'merge_fields' => array(
+            'email'            => $this->email,
+            'status'           => $this->_getSubscriptionStatus($this->subscription),
+            'merge_fields'     => array(
                 'FNAME' => $this->fname,
                 'LNAME' => $this->lname,
             ),
+            'ip_signup'        => $this->ipSignup,
+            'language'         => $this->language,
+            'timestamp_signup' => $this->timestampSignup,
         );
         return json_encode($json);
     }
@@ -147,6 +159,54 @@ class MailChimpSubscriber
     public function setLname($lname)
     {
         $this->lname = $lname;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getIpSignup()
+    {
+        return $this->ipSignup;
+    }
+
+    /**
+     * @param mixed $ipSignup
+     */
+    public function setIpSignup($ipSignup)
+    {
+        $this->ipSignup = $ipSignup;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getLanguage()
+    {
+        return $this->language;
+    }
+
+    /**
+     * @param mixed $language
+     */
+    public function setLanguage($language)
+    {
+        $this->language = $language;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getTimestampSignup()
+    {
+        return $this->timestampSignup;
+    }
+
+    /**
+     * @param mixed $timestampSignup
+     */
+    public function setTimestampSignup($timestampSignup)
+    {
+        $this->timestampSignup = $timestampSignup;
     }
 
 }
