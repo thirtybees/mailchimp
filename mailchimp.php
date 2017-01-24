@@ -428,11 +428,6 @@ class MailChimp extends Module
         }
     }
 
-    private function _addOrUpdateSubscription(MailChimpSubscriber $subscription)
-    {
-        return $this->_importList([ $subscription ]);
-    }
-
     private function _importList($list)
     {
         // Prepare the request
@@ -578,10 +573,25 @@ class MailChimp extends Module
                 );
             }
             foreach ($logLang as $lang => $value) {
-                \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $$lang);
+                \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $lang);
             }
         }
 
         return $list;
+    }
+
+    public function addOrUpdateSubscription(MailChimpSubscriber $subscription)
+    {
+        return $this->_importList([ $subscription ]);
+    }
+
+    public function getMailchimpLanguageByIso($iso)
+    {
+        $lang = $this->_mailChimpLanguages[$iso];
+        if ($lang == '') {
+            $lang = 'en';
+            \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $lang);
+        }
+        return $lang;
     }
 }

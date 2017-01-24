@@ -95,13 +95,13 @@ class MailChimpSubscriber
                 return 'subscribed';
                 break;
             case SUBSCRIPTION_UNSUBSCRIBED:
-                return 'subscribed';
+                return 'unsubscribed';
                 break;
             case SUBSCRIPTION_PENDING:
-                return 'subscribed';
+                return 'pending';
                 break;
             case SUBSCRIPTION_CLEANED:
-                return 'subscribed';
+                return 'cleaned';
                 break;
             default:
                 return 'pending';

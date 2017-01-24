@@ -73,6 +73,27 @@ class IdentityController extends IdentityControllerCore
                     }
                 }
 
+                // MARK: MailChimp integration
+                $mailchimp = Module::getInstanceByName('mailchimp');
+                if ($mailchimp && $mailchimp->active) { // Check if mailchimp module is up and running
+                    require_once _PS_MODULE_DIR_ . 'mailchimp/classes/MailChimpSubscriber.php';
+                    $subscription = Tools::isSubmit('newsletter') ? SUBSCRIPTION_SUBSCRIBED : SUBSCRIPTION_UNSUBSCRIBED;
+                    $iso = LanguageCore::getIsoById($this->customer->id_lang);
+                    $customer = new MailChimpSubscriber(
+                        $this->customer->email,
+                        $subscription,
+                        $this->customer->firstname,
+                        $this->customer->lastname,
+                        $_SERVER['REMOTE_ADDR'],
+                        $mailchimp->getMailchimpLanguageByIso($iso),
+                        date('Y-m-d H:i:s')
+                    );
+                    if (!$mailchimp->addOrUpdateSubscription($customer)) {
+                        PrestaShopLogger::addLog('MailChimp customer subscription failed: ' . $mailchimp->_mailchimp->getLastError());
+                    }
+                }
+                // //
+
                 if (!Tools::getIsset('optin')) {
                     $this->customer->optin = 0;
                 }
