@@ -295,11 +295,12 @@ class MailChimp extends Module
             );
 
             $lastImport = Configuration::get('KEY_LAST_IMPORT');
+            $lastImport = $lastImport == '' ? $this->l('No previous import has been found.') : date('Y-m-d H:i', $lastImport);
             $inputs2[] = array(
                 'type'   => 'checkbox',
                 'label'  => $this->l('Manual Import'),
                 'name'   => 'manualImport',
-                'desc'   => $this->l('Check this if you want Prestashop to do a manual import after you hit the Save button. Last import: ' . date('Y-m-d H:i', $lastImport)),
+                'desc'   => $this->l('Check this if you want Prestashop to do a manual import after you hit the Save button. Last import: ' . $lastImport),
                 'values' => array(
                     'query' => array(
                         array(
@@ -358,5 +359,24 @@ class MailChimp extends Module
                 $this->context->controller->addJS($this->_path . 'views/js/mailchimp.js');
             }
         }
+    }
+
+    private function _getFinalSubscribersList($all = false, $optedIn = false)
+    {
+        // Get subscriptions made through Newsletter Block
+        $list1 = $this->_getNewsletterBlockSubscriptions($optedIn);
+        // Get subscriptions made through either registration form or during guest checkout
+        $list2 = $this->_getCustomerSubscriptions($optedIn);
+        return array_merge($list1, $list2);
+    }
+
+    private function _getNewsletterBlockSubscriptions($optedIn = false)
+    {
+        return array();
+    }
+
+    private function _getCustomerSubscriptions($optedIn = false)
+    {
+        return array();
     }
 }

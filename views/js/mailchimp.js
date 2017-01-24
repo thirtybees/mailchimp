@@ -6,7 +6,7 @@ $(document).ready(function () {
         $(this).closest('.form-group').next().show();
     });
     if (typeof($('#importAll_on')) != 'undefined') {
-        if ($('#importAll_on').val() == '1') {
+        if ($('#importAll_on').attr('checked')) {
             $('#importAll_on').click();
         }
     }
