@@ -64,9 +64,9 @@ class MailChimpSubscriber
         $this->timestampSignup = $timestampSignup;
     }
 
-    public function getInJSONFormat()
+    public function getAsArray()
     {
-        $json = array(
+        return array(
             'email'            => $this->email,
             'status'           => $this->_getSubscriptionStatus($this->subscription),
             'merge_fields'     => array(
@@ -77,7 +77,11 @@ class MailChimpSubscriber
             'language'         => $this->language,
             'timestamp_signup' => $this->timestampSignup,
         );
-        return json_encode($json);
+    }
+
+    public function getAsJSON()
+    {
+        return json_encode($this->getAsArray());
     }
 
     private function _getSubscriptionStatus($subscription = null)

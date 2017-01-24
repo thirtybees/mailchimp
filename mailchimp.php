@@ -437,7 +437,7 @@ class MailChimp extends Module
             $sql = '
                 SELECT pn.`email`, pn.`newsletter_date_add`, 
                 pn.`ip_registration_newsletter`, pn.`active` 
-                FROM `ps_newsletter` pn
+                FROM `' . _DB_PREFIX_ . 'newsletter` pn
                 WHERE 1 
             ';
             // MARK: Loop through shop IDs if need be
@@ -453,6 +453,12 @@ class MailChimp extends Module
                 $subscription = (bool)Configuration::get('KEY_CONFIRMATION_EMAIL') ? SUBSCRIPTION_PENDING : SUBSCRIPTION_SUBSCRIBED;
                 // Get default shop language since Newsletter Block registrations don't contain any language info
                 $lang = $this->_mailChimpLanguages[$this->context->language->iso_code];
+                // Safety check
+                if ($lang == '') {
+                    \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $this->context->language->iso_code);
+                    $lang = 'en';
+                }
+                // Create and append subscribers
                 foreach ($result as $row) {
                     $list[] = new MailChimpSubscriber(
                         $row['email'],
@@ -471,6 +477,58 @@ class MailChimp extends Module
 
     private function _getCustomerSubscriptions($optedIn = false)
     {
-        return array();
+        $list = array();
+        $all = (bool)Configuration::get('KEY_IMPORT_ALL');
+        // TODO: Use helper methods to generate the query
+        $sql = '
+            SELECT pc.`email`, pc.`firstname`, pc.`lastname`,
+            pc.`ip_registration_newsletter`, pc.`newsletter_date_add`, pl.`iso_code`
+            FROM `' . _DB_PREFIX_ . 'customer` pc
+            LEFT JOIN `' . _DB_PREFIX_ . 'lang` pl ON pl.`id_lang` = pc.`id_lang`
+            WHERE 1 
+        ';
+        // MARK: Loop through shop IDs if need be
+        $sql .= 'AND pc.`id_shop` = ' . $this->_idShop . ' ';
+
+        if (!$all) {
+            $sql .= 'AND pc.`newsletter` = 1 ';
+            $sql .= 'AND pc.`deleted` = 0 ';
+            // Opt-in selection is only valid if not all users have been asked
+            if ($optedIn) {
+                $sql .= 'AND pc.`optin` = 1 ';
+            }
+        }
+
+        $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->ExecuteS($sql);
+
+        if ($result) {
+            // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
+            $subscription = (bool)Configuration::get('KEY_CONFIRMATION_EMAIL') ? SUBSCRIPTION_PENDING : SUBSCRIPTION_SUBSCRIBED;
+            // Create an array for non-exist language codes
+            $logLang = array();
+            // Create and append subscribers
+            foreach ($result as $row) {
+                $lang = $this->_mailChimpLanguages[$row['iso_code']];
+                // Safety check
+                if ($lang == '') {
+                    $logLang[$lang] = true;
+                    $lang = 'en';
+                }
+                $list[] = new MailChimpSubscriber(
+                    $row['email'],
+                    $subscription,
+                    $row['firstname'],
+                    $row['lastname'],
+                    $row['ip_registration_newsletter'],
+                    $lang,
+                    $row['newsletter_date_add']
+                );
+            }
+            foreach ($logLang as $lang => $value) {
+                \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $$lang);
+            }
+        }
+
+        return $list;
     }
 }
