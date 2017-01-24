@@ -22,6 +22,7 @@ if (!defined('_PS_VERSION_')) {
 }
 
 require_once dirname(__FILE__) . '/lib/autoload.php';
+require_once dirname(__FILE__) . '/classes/MailChimpSubscriber.php';
 
 class MailChimp extends Module
 {
