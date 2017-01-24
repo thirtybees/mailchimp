@@ -26,6 +26,7 @@ require_once dirname(__FILE__) . '/classes/MailChimpSubscriber.php';
 
 class MailChimp extends Module
 {
+    // Prestashop configuration constants
     const KEY_API_KEY = 'MAILCHIMP_API_KEY';
     const KEY_IMPORT_LIST = 'MAILCHIMP_IMPORT_LIST';
     const KEY_CONFIRMATION_EMAIL = 'MAILCHIMP_CONFIRMATION_EMAIL';
@@ -33,6 +34,8 @@ class MailChimp extends Module
     const KEY_IMPORT_ALL = 'MAILCHIMP_IMPORT_ALL';
     const KEY_IMPORT_OPTED_IN = 'MAILCHIMP_IMPORT_OPTED_IN';
     const KEY_LAST_IMPORT = 'MAILCHIMP_LAST_IMPORT';
+    const KEY_LAST_IMPORT_ID = 'MAILCHIMP_LAST_IMPORT_ID';
+    // //
 
     private $_mailChimpLanguages = array(
         'en' => 'en',
@@ -137,6 +140,7 @@ class MailChimp extends Module
             || !Configuration::deleteByName('KEY_IMPORT_ALL')
             || !Configuration::deleteByName('KEY_IMPORT_OPTED_IN')
             || !Configuration::deleteByName('KEY_LAST_IMPORT')
+            || !Configuration::deleteByName('KEY_LAST_IMPORT_ID')
 
         ) {
             return false;
@@ -188,8 +192,48 @@ class MailChimp extends Module
                 $this->_html .= $this->displayConfirmation($this->l('Settings updated.'));
                 // Check if asked for a manual import
                 if (Tools::isSubmit('manualImport_0') && (bool)Tools::getValue('manualImport_0')) {
-                    $import = true; // TODO: Make the import
+                    $import = false; // TODO: Make the import
+                    // Get subscribers list from Prestashop
+                    $all = (bool)Configuration::get('KEY_IMPORT_ALL');
+                    $optIn = (bool)Configuration::get('KEY_IMPORT_OPTED_IN');
+                    $list = $this->_getFinalSubscribersList($all, $optIn);
+                    // //
+                    // Prepare the request
+                    $mailchimp = new \ThirtyBees\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
+                    $mailchimp->verifySsl = false;
+
+                    // MARK: Test zone
+                    if (false) {
+                    // if (true) {
+                        $Batch = $mailchimp->newBatch(Configuration::get('KEY_LAST_IMPORT_ID'));
+                        $result = $Batch->checkStatus();
+                        d($result);
+                    }
+                    //
+
+                    $batch = $mailchimp->newBatch();
+                    // //
+                    // Append subscribers to batch operation request using PUT method (to enable update existing)
+                    for ($i = 0; $i < count($list); $i++) {
+                        $subscriber = $list[$i];
+                        $hash = $mailchimp->subscriberHash($subscriber->getEmail());
+                        $url = sprintf('lists/%s/members/%s', Configuration::get('KEY_IMPORT_LIST'), $hash);
+                        $batch->put('op'.($i + 1), $url, $subscriber->getAsArray());
+                    }
+                    // //
+                    // Execute the batch and check status
+                    $result = $batch->execute();
                     $error = '';
+                    if (!$result) {
+                        $error = $mailchimp->getLastError();
+                    } else {
+                        $batchId = $result['id'];
+                        \PrestaShopLogger::addLog('MailChimp batch operation started with ID: ' . $batchId);
+                        Configuration::updateValue('KEY_LAST_IMPORT_ID', $batchId);
+                        $import = true;
+                    }
+                    // //
+                    // Inform the user
                     if ($import) {
                         $this->_html .= $this->displayConfirmation($this->l('Import started. Please note that it might take a while to complete process.'));
                         // Save the last import
@@ -197,6 +241,7 @@ class MailChimp extends Module
                     } else {
                         $this->_html .= $this->displayError($error);
                     }
+                    // //
                 }
             } else {
                 $this->_html .= $this->displayError($this->l('Some of the settings could not be saved.'));
@@ -423,7 +468,7 @@ class MailChimp extends Module
         // Get subscriptions made through Newsletter Block
         $list1 = $this->_getNewsletterBlockSubscriptions($optedIn);
         // Get subscriptions made through either registration form or during guest checkout
-        $list2 = $this->_getCustomerSubscriptions($optedIn);
+        $list2 = $this->_getCustomerSubscriptions($all, $optedIn);
         return array_merge($list1, $list2);
     }
 
@@ -475,10 +520,9 @@ class MailChimp extends Module
         return $list;
     }
 
-    private function _getCustomerSubscriptions($optedIn = false)
+    private function _getCustomerSubscriptions($all = false, $optedIn = false)
     {
         $list = array();
-        $all = (bool)Configuration::get('KEY_IMPORT_ALL');
         // TODO: Use helper methods to generate the query
         $sql = '
             SELECT pc.`email`, pc.`firstname`, pc.`lastname`,

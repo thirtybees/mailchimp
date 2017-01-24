@@ -51,7 +51,7 @@ class MailChimpSubscriber
         $subscription,
         $fname = '',
         $lname = '',
-        $ipSignup,
+        $ipSignup = '',
         $language,
         $timestampSignup
     ) {
@@ -67,13 +67,14 @@ class MailChimpSubscriber
     public function getAsArray()
     {
         return array(
-            'email'            => $this->email,
+            'email_address'    => $this->email,
             'status'           => $this->_getSubscriptionStatus($this->subscription),
+            'status_if_new'    => $this->_getSubscriptionStatus($this->subscription),
             'merge_fields'     => array(
-                'FNAME' => $this->fname,
-                'LNAME' => $this->lname,
+                'FNAME' => ($this->fname == '') ? '-' : $this->fname,
+                'LNAME' => ($this->lname == '') ? '-' : $this->lname,
             ),
-            'ip_signup'        => $this->ipSignup,
+            'ip_signup'        => ($this->ipSignup == '') ? '' : $this->ipSignup,
             'language'         => $this->language,
             'timestamp_signup' => $this->timestampSignup,
         );
