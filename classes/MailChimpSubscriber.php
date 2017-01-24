@@ -46,8 +46,15 @@ class MailChimpSubscriber
      * @param $language
      * @param $timestampSignup
      */
-    public function __construct($email, $subscription, $fname, $lname, $ipSignup, $language, $timestampSignup)
-    {
+    public function __construct(
+        $email,
+        $subscription,
+        $fname = '',
+        $lname = '',
+        $ipSignup,
+        $language,
+        $timestampSignup
+    ) {
         $this->email = $email;
         $this->subscription = $subscription;
         $this->fname = $fname;

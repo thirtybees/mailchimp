@@ -34,7 +34,62 @@ class MailChimp extends Module
     const KEY_IMPORT_OPTED_IN = 'MAILCHIMP_IMPORT_OPTED_IN';
     const KEY_LAST_IMPORT = 'MAILCHIMP_LAST_IMPORT';
 
+    private $_mailChimpLanguages = array(
+        'en' => 'en',
+        'ar' => 'ar',
+        'af' => 'af',
+        'be' => 'be',
+        'bg' => 'bg',
+        'ca' => 'ca',
+        'zh' => 'zh',
+        'hr' => 'hr',
+        'cs' => 'cs',
+        'da' => 'da',
+        'nl' => 'nl',
+        'et' => 'et',
+        'fa' => 'fa',
+        'fi' => 'fi',
+        'fr' => 'fr',
+        'qc' => 'fr_CA',
+        'de' => 'de',
+        'el' => 'el',
+        'he' => 'he',
+        'hi' => 'hi',
+        'hu' => 'hu',
+        'is' => 'is',
+        'id' => 'id',
+        'ga' => 'ga',
+        'it' => 'it',
+        'ja' => 'ja',
+        'km' => 'km',
+        'ko' => 'ko',
+        'lv' => 'lv',
+        'lt' => 'lt',
+        'mt' => 'mt',
+        'ms' => 'ms',
+        'mk' => 'mk',
+        'no' => 'no',
+        'pl' => 'pl',
+        'br' => 'pt',
+        'pt' => 'pt_PT',
+        'ro' => 'ro',
+        'ru' => 'ru',
+        'sr' => 'sr',
+        'sk' => 'sk',
+        'si' => 'sl',
+        'mx' => 'es',
+        'es' => 'es',
+        'sw' => 'sw',
+        'sv' => 'sv',
+        'ta' => 'ta',
+        'th' => 'th',
+        'tr' => 'tr',
+        'uk' => 'uk',
+        'vi' => 'vi',
+        'gb' => 'en',
+    );
     private $_html = '';
+    private $_idShop;
 
     public function __construct()
     {
@@ -53,6 +108,8 @@ class MailChimp extends Module
 
         $this->displayName = $this->l('MailChimp');
         $this->description = $this->l('Synchronize with MailChimp');
+        // TODO: This can be asked (i.e. whether to import all shops)
+        $this->_idShop = (int)Context::getContext()->shop->id;
     }
 
     public function install()
@@ -372,7 +429,44 @@ class MailChimp extends Module
 
     private function _getNewsletterBlockSubscriptions($optedIn = false)
     {
-        return array();
+        $list = array();
+        // Check if the module exists
+        $moduleNewsletter = \Module::getInstanceByName('blocknewsletter');
+        if ($moduleNewsletter) {
+            // TODO: Use helper methods to generate the query
+            $sql = '
+                SELECT pn.`email`, pn.`newsletter_date_add`, 
+                pn.`ip_registration_newsletter`, pn.`active` 
+                FROM `ps_newsletter` pn
+                WHERE 1 
+            ';
+            // MARK: Loop through shop IDs if need be
+            $sql .= 'AND pn.`id_shop` = ' . $this->_idShop . ' ';
+            if ($optedIn) {
+                $sql .= 'AND pn.`active` = 1 ';
+            }
+
+            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->ExecuteS($sql);
+
+            if ($result) {
+                // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
+                $subscription = (bool)Configuration::get('KEY_CONFIRMATION_EMAIL') ? SUBSCRIPTION_PENDING : SUBSCRIPTION_SUBSCRIBED;
+                // Get default shop language since Newsletter Block registrations don't contain any language info
+                $lang = $this->_mailChimpLanguages[$this->context->language->iso_code];
+                foreach ($result as $row) {
+                    $list[] = new MailChimpSubscriber(
+                        $row['email'],
+                        $subscription,
+                        null,
+                        null,
+                        $row['ip_registration_newsletter'],
+                        $lang,
+                        $row['newsletter_date_add']
+                    );
+                }
+            }
+        }
+        return $list;
     }
 
     private function _getCustomerSubscriptions($optedIn = false)
