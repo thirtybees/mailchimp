@@ -93,6 +93,7 @@ class MailChimp extends Module
     );
     private $_html = '';
     private $_idShop;
+    private $_mailchimp;
 
     public function __construct()
     {
@@ -141,7 +142,6 @@ class MailChimp extends Module
             || !Configuration::deleteByName('KEY_IMPORT_OPTED_IN')
             || !Configuration::deleteByName('KEY_LAST_IMPORT')
             || !Configuration::deleteByName('KEY_LAST_IMPORT_ID')
-
         ) {
             return false;
         }
@@ -192,54 +192,14 @@ class MailChimp extends Module
                 $this->_html .= $this->displayConfirmation($this->l('Settings updated.'));
                 // Check if asked for a manual import
                 if (Tools::isSubmit('manualImport_0') && (bool)Tools::getValue('manualImport_0')) {
-                    $import = false; // TODO: Make the import
-                    // Get subscribers list from Prestashop
-                    $all = (bool)Configuration::get('KEY_IMPORT_ALL');
-                    $optIn = (bool)Configuration::get('KEY_IMPORT_OPTED_IN');
-                    $list = $this->_getFinalSubscribersList($all, $optIn);
-                    // //
-                    // Prepare the request
-                    $mailchimp = new \ThirtyBees\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
-                    $mailchimp->verifySsl = false;
-
-                    // MARK: Test zone
-                    if (false) {
-                    // if (true) {
-                        $Batch = $mailchimp->newBatch(Configuration::get('KEY_LAST_IMPORT_ID'));
-                        $result = $Batch->checkStatus();
-                        d($result);
-                    }
-                    //
-
-                    $batch = $mailchimp->newBatch();
-                    // //
-                    // Append subscribers to batch operation request using PUT method (to enable update existing)
-                    for ($i = 0; $i < count($list); $i++) {
-                        $subscriber = $list[$i];
-                        $hash = $mailchimp->subscriberHash($subscriber->getEmail());
-                        $url = sprintf('lists/%s/members/%s', Configuration::get('KEY_IMPORT_LIST'), $hash);
-                        $batch->put('op'.($i + 1), $url, $subscriber->getAsArray());
-                    }
-                    // //
-                    // Execute the batch and check status
-                    $result = $batch->execute();
-                    $error = '';
-                    if (!$result) {
-                        $error = $mailchimp->getLastError();
-                    } else {
-                        $batchId = $result['id'];
-                        \PrestaShopLogger::addLog('MailChimp batch operation started with ID: ' . $batchId);
-                        Configuration::updateValue('KEY_LAST_IMPORT_ID', $batchId);
-                        $import = true;
-                    }
-                    // //
+                    $import = $this->_manualImportLists();
                     // Inform the user
                     if ($import) {
                         $this->_html .= $this->displayConfirmation($this->l('Import started. Please note that it might take a while to complete process.'));
                         // Save the last import
                         Configuration::updateValue('KEY_LAST_IMPORT', time());
                     } else {
-                        $this->_html .= $this->displayError($error);
+                        $this->_html .= $this->displayError($this->_mailchimp->getLastError());
                     }
                     // //
                 }
@@ -461,6 +421,50 @@ class MailChimp extends Module
                 $this->context->controller->addJS($this->_path . 'views/js/mailchimp.js');
             }
         }
+    }
+
+    private function _manualImportLists()
+    {
+        // Get subscribers list from Prestashop
+        $all = (bool)Configuration::get('KEY_IMPORT_ALL');
+        $optIn = (bool)Configuration::get('KEY_IMPORT_OPTED_IN');
+        $list = $this->_getFinalSubscribersList($all, $optIn);
+        // //
+        // Prepare the request
+        $mailchimp = new \ThirtyBees\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
+        $mailchimp->verifySsl = false;
+
+        // MARK: Test zone
+        if (false) {
+            // if (true) {
+            $Batch = $mailchimp->newBatch(Configuration::get('KEY_LAST_IMPORT_ID'));
+            $result = $Batch->checkStatus();
+            d($result);
+        }
+        //
+
+        $batch = $mailchimp->newBatch();
+        // //
+        // Append subscribers to batch operation request using PUT method (to enable update existing)
+        for ($i = 0; $i < count($list); $i++) {
+            $subscriber = $list[$i];
+            $hash = $mailchimp->subscriberHash($subscriber->getEmail());
+            $url = sprintf('lists/%s/members/%s', Configuration::get('KEY_IMPORT_LIST'), $hash);
+            $batch->put('op'.($i + 1), $url, $subscriber->getAsArray());
+        }
+        // //
+        // Execute the batch and check status
+        $result = $batch->execute();
+        $error = '';
+        if (!$result) {
+            return false;
+        } else {
+            $batchId = $result['id'];
+            \PrestaShopLogger::addLog('MailChimp batch operation started with ID: ' . $batchId);
+            Configuration::updateValue('KEY_LAST_IMPORT_ID', $batchId);
+            return true;
+        }
+        // //
     }
 
     private function _getFinalSubscribersList($all = false, $optedIn = false)
