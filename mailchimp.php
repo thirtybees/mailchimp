@@ -12,9 +12,9 @@
  * obtain it through the world-wide-web, please send an email
  * to license@thirtybees.com so we can send you a copy immediately.
  *
- *  @author    Thirty Bees <modules@thirtybees.com>
- *  @copyright 2017 Thirty Bees
- *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @author    Thirty Bees <modules@thirtybees.com>
+ * @copyright 2017 Thirty Bees
+ * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
 if (!defined('_PS_VERSION_')) {
@@ -26,10 +26,11 @@ require_once dirname(__FILE__) . '/lib/autoload.php';
 class MailChimp extends Module
 {
     const KEY_API_KEY = 'MAILCHIMP_API_KEY';
-    const KEY_IMPORT_LIST= 'MAILCHIMP_IMPORT_LIST';
+    const KEY_IMPORT_LIST = 'MAILCHIMP_IMPORT_LIST';
     const KEY_CONFIRMATION_EMAIL = 'MAILCHIMP_CONFIRMATION_EMAIL';
     const KEY_UPDATE_EXISTING = 'MAILCHIMP_UPDATE_EXISTING';
     const KEY_IMPORT_ALL = 'MAILCHIMP_IMPORT_ALL';
+    const KEY_IMPORT_OPTED_IN = 'MAILCHIMP_IMPORT_OPTED_IN';
     const KEY_LAST_IMPORT = 'MAILCHIMP_LAST_IMPORT';
 
     private $_html = '';
@@ -76,6 +77,8 @@ class MailChimp extends Module
             || !Configuration::deleteByName('KEY_CONFIRMATION_EMAIL')
             || !Configuration::deleteByName('KEY_UPDATE_EXISTING')
             || !Configuration::deleteByName('KEY_IMPORT_ALL')
+            || !Configuration::deleteByName('KEY_IMPORT_OPTED_IN')
+            || !Configuration::deleteByName('KEY_LAST_IMPORT')
 
         ) {
             return false;
@@ -116,12 +119,14 @@ class MailChimp extends Module
             }
         } else if (Tools::isSubmit('submitSettings')) {
             // Update all the configuration
-            $update1 = Configuration::updateValue('KEY_IMPORT_LIST', Tools::getValue('importList'));
-            $update2 = Configuration::updateValue('KEY_CONFIRMATION_EMAIL', Tools::getValue('confirmationEmail'));
-            $update3 = Configuration::updateValue('KEY_UPDATE_EXISTING', Tools::getValue('updateExisting'));
-            $update4 = Configuration::updateValue('KEY_IMPORT_ALL', Tools::getValue('importAll'));
-            // Check if updates were successful
-            if ($update1 && $update2 && $update3 && $update4) {
+            // And check if updates were successful
+            if (
+                Configuration::updateValue('KEY_IMPORT_LIST', Tools::getValue('importList'))
+                && Configuration::updateValue('KEY_CONFIRMATION_EMAIL', Tools::getValue('confirmationEmail'))
+                && Configuration::updateValue('KEY_UPDATE_EXISTING', Tools::getValue('updateExisting'))
+                && Configuration::updateValue('KEY_IMPORT_ALL', Tools::getValue('importAll'))
+                && Configuration::updateValue('KEY_IMPORT_OPTED_IN', Tools::getValue('importOptedIn'))
+            ) {
                 $this->_html .= $this->displayConfirmation($this->l('Settings updated.'));
                 // Check if asked for a manual import
                 if (Tools::isSubmit('manualImport_0') && (bool)Tools::getValue('manualImport_0')) {
@@ -153,23 +158,23 @@ class MailChimp extends Module
         $inputs1 = array();
 
         $inputs1[] = array(
-            'type' => 'text',
+            'type'  => 'text',
             'label' => $this->l('API Key'),
-            'name' => 'mailchimpApiKey',
-            'desc' => $this->l('Please enter your MailChimp API key. This can be found in your MailChimp Dashboard -> Account -> Extras -> API keys.'),
+            'name'  => 'mailchimpApiKey',
+            'desc'  => $this->l('Please enter your MailChimp API key. This can be found in your MailChimp Dashboard -> Account -> Extras -> API keys.'),
         );
 
         $fieldsForm1 = array(
             'form' => array(
                 'legend' => array(
                     'title' => $this->l('API Settings'),
-                    'icon' => 'icon-cogs',
+                    'icon'  => 'icon-cogs',
                 ),
-                'input' => $inputs1,
+                'input'  => $inputs1,
                 'submit' => array(
                     'title' => $this->l('Save'),
                     'class' => 'btn btn-default pull-right',
-                    'name' => 'submitApiKey',
+                    'name'  => 'submitApiKey',
                 ),
             ),
         );
@@ -199,30 +204,30 @@ class MailChimp extends Module
             $inputs2 = array();
 
             $inputs2[] = array(
-                'type' => 'select',
-                'label' => $this->l('Import to List'),
-                'name' => 'importList',
-                'desc' => $this->l('Please select a MailChimp list to import subscriptions to.'),
+                'type'    => 'select',
+                'label'   => $this->l('Import to List'),
+                'name'    => 'importList',
+                'desc'    => $this->l('Please select a MailChimp list to import subscriptions to.'),
                 'options' => array(
                     'query' => $lists,
-                    'id' => 'id',
-                    'name' => 'name',
+                    'id'    => 'id',
+                    'name'  => 'name',
                 ),
             );
 
             $inputs2[] = array(
-                'type' => 'switch',
-                'label' => $this->l('Confirmation Email'),
-                'name' => 'confirmationEmail',
-                'desc' => $this->l('Mailchimp can send a confirmation email after import to the customers, turn on if you wish to inform your customers about the subscription.'),
+                'type'   => 'switch',
+                'label'  => $this->l('Confirmation Email'),
+                'name'   => 'confirmationEmail',
+                'desc'   => $this->l('If you turn this on, Mailchimp will send an email to customers asking them to confirm their subscription.'),
                 'values' => array(
                     array(
-                        'id' => 'confirmationSwitch_on',
+                        'id'    => 'confirmationSwitch_on',
                         'value' => 1,
                         'label' => $this->l('Enabled'),
                     ),
                     array(
-                        'id' => 'confirmationSwitch_off',
+                        'id'    => 'confirmationSwitch_off',
                         'value' => 0,
                         'label' => $this->l('Disabled'),
                     ),
@@ -230,18 +235,18 @@ class MailChimp extends Module
             );
 
             $inputs2[] = array(
-                'type' => 'switch',
-                'label' => $this->l('Update if exists'),
-                'name' => 'updateExisting',
-                'desc' => $this->l('Do you wish to update the subscribers details if they alredy exists?'),
+                'type'   => 'switch',
+                'label'  => $this->l('Update if exists'),
+                'name'   => 'updateExisting',
+                'desc'   => $this->l('Do you wish to update the subscriber details if they already exist?'),
                 'values' => array(
                     array(
-                        'id' => 'updateSwitch_on',
+                        'id'    => 'updateSwitch_on',
                         'value' => 1,
                         'label' => $this->l('Enabled'),
                     ),
                     array(
-                        'id' => 'updateSwitch_off',
+                        'id'    => 'updateSwitch_off',
                         'value' => 0,
                         'label' => $this->l('Disabled'),
                     ),
@@ -249,18 +254,39 @@ class MailChimp extends Module
             );
 
             $inputs2[] = array(
-                'type' => 'switch',
-                'label' => $this->l('Import All Customers'),
-                'name' => 'importAll',
-                'desc' => $this->l('Turn this on if you wish to import all of the users. This means that the module ignores the customers newsletter option.'),
+                'type'   => 'switch',
+                'label'  => $this->l('Import All Customers'),
+                'name'   => 'importAll',
+                'desc'   => $this->l('Turn this on if you wish to import all of the users. This means that the module ignores the customer\'s subscription choice.'),
+                'id'     => 'importAll',
                 'values' => array(
                     array(
-                        'id' => 'importSwitch_on',
+                        'id'    => 'importSwitch_on',
                         'value' => 1,
                         'label' => $this->l('Enabled'),
                     ),
                     array(
-                        'id' => 'importSwitch_off',
+                        'id'    => 'importSwitch_off',
+                        'value' => 0,
+                        'label' => $this->l('Disabled'),
+                    ),
+                ),
+            );
+
+            $inputs2[] = array(
+                'type'   => 'switch',
+                'label'  => $this->l('Opted-In Only'),
+                'name'   => 'importOptedIn',
+                'desc'   => $this->l('This will only import customers that has opted-in to the newsletter.'),
+                'id'     => 'importOptedIn',
+                'values' => array(
+                    array(
+                        'id'    => 'optedInSwitch_on',
+                        'value' => 1,
+                        'label' => $this->l('Enabled'),
+                    ),
+                    array(
+                        'id'    => 'optedInSwitch_off',
                         'value' => 0,
                         'label' => $this->l('Disabled'),
                     ),
@@ -269,19 +295,19 @@ class MailChimp extends Module
 
             $lastImport = Configuration::get('KEY_LAST_IMPORT');
             $inputs2[] = array(
-                'type' => 'checkbox',
-                'label' => $this->l('Manual Import'),
-                'name' => 'manualImport',
-                'desc' => $this->l('Check this if you want Prestashop to do a manual import after you hit the Save button. Last import: ' . date('Y-m-d H:i', $lastImport)),
+                'type'   => 'checkbox',
+                'label'  => $this->l('Manual Import'),
+                'name'   => 'manualImport',
+                'desc'   => $this->l('Check this if you want Prestashop to do a manual import after you hit the Save button. Last import: ' . date('Y-m-d H:i', $lastImport)),
                 'values' => array(
                     'query' => array(
                         array(
                             'id_option' => 0,
-                            'name' => $this->l('Import Now'),
+                            'name'      => $this->l('Import Now'),
                         ),
                     ),
-                    'id' => 'id_option',
-                    'name' => 'name',
+                    'id'    => 'id_option',
+                    'name'  => 'name',
                 ),
             );
 
@@ -289,13 +315,13 @@ class MailChimp extends Module
                 'form' => array(
                     'legend' => array(
                         'title' => $this->l('Import Settings'),
-                        'icon' => 'icon-cogs',
+                        'icon'  => 'icon-cogs',
                     ),
-                    'input' => $inputs2,
+                    'input'  => $inputs2,
                     'submit' => array(
                         'title' => $this->l('Save'),
                         'class' => 'btn btn-default pull-right',
-                        'name' => 'submitSettings',
+                        'name'  => 'submitSettings',
                     ),
                 ),
             );
@@ -315,11 +341,21 @@ class MailChimp extends Module
     private function _getConfigFieldsValues()
     {
         return array(
-            'mailchimpApiKey' => Configuration::get('KEY_API_KEY'),
-            'importList' => Configuration::get('KEY_IMPORT_LIST'),
+            'mailchimpApiKey'   => Configuration::get('KEY_API_KEY'),
+            'importList'        => Configuration::get('KEY_IMPORT_LIST'),
             'confirmationEmail' => Configuration::get('KEY_CONFIRMATION_EMAIL'),
-            'updateExisting' => Configuration::get('KEY_UPDATE_EXISTING'),
-            'importAll' => Configuration::get('KEY_IMPORT_ALL'),
+            'updateExisting'    => Configuration::get('KEY_UPDATE_EXISTING'),
+            'importAll'         => Configuration::get('KEY_IMPORT_ALL'),
+            'importOptedIn'     => Configuration::get('KEY_IMPORT_OPTED_IN'),
         );
+    }
+
+    public function hookDisplayBackOfficeHeader($params)
+    {
+        if ($this->context->controller->controller_name) {
+            if (Tools::isSubmit('module_name') && Tools::getValue('module_name') == 'mailchimp') {
+                $this->context->controller->addJS($this->_path . 'views/js/mailchimp.js');
+            }
+        }
     }
 }
