@@ -30,6 +30,7 @@ class MailChimp extends Module
     const KEY_CONFIRMATION_EMAIL = 'MAILCHIMP_CONFIRMATION_EMAIL';
     const KEY_UPDATE_EXISTING = 'MAILCHIMP_UPDATE_EXISTING';
     const KEY_IMPORT_ALL = 'MAILCHIMP_IMPORT_ALL';
+    const KEY_LAST_IMPORT = 'MAILCHIMP_LAST_IMPORT';
 
     private $_html = '';
 
@@ -114,12 +115,26 @@ class MailChimp extends Module
                 $this->_html .= $this->displayError($e->getMessage());
             }
         } else if (Tools::isSubmit('submitSettings')) {
+            // Update all the configuration
             $update1 = Configuration::updateValue('KEY_IMPORT_LIST', Tools::getValue('importList'));
-            $update1 = Configuration::updateValue('KEY_CONFIRMATION_EMAIL', Tools::getValue('confirmationEmail'));
-            $update2 = Configuration::updateValue('KEY_UPDATE_EXISTING', Tools::getValue('updateExisting'));
-            $update3 = Configuration::updateValue('KEY_IMPORT_ALL', Tools::getValue('importAll'));
-            if ($update1 && $update2 && $update3) {
+            $update2 = Configuration::updateValue('KEY_CONFIRMATION_EMAIL', Tools::getValue('confirmationEmail'));
+            $update3 = Configuration::updateValue('KEY_UPDATE_EXISTING', Tools::getValue('updateExisting'));
+            $update4 = Configuration::updateValue('KEY_IMPORT_ALL', Tools::getValue('importAll'));
+            // Check if updates were successful
+            if ($update1 && $update2 && $update3 && $update4) {
                 $this->_html .= $this->displayConfirmation($this->l('Settings updated.'));
+                // Check if asked for a manual import
+                if (Tools::isSubmit('manualImport_0') && (bool)Tools::getValue('manualImport_0')) {
+                    $import = true; // TODO: Make the import
+                    $error = '';
+                    if ($import) {
+                        $this->_html .= $this->displayConfirmation($this->l('Import started. Please note that it might take a while to complete process.'));
+                        // Save the last import
+                        Configuration::updateValue('KEY_LAST_IMPORT', time());
+                    } else {
+                        $this->_html .= $this->displayError($error);
+                    }
+                }
             } else {
                 $this->_html .= $this->displayError($this->l('Some of the settings could not be saved.'));
             }
@@ -202,12 +217,12 @@ class MailChimp extends Module
                 'desc' => $this->l('Mailchimp can send a confirmation email after import to the customers, turn on if you wish to inform your customers about the subscription.'),
                 'values' => array(
                     array(
-                        'id' => 'switch_on',
+                        'id' => 'confirmationSwitch_on',
                         'value' => 1,
                         'label' => $this->l('Enabled'),
                     ),
                     array(
-                        'id' => 'switch_off',
+                        'id' => 'confirmationSwitch_off',
                         'value' => 0,
                         'label' => $this->l('Disabled'),
                     ),
@@ -221,12 +236,12 @@ class MailChimp extends Module
                 'desc' => $this->l('Do you wish to update the subscribers details if they alredy exists?'),
                 'values' => array(
                     array(
-                        'id' => 'switch_on',
+                        'id' => 'updateSwitch_on',
                         'value' => 1,
                         'label' => $this->l('Enabled'),
                     ),
                     array(
-                        'id' => 'switch_off',
+                        'id' => 'updateSwitch_off',
                         'value' => 0,
                         'label' => $this->l('Disabled'),
                     ),
@@ -240,15 +255,33 @@ class MailChimp extends Module
                 'desc' => $this->l('Turn this on if you wish to import all of the users. This means that the module ignores the customers newsletter option.'),
                 'values' => array(
                     array(
-                        'id' => 'switch_on',
+                        'id' => 'importSwitch_on',
                         'value' => 1,
                         'label' => $this->l('Enabled'),
                     ),
                     array(
-                        'id' => 'switch_off',
+                        'id' => 'importSwitch_off',
                         'value' => 0,
                         'label' => $this->l('Disabled'),
                     ),
+                ),
+            );
+
+            $lastImport = Configuration::get('KEY_LAST_IMPORT');
+            $inputs2[] = array(
+                'type' => 'checkbox',
+                'label' => $this->l('Manual Import'),
+                'name' => 'manualImport',
+                'desc' => $this->l('Check this if you want Prestashop to do a manual import after you hit the Save button. Last import: ' . date('Y-m-d H:i', $lastImport)),
+                'values' => array(
+                    'query' => array(
+                        array(
+                            'id_option' => 0,
+                            'name' => $this->l('Import Now'),
+                        ),
+                    ),
+                    'id' => 'id_option',
+                    'name' => 'name',
                 ),
             );
 
