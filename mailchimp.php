@@ -193,6 +193,13 @@ class MailChimp extends Module
                 && Configuration::updateValue('KEY_IMPORT_OPTED_IN', Tools::getValue('importOptedIn'))
             ) {
                 $this->_html .= $this->displayConfirmation($this->l('Settings updated.'));
+                // Create MailChimp side webhooks
+                // TODO: Check if the hooks have been defined before (over DB or API calls)
+                $register = $this->_registerWebhookForList(Configuration::get('KEY_IMPORT_LIST'));
+                if (!$register) {
+                    $this->_html .= $this->displayError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
+                }
+                // //
                 // Check if asked for a manual import
                 if (Tools::isSubmit('manualImport_0') && (bool)Tools::getValue('manualImport_0')) {
                     // Get subscribers list from Prestashop
@@ -204,13 +211,6 @@ class MailChimp extends Module
                     if ($import) {
                         // Inform the user
                         $this->_html .= $this->displayConfirmation($this->l('Import started. Please note that it might take a while to complete process.'));
-                        // Create MailChimp side webhooks
-                        // TODO: Check if the hooks have been defined before (over DB or API calls)
-                        $register = $this->_registerWebhookForList(Configuration::get('KEY_IMPORT_LIST'));
-                        if (!$register) {
-                            $this->_html .= $this->displayError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
-                        }
-                        // //
                         // Save the last import
                         Configuration::updateValue('KEY_LAST_IMPORT', time());
                     } else {
