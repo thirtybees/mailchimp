@@ -12,53 +12,32 @@
  * obtain it through the world-wide-web, please send an email
  * to license@thirtybees.com so we can send you a copy immediately.
  *
- *  @author    Thirty Bees <modules@thirtybees.com>
- *  @copyright 2017 Thirty Bees
- *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @author    Thirty Bees <modules@thirtybees.com>
+ * @copyright 2017 Thirty Bees
+ * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-require_once dirname(__FILE__).'/classes/autoload.php';
-require_once dirname(__FILE__).'/lib/autoload.php';
+require_once dirname(__FILE__) . '/lib/autoload.php';
+require_once dirname(__FILE__) . '/classes/MailChimpSubscriber.php';
 
 class MailChimp extends Module
 {
-    const MIN_PHP_VERSION = 50303;
+    // Prestashop configuration constants
+    const KEY_API_KEY = 'MAILCHIMP_API_KEY';
+    const KEY_IMPORT_LIST = 'MAILCHIMP_IMPORT_LIST';
+    const KEY_CONFIRMATION_EMAIL = 'MAILCHIMP_CONFIRMATION_EMAIL';
+    const KEY_UPDATE_EXISTING = 'MAILCHIMP_UPDATE_EXISTING';
+    const KEY_IMPORT_ALL = 'MAILCHIMP_IMPORT_ALL';
+    const KEY_IMPORT_OPTED_IN = 'MAILCHIMP_IMPORT_OPTED_IN';
+    const KEY_LAST_IMPORT = 'MAILCHIMP_LAST_IMPORT';
+    const KEY_LAST_IMPORT_ID = 'MAILCHIMP_LAST_IMPORT_ID';
+    // //
 
-    const SETTINGS = 'MAILCHIMP_SETTINGS';
-    const FORM = 'MAILCHIMP_FORM';
-
-    const MENU_SETTINGS = 1;
-    const MENU_SUBSCRIBERS = 2;
-
-    protected $apiKey;
-    protected $ssl;
-    protected $module_path;
-    protected $admin_tpl_path;
-    protected $front_tpl_path;
-    protected $hooks_tpl_path;
-
-    /** @var string $moduleUrl */
-    public $moduleUrl;
-
-    /** @var array $message */
-    public $message = array();
-
-    public $hooks = array(
-        'top',
-        'leftColumn',
-        'rightColumn',
-        'footer',
-        'home',
-        'leftColumnProduct',
-        'rightColumnProduct',
-        'footerProduct',
-    );
-
-    public static $mailChimpLanguages = array(
+    private $_mailChimpLanguages = array(
         'en' => 'en',
         'ar' => 'ar',
         'af' => 'af',
@@ -112,10 +91,10 @@ class MailChimp extends Module
         'vi' => 'vi',
         'gb' => 'en',
     );
+    private $_html = '';
+    private $_idShop;
+    private $_mailchimp;
 
-    /**
-     * MailChimp constructor.
-     */
     public function __construct()
     {
         $this->name = 'mailchimp';
@@ -123,550 +102,538 @@ class MailChimp extends Module
         $this->version = '1.0.0';
         $this->author = 'Thirty Bees';
         $this->need_instance = 0;
-        $this->ps_versions_compliancy = array('min' => '1.5', 'max' => '1.6');
+        $this->bootstrap = true;
+        $this->ps_versions_compliancy = array(
+            'min' => '1.5',
+            'max' => _PS_VERSION_,
+        );
 
         parent::__construct();
 
         $this->displayName = $this->l('MailChimp');
         $this->description = $this->l('Synchronize with MailChimp');
-
-        $this->controllers = array('hook');
-
-        // Paths
-        $this->module_path = _PS_MODULE_DIR_.$this->name.'/';
-        $this->admin_tpl_path = _PS_MODULE_DIR_.$this->name.'/views/templates/admin/';
-        $this->front_tpl_path = _PS_MODULE_DIR_.$this->name.'/views/templates/front/';
-        $this->hooks_tpl_path = _PS_MODULE_DIR_.$this->name.'/views/templates/hooks/';
-
-        $this->message = array(
-            'text' => false,
-            'type' => 'conf',
-        );
-
-        // Only check from Back Office
-        if (isset(Context::getContext()->employee->id) && Context::getContext()->employee->id) {
-            if ($this->active && extension_loaded('curl') == false) {
-                $this->context->controller->errors[] = $this->displayName.': '.$this->l('You have to enable the cURL extension on your server in order to use this module');
-                $this->disable();
-
-                return;
-            }
-            if (PHP_VERSION_ID < self::MIN_PHP_VERSION) {
-                $this->context->controller->errors[] = $this->displayName.': '.$this->l('Your PHP version is not supported. Please upgrade to PHP 5.3.3 or higher.');
-                $this->disable();
-
-                return;
-            }
-            $this->moduleUrl = Context::getContext()->link->getAdminLink('AdminModules', true).'&'.http_build_query(
-                array(
-                    'configure' => $this->name,
-                    'tab_module' => $this->tab,
-                    'module_name' => $this->name,
-                )
-            );
-        }
+        // TODO: This can be asked (i.e. whether to import all shops)
+        $this->_idShop = (int)Context::getContext()->shop->id;
     }
 
-    /**
-     * Install this module
-     *
-     * @return bool Indicates whether this module has been successfully installed
-     */
     public function install()
     {
-        if (!parent::install() ||
-            !$this->registerHook('displayHome') ||
-            !$this->registerHook('displayHeader') ||
-            !$this->registerHook('displayBackOfficeHeader') ||
-            !$this->registerHook('displayAdminHomeQuickLinks') ||
-            !Configuration::updateValue(strtoupper($this->name).'_START', 1) ||
-            !MailChimpRegisteredWebhook::createDatabase()
+        if (
+            !parent::install()
+            || !$this->registerHook('displayBackOfficeHeader')
+            || !$this->registerHook('actionCustomerAccountAdd') // front office account creation
+            || !$this->registerHook('actionAdminCustomersControllerSaveAfter') // back office update customer
         ) {
             return false;
         }
-
         return true;
     }
 
-    /**
-     * Uninstall this module
-     *
-     * @return bool Indicates whether this module has been successfully uninstalled
-     */
     public function uninstall()
     {
-        if (!parent::uninstall() ||
-            !Configuration::deleteByName(strtoupper($this->name).'_START') ||
-            !Configuration::deleteByName(self::SETTINGS) ||
-            !Configuration::deleteByName(self::FORM) ||
-            !MailChimpRegisteredWebhook::dropDatabase()
+        if (
+            !parent::uninstall()
+            || !Configuration::deleteByName('KEY_API_KEY')
+            || !Configuration::deleteByName('KEY_IMPORT_LIST')
+            || !Configuration::deleteByName('KEY_CONFIRMATION_EMAIL')
+            || !Configuration::deleteByName('KEY_UPDATE_EXISTING')
+            || !Configuration::deleteByName('KEY_IMPORT_ALL')
+            || !Configuration::deleteByName('KEY_IMPORT_OPTED_IN')
+            || !Configuration::deleteByName('KEY_LAST_IMPORT')
+            || !Configuration::deleteByName('KEY_LAST_IMPORT_ID')
         ) {
             return false;
         }
-
         return true;
     }
 
-    /**
-     * Module configuration page
-     */
     public function getContent()
     {
-        $languages = Language::getLanguages(false);
-
-        // FIXME: form display
-        // smarty for admin
-        $smartyArray = array(
-            'first_start' => Configuration::get(strtoupper($this->name).'_START'),
-
-            'admin_tpl_path' => $this->admin_tpl_path,
-            'front_tpl_path' => $this->front_tpl_path,
-            'hooks_tpl_path' => $this->hooks_tpl_path,
-
-            'info' => array(
-                'module' => $this->name,
-                'name' => Configuration::get('PS_SHOP_NAME'),
-                'domain' => Configuration::get('PS_SHOP_DOMAIN'),
-                'email' => Configuration::get('PS_SHOP_EMAIL'),
-                'version' => $this->version,
-                'psVersion' => _PS_VERSION_,
-                'server' => $_SERVER['SERVER_SOFTWARE'],
-                'php' => phpversion(),
-                'mysql' => Db::getInstance()->getVersion(),
-                'theme' => _THEME_NAME_,
-                'userInfo' => $_SERVER['HTTP_USER_AGENT'],
-                'today' => date('Y-m-d'),
-                'context' => (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') == 0) ? 1 : ($this->context->shop->getTotalShops() != 1) ? $this->context->shop->getContext() : 1,
-            ),
-            'form_action' => 'index.php?tab=AdminModules&configure='.$this->name.'&token='.Tools::getAdminTokenLite('AdminModules').'&tab_module='.$this->tab.'&module_name='.$this->name,
-            'hooks' => $this->hooks,
-            'languages' => $languages,
-            'default_lang' => $this->context->language->id,
-            'flags' => array(
-                'title' => $this->displayFlags($languages, $this->context->language->id, 'title¤form', 'title', true),
-                'form' => $this->displayFlags($languages, $this->context->language->id, 'title¤form', 'form', true),
-            ),
-        );
-
-        // Handling settings
-        if (Tools::isSubmit('submitMailchimp')) {
-            $this->configureMailchimp();
-        }
-
-        // Mailchimp lists
-        $settings = unserialize(Configuration::get(self::SETTINGS));
-        if (!$settings) {
-            $this->message['text'] = $this->l('Before you start using this module you need to configure it below!');
-        } else {
-            $this->apiKey = $settings['apikey'];
-            $this->ssl = $settings['ssl'];
-
-            $this->context->smarty->assign(array(
-                'mailchimp_list' => $this->getMailchimpLists(),
-            ));
-        }
-
-        // Handling Import
-        if (Tools::isSubmit('submitImport')) {
-            $this->importCustomers();
-        }
-        // Handling Form
-        if (Tools::isSubmit('submitForm')) {
-            $this->saveSubscriberForm();
-        }
-
-        // Smarty for admin
-        $smartyArray['mailchimp'] = $settings;
-        $smartyArray['message'] = ($this->message['text']) ? $this->message : false;
-        $smartyArray['form'] = unserialize(Configuration::get(self::FORM));
-        $this->smarty->assign('minic', $smartyArray);
-
-        // Change first start
-        if (Configuration::get(strtoupper($this->name).'_START') == 1) {
-            Configuration::updateValue(strtoupper($this->name).'_START', 0);
-        }
-
-        return $this->display(__FILE__, 'views/templates/admin/import.tpl');
+        $this->_postProcess();
+        $this->_displayForm();
+        return $this->_html;
     }
 
-    /**
-     * Initialize navigation
-     *
-     * @return array Menu items
-     */
-    protected function initNavigation()
+    private function _postProcess()
     {
-        $menu = array(
-            self::MENU_SETTINGS => array(
-                'short' => $this->l('Settings'),
-                'desc' => $this->l('Module settings'),
-                'href' => $this->moduleUrl.'&menu='.self::MENU_SETTINGS,
-                'active' => false,
-                'icon' => 'icon-gears',
-            ),
-            self::MENU_SUBSCRIBERS => array(
-                'short' => $this->l('Transactions'),
-                'desc' => $this->l('Stripe transactions'),
-                'href' => $this->moduleUrl.'&menu='.self::MENU_SUBSCRIBERS,
-                'active' => false,
-                'icon' => 'icon-credit-card',
-            ),
-        );
-
-        switch (Tools::getValue('menu')) {
-            case self::MENU_SUBSCRIBERS:
-                $this->menu = self::MENU_SUBSCRIBERS;
-                $menu[self::MENU_SUBSCRIBERS]['active'] = true;
-                break;
-            default:
-                $this->menu = self::MENU_SETTINGS;
-                $menu[self::MENU_SETTINGS]['active'] = true;
-                break;
-        }
-
-        return $menu;
-    }
-
-    /**
-     * Save the subscriber form details
-     */
-    public function saveSubscriberForm()
-    {
-        $defLang = $this->context->language->id;
-        // Get saved form data
-        $formSettings = unserialize(Configuration::get(self::FORM));
-        // Prepear hooks array
-        $hooks = array(
-            'old' => ($formSettings) ? $formSettings['hooks'] : false,
-            'new' => (Tools::isSubmit('hooks')) ? Tools::getValue('hooks') : false,
-        );
-        // Get form
-        $form = (Tools::isSubmit('form_'.$defLang)) ? Tools::getValue('form_'.$defLang) : false;
-
-        if (!$hooks['new']) {
-            $this->message = array('text' => $this->l('At least a hook is required to show the form.'), 'type' => 'error');
-
-            return;
-        }
-        if (!$form) {
-            $this->message = array('text' => $this->l('The form code is required!'), 'type' => 'error');
-
-            return;
-        }
-
-        // Unhook from all possible hooks
-        foreach ($this->hooks as $hook) {
-            if ($this->isRegisteredInHook('display'.$hook)) {
-                $this->unregisterHook('display'.$hook);
-            }
-        }
-
-        // Hook
-        if ($hooks['new']) { // pointless ?
-            foreach ($hooks['new'] as $hook) {
-                $this->registerHook('display'.$hook);
-            }
-        }
-
-        // Save
-        $data = array();
-        $languages = Language::getLanguages(false);
-        foreach ($languages as $key => $lang) {
-            $title = (Tools::isSubmit('title_'.$lang['id_lang'])) ? Tools::getValue('title_'.$lang['id_lang']) : false;
-
-            $data[$lang['id_lang']] = array(
-                'title' => ($title) ? $title : Tools::getValue('title_'.$defLang),
-                'form' => ($form) ? htmlspecialchars($form) : htmlspecialchars(Tools::getValue('form_'.$defLang)),
-            );
-        }
-
-        if (Configuration::updateValue(self::FORM, serialize(array('data' => $data, 'hooks' => $hooks['new'])))) {
-            $this->message['text'] = $this->l('Saved!');
-        }
-
-    }
-
-    /**
-     * Import customers into the selected Mailchimp list
-     */
-    public function importCustomers()
-    {
-        // Get List id
-        $idList = Tools::getValue('list');
-        if (!Tools::isSubmit('list') || !$idList) {
-            $this->message = array('text' => $this->l('List is required! Please select one.'), 'type' => 'error');
-
-            return;
-        }
-
-        $this->checkWebhook($idList);
-
-        // Get Customers list
-        $sql = new DbQuery();
-        $sql->select('c.`firstname`, c.`lastname`, c.`email`, c.`id_lang`');
-        $sql->from('customer', 'c');
-        $sql->where('c.`newsletter` = 1');
-        $customers = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-
-        // listBatchSubscribe configuration
-//        $optin = (Tools::getValue('optin')) ? true : false; //send optin emails
-//        $upExist = (Tools::getValue('update_users')) ? true : false; //update currently subscribed users
-//        $replaceInt = true;
-
-        // Get languages
-        $languages = array();
-        foreach (Language::getLanguages(false) as $language) {
-            $languages[$language['id_lang']] = $language['iso_code'];
-        }
-
-        // Import customers
-        $mailChimp = new \ThirtyBees\MailChimp\MailChimp($this->apiKey);
-        /** @var ThirtyBees\MailChimp\Batch $batch */
-        $batch = $mailChimp->newBatch();
-        $batchId = 0;
-        foreach ($customers as $customer) {
-            $batch->post((string) $batchId, "lists/{$idList}/members", array(
-                'email_address' => $customer['email'],
-                'status' => 'subscribed',
-                'merge_fields' => array('FNAME' => $customer['firstname'], 'LNAME' => $customer['lastname']),
-                'language' => $this->getMailChimpLanguage(isset($languages['id_lang']) ? $languages['id_lang'] : 'en'),
-            ));
-            $batchId++;
-        }
-        $result = $batch->execute();
-
-        // Process response
-        if (!$result) {
-            $this->message = array('text' => $this->l('Mailchimp error code:').' '.$mailChimp->getLastError());
-
-            return;
-        } else {
-            // FIXME: Error handling is broken
-            $this->message['text'] = $this->l('Successfullt imported:').' <b>'.$result['add_count'].'</b><br />';
-            $this->message['text'] .= $this->l('Successfullt updated:').' <b>'.$result['update_count'].'</b><br />';
-            if ($result['error_count'] > 0) {
-                $this->message['text'] .= $this->l('Error occured:').' <b>'.$result['error_count'].'</b><br />';
-                foreach ($result['errors'] as $error) {
-                    $this->message['text'] .= '<p style="margin-left: 15px;">';
-                    $this->message['text'] .= $error['email'].' - '.$error['code'].' - '.$error['message'];
-                    $this->message['text'] .= '</p>';
+        if (Tools::isSubmit('submitApiKey')) {
+            // Check if MailChimp API key is valid
+            try {
+                // TODO: Find a different way to validate API key rather than making a request
+                $mailchimp = new \ThirtyBees\MailChimp\MailChimp(Tools::getValue('mailchimpApiKey'));
+                $mailchimp->verifySsl = false;
+                $getLists = $mailchimp->get('lists');
+                $update = Configuration::updateValue('KEY_API_KEY', Tools::getValue('mailchimpApiKey'));
+                if (!$getLists) {
+                    $this->_html .= $this->displayError($this->l('An error occurred. Please check your API key.'));
+                } else {
+                    if ($update) {
+                        $this->_html .= $this->displayConfirmation($this->l('You have successfully updated your MailChimp API key.'));
+                    } else {
+                        $this->_html .= $this->displayError($this->l('An error occurred while saving API key.'));
+                    }
                 }
-                $this->message['type'] = 'warn';
+            } catch (Exception $e) {
+                // Remove existing value
+                Configuration::deleteByName('KEY_API_KEY');
+                $this->_html .= $this->displayError($e->getMessage());
+            }
+        } else if (Tools::isSubmit('submitSettings')) {
+            // Update all the configuration
+            // And check if updates were successful
+            if (
+                Configuration::updateValue('KEY_IMPORT_LIST', Tools::getValue('importList'))
+                && Configuration::updateValue('KEY_CONFIRMATION_EMAIL', Tools::getValue('confirmationEmail'))
+                && Configuration::updateValue('KEY_UPDATE_EXISTING', Tools::getValue('updateExisting'))
+                && Configuration::updateValue('KEY_IMPORT_ALL', Tools::getValue('importAll'))
+                && Configuration::updateValue('KEY_IMPORT_OPTED_IN', Tools::getValue('importOptedIn'))
+            ) {
+                $this->_html .= $this->displayConfirmation($this->l('Settings updated.'));
+                // Check if asked for a manual import
+                if (Tools::isSubmit('manualImport_0') && (bool)Tools::getValue('manualImport_0')) {
+                    // Get subscribers list from Prestashop
+                    $all = (bool)Configuration::get('KEY_IMPORT_ALL');
+                    $optIn = (bool)Configuration::get('KEY_IMPORT_OPTED_IN');
+                    $list = $this->_getFinalSubscribersList($all, $optIn);
+                    // //
+                    $import = $this->_importList($list);
+                    // Inform the user
+                    if ($import) {
+                        $this->_html .= $this->displayConfirmation($this->l('Import started. Please note that it might take a while to complete process.'));
+                        // Save the last import
+                        Configuration::updateValue('KEY_LAST_IMPORT', time());
+                    } else {
+                        $this->_html .= $this->displayError($this->_mailchimp->getLastError());
+                    }
+                    // //
+                }
+            } else {
+                $this->_html .= $this->displayError($this->l('Some of the settings could not be saved.'));
+            }
+        }
+    }
+
+    private function _displayForm()
+    {
+        $this->_html .= $this->_generateForm();
+    }
+
+    private function _generateForm()
+    {
+        $fields = array();
+
+        $inputs1 = array();
+
+        $inputs1[] = array(
+            'type'  => 'text',
+            'label' => $this->l('API Key'),
+            'name'  => 'mailchimpApiKey',
+            'desc'  => $this->l('Please enter your MailChimp API key. This can be found in your MailChimp Dashboard -> Account -> Extras -> API keys.'),
+        );
+
+        $fieldsForm1 = array(
+            'form' => array(
+                'legend' => array(
+                    'title' => $this->l('API Settings'),
+                    'icon'  => 'icon-cogs',
+                ),
+                'input'  => $inputs1,
+                'submit' => array(
+                    'title' => $this->l('Save'),
+                    'class' => 'btn btn-default pull-right',
+                    'name'  => 'submitApiKey',
+                ),
+            ),
+        );
+
+        $fields[] = $fieldsForm1;
+
+        // Show settings form only if API key is set and working
+        $apiKey = Configuration::get('KEY_API_KEY');
+        $validKey = false;
+        $lists = array();
+        if (isset($apiKey) && $apiKey != '') {
+            // Check if API key is valid
+            try {
+                $mailchimp = new \ThirtyBees\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
+                $mailchimp->verifySsl = false;
+                $getLists = $mailchimp->get('lists');
+                if ($getLists) {
+                    $lists = $getLists['lists'];
+                    $validKey = true;
+                }
+            } catch (Exception $e) {
+                $this->_html .= $this->displayError($e->getMessage());
             }
         }
 
+        if ($validKey) {
+            $inputs2 = array();
+
+            $inputs2[] = array(
+                'type'    => 'select',
+                'label'   => $this->l('Import to List'),
+                'name'    => 'importList',
+                'desc'    => $this->l('Please select a MailChimp list to import subscriptions to.'),
+                'options' => array(
+                    'query' => $lists,
+                    'id'    => 'id',
+                    'name'  => 'name',
+                ),
+            );
+
+            $inputs2[] = array(
+                'type'   => 'switch',
+                'label'  => $this->l('Confirmation Email'),
+                'name'   => 'confirmationEmail',
+                'desc'   => $this->l('If you turn this on, Mailchimp will send an email to customers asking them to confirm their subscription.'),
+                'values' => array(
+                    array(
+                        'id'    => 'confirmationSwitch_on',
+                        'value' => 1,
+                        'label' => $this->l('Enabled'),
+                    ),
+                    array(
+                        'id'    => 'confirmationSwitch_off',
+                        'value' => 0,
+                        'label' => $this->l('Disabled'),
+                    ),
+                ),
+            );
+
+            $inputs2[] = array(
+                'type'   => 'switch',
+                'label'  => $this->l('Update if exists'),
+                'name'   => 'updateExisting',
+                'desc'   => $this->l('Do you wish to update the subscriber details if they already exist?'),
+                'values' => array(
+                    array(
+                        'id'    => 'updateSwitch_on',
+                        'value' => 1,
+                        'label' => $this->l('Enabled'),
+                    ),
+                    array(
+                        'id'    => 'updateSwitch_off',
+                        'value' => 0,
+                        'label' => $this->l('Disabled'),
+                    ),
+                ),
+            );
+
+            $inputs2[] = array(
+                'type'   => 'switch',
+                'label'  => $this->l('Import All Customers'),
+                'name'   => 'importAll',
+                'desc'   => $this->l('Turn this on if you wish to import all of the users. This means that the module ignores the customer\'s subscription choice.'),
+                'id'     => 'importAll',
+                'values' => array(
+                    array(
+                        'id'    => 'importSwitch_on',
+                        'value' => 1,
+                        'label' => $this->l('Enabled'),
+                    ),
+                    array(
+                        'id'    => 'importSwitch_off',
+                        'value' => 0,
+                        'label' => $this->l('Disabled'),
+                    ),
+                ),
+            );
+
+            $inputs2[] = array(
+                'type'   => 'switch',
+                'label'  => $this->l('Opted-In Only'),
+                'name'   => 'importOptedIn',
+                'desc'   => $this->l('This will only import customers that has opted-in to the newsletter.'),
+                'id'     => 'importOptedIn',
+                'values' => array(
+                    array(
+                        'id'    => 'optedInSwitch_on',
+                        'value' => 1,
+                        'label' => $this->l('Enabled'),
+                    ),
+                    array(
+                        'id'    => 'optedInSwitch_off',
+                        'value' => 0,
+                        'label' => $this->l('Disabled'),
+                    ),
+                ),
+            );
+
+            $lastImport = Configuration::get('KEY_LAST_IMPORT');
+            $lastImport = $lastImport == '' ? $this->l('No previous import has been found.') : date('Y-m-d H:i', $lastImport);
+            $inputs2[] = array(
+                'type'   => 'checkbox',
+                'label'  => $this->l('Manual Import'),
+                'name'   => 'manualImport',
+                'desc'   => $this->l('Check this if you want Prestashop to do a manual import after you hit the Save button. Last import: ' . $lastImport),
+                'values' => array(
+                    'query' => array(
+                        array(
+                            'id_option' => 0,
+                            'name'      => $this->l('Import Now'),
+                        ),
+                    ),
+                    'id'    => 'id_option',
+                    'name'  => 'name',
+                ),
+            );
+
+            $fieldsForm2 = array(
+                'form' => array(
+                    'legend' => array(
+                        'title' => $this->l('Import Settings'),
+                        'icon'  => 'icon-cogs',
+                    ),
+                    'input'  => $inputs2,
+                    'submit' => array(
+                        'title' => $this->l('Save'),
+                        'class' => 'btn btn-default pull-right',
+                        'name'  => 'submitSettings',
+                    ),
+                ),
+            );
+
+            $fields[] = $fieldsForm2;
+        }
+
+        $helper = new HelperForm();
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name;
+        $helper->token = Tools::getAdminTokenLite('AdminModules');
+        $helper->tpl_vars = array(
+            'fields_value' => $this->_getConfigFieldsValues(),
+        );
+        return $helper->generateForm($fields);
     }
 
-    /**
-     * Get all mailchimp list and the fields belongs to them
-     */
-    public function getMailchimpLists()
+    private function _getConfigFieldsValues()
     {
-        $mailchimp = new \ThirtyBees\MailChimp\MailChimp($this->apiKey);
+        return array(
+            'mailchimpApiKey'   => Configuration::get('KEY_API_KEY'),
+            'importList'        => Configuration::get('KEY_IMPORT_LIST'),
+            'confirmationEmail' => Configuration::get('KEY_CONFIRMATION_EMAIL'),
+            'updateExisting'    => Configuration::get('KEY_UPDATE_EXISTING'),
+            'importAll'         => Configuration::get('KEY_IMPORT_ALL'),
+            'importOptedIn'     => Configuration::get('KEY_IMPORT_OPTED_IN'),
+        );
+    }
 
-        // Get Mailchimp lists
-        $listResponse = $mailchimp->get('lists');
+    private function _importList($list)
+    {
+        // Prepare the request
+        $this->_mailchimp = new \ThirtyBees\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
+        $this->_mailchimp->verifySsl = false;
 
-        if (!$listResponse) {
-            $this->addError = array('text' => $this->l('Mailchimp error:').' '.$mailchimp->getLastError(), 'type' => 'error');
+        // MARK: Test zone
+        if (false) {
+            // if (true) {
+            $Batch = $this->_mailchimp->newBatch(Configuration::get('KEY_LAST_IMPORT_ID'));
+            $result = $Batch->checkStatus();
+            d($result);
+        }
+        //
 
+        $batch = $this->_mailchimp->newBatch();
+        // //
+        // Append subscribers to batch operation request using PUT method (to enable update existing)
+        for ($i = 0; $i < count($list); $i++) {
+            $subscriber = $list[$i];
+            $hash = $this->_mailchimp->subscriberHash($subscriber->getEmail());
+            $url = sprintf('lists/%s/members/%s', Configuration::get('KEY_IMPORT_LIST'), $hash);
+            $batch->put('op' . ($i + 1), $url, $subscriber->getAsArray());
+        }
+        // //
+        // Execute the batch and check status
+        $result = $batch->execute();
+        $error = '';
+        if (!$result) {
             return false;
         } else {
-            return $listResponse['lists'];
+            $batchId = $result['id'];
+            \PrestaShopLogger::addLog('MailChimp batch operation started with ID: ' . $batchId);
+            Configuration::updateValue('KEY_LAST_IMPORT_ID', $batchId);
+            return true;
+        }
+        // //
+    }
+
+    private function _getFinalSubscribersList($all = false, $optedIn = false)
+    {
+        // Get subscriptions made through Newsletter Block
+        $list1 = $this->_getNewsletterBlockSubscriptions($optedIn);
+        // Get subscriptions made through either registration form or during guest checkout
+        $list2 = $this->_getCustomerSubscriptions($all, $optedIn);
+        return array_merge($list1, $list2);
+    }
+
+    private function _getNewsletterBlockSubscriptions($optedIn = false)
+    {
+        $list = array();
+        // Check if the module exists
+        $moduleNewsletter = \Module::getInstanceByName('blocknewsletter');
+        if ($moduleNewsletter) {
+            // TODO: Use helper methods to generate the query
+            $sql = '
+                SELECT pn.`email`, pn.`newsletter_date_add`, 
+                pn.`ip_registration_newsletter`, pn.`active` 
+                FROM `' . _DB_PREFIX_ . 'newsletter` pn
+                WHERE 1 
+            ';
+            // MARK: Loop through shop IDs if need be
+            $sql .= 'AND pn.`id_shop` = ' . $this->_idShop . ' ';
+            if ($optedIn) {
+                $sql .= 'AND pn.`active` = 1 ';
+            }
+
+            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->ExecuteS($sql);
+
+            if ($result) {
+                // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
+                $subscription = (bool)Configuration::get('KEY_CONFIRMATION_EMAIL') ? SUBSCRIPTION_PENDING : SUBSCRIPTION_SUBSCRIBED;
+                // Get default shop language since Newsletter Block registrations don't contain any language info
+                $lang = $this->_mailChimpLanguages[$this->context->language->iso_code];
+                // Safety check
+                if ($lang == '') {
+                    \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $this->context->language->iso_code);
+                    $lang = 'en';
+                }
+                // Create and append subscribers
+                foreach ($result as $row) {
+                    $list[] = new MailChimpSubscriber(
+                        $row['email'],
+                        $subscription,
+                        null,
+                        null,
+                        $row['ip_registration_newsletter'],
+                        $lang,
+                        $row['newsletter_date_add']
+                    );
+                }
+            }
+        }
+        return $list;
+    }
+
+    private function _getCustomerSubscriptions($all = false, $optedIn = false)
+    {
+        $list = array();
+        // TODO: Use helper methods to generate the query
+        $sql = '
+            SELECT pc.`email`, pc.`firstname`, pc.`lastname`,
+            pc.`ip_registration_newsletter`, pc.`newsletter_date_add`, pl.`iso_code`
+            FROM `' . _DB_PREFIX_ . 'customer` pc
+            LEFT JOIN `' . _DB_PREFIX_ . 'lang` pl ON pl.`id_lang` = pc.`id_lang`
+            WHERE 1 
+        ';
+        // MARK: Loop through shop IDs if need be
+        $sql .= 'AND pc.`id_shop` = ' . $this->_idShop . ' ';
+
+        if (!$all) {
+            $sql .= 'AND pc.`newsletter` = 1 ';
+            $sql .= 'AND pc.`deleted` = 0 ';
+            // Opt-in selection is only valid if not all users have been asked
+            if ($optedIn) {
+                $sql .= 'AND pc.`optin` = 1 ';
+            }
+        }
+
+        $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->ExecuteS($sql);
+
+        if ($result) {
+            // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
+            $subscription = (bool)Configuration::get('KEY_CONFIRMATION_EMAIL') ? SUBSCRIPTION_PENDING : SUBSCRIPTION_SUBSCRIBED;
+            // Create an array for non-exist language codes
+            $logLang = array();
+            // Create and append subscribers
+            foreach ($result as $row) {
+                $lang = $this->_mailChimpLanguages[$row['iso_code']];
+                // Safety check
+                if ($lang == '') {
+                    $logLang[$lang] = true;
+                    $lang = 'en';
+                }
+                $list[] = new MailChimpSubscriber(
+                    $row['email'],
+                    $subscription,
+                    $row['firstname'],
+                    $row['lastname'],
+                    $row['ip_registration_newsletter'],
+                    $lang,
+                    $row['newsletter_date_add']
+                );
+            }
+            foreach ($logLang as $lang => $value) {
+                \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $lang);
+            }
+        }
+
+        return $list;
+    }
+
+    public function addOrUpdateSubscription(MailChimpSubscriber $subscription)
+    {
+        return $this->_importList([$subscription]);
+    }
+
+    public function getMailchimpLanguageByIso($iso)
+    {
+        $lang = $this->_mailChimpLanguages[$iso];
+        if ($lang == '') {
+            $lang = 'en';
+            \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $lang);
+        }
+        return $lang;
+    }
+
+    public function hookDisplayBackOfficeHeader($params)
+    {
+        if ($this->context->controller->controller_name) {
+            if (Tools::isSubmit('module_name') && Tools::getValue('module_name') == 'mailchimp') {
+                $this->context->controller->addJS($this->_path . 'views/js/mailchimp.js');
+            }
         }
     }
 
-    /**
-     * Save Mailchimp settings into PS Configuration (api key and ssl)
-     */
-    public function configureMailchimp()
+    public function hookActionCustomerAccountAdd($params)
     {
-        $settings = array();
-        // Get apikey
-        if (!Tools::isSubmit('apikey') || !Tools::getValue('apikey')) {
-            $this->message = array('text' => $this->l('API Key is empty!'), 'type' => 'error');
-
-            return;
+        // Check if creation is successful
+        if (isset($params['newCustomer']) && $params['newCustomer']->id > 0) {
+            $subscription = (bool)$params['newCustomer']->newsletter ? SUBSCRIPTION_SUBSCRIBED : SUBSCRIPTION_UNSUBSCRIBED;
+            $iso = Language::getIsoById($params['newCustomer']->id_lang);
+            $customer = new MailChimpSubscriber(
+                $params['newCustomer']->email,
+                $subscription,
+                $params['newCustomer']->firstname,
+                $params['newCustomer']->lastname,
+                $params['newCustomer']->ip_registration_newsletter,
+                $this->getMailchimpLanguageByIso($iso),
+                $params['newCustomer']->newsletter_date_add
+            );
+            if (!$this->addOrUpdateSubscription($customer)) {
+                PrestaShopLogger::addLog('MailChimp customer subscription failed: ' . $this->_mailchimp->getLastError());
+            }
         }
-        // Get ssl
-        if (!Tools::getValue('ssl') && Tools::getValue('ssl') != 0) {
-            $this->message = array('text' => $this->l('SSL save failed!'), 'type' => 'error');
+    }
 
-            return;
+    public function hookActionAdminCustomersControllerSaveAfter($params)
+    {
+        if (Tools::isSubmit('newsletter')) {
+            // TODO: Make sure this is bulletproof
+            $object = $params['return'];
+            $subscription = (bool)Tools::getValue('newsletter') ? SUBSCRIPTION_SUBSCRIBED : SUBSCRIPTION_UNSUBSCRIBED;
+            $iso = Language::getIsoById($object->id_lang);
+            $customer = new MailChimpSubscriber(
+                $object->email,
+                $subscription,
+                $object->firstname,
+                $object->lastname,
+                $_SERVER['REMOTE_ADDR'],
+                $this->getMailchimpLanguageByIso($iso),
+                date('Y-m-d H:i:s')
+            );
+            if (!$this->addOrUpdateSubscription($customer)) {
+                PrestaShopLogger::addLog('MailChimp customer subscription failed: ' . $this->_mailchimp->getLastError());
+            }
         }
-
-        $settings = array(
-            'apikey' => Tools::getValue('apikey'),
-            'ssl' => ((int) Tools::getValue('ssl') == 1) ? true : false,
-        );
-
-        Configuration::updateValue(self::SETTINGS, serialize($settings));
-
-        $this->message['text'] = $this->l('Saved!');
-    }
-
-    /**
-     * Hook for back office dashboard
-     */
-    public function hookDisplayAdminHomeQuickLinks()
-    {
-        $this->context->smarty->assign('mailchimp', $this->name);
-
-        return $this->display(__FILE__, 'views/templates/hooks/quick_links.tpl');
-    }
-
-    // FRONT OFFICE HOOKS
-
-    /**
-     * <head> Hook
-     */
-    public function hookDisplayHeader()
-    {
-        // CSS
-        $this->context->controller->addCSS($this->_path.'views/css/'.$this->name.'.css');
-        // JS
-        $this->context->controller->addJS($this->_path.'views/js/'.$this->name.'.js');
-    }
-
-    /**
-     * Top of pages hook
-     */
-    public function hookDisplayTop($params)
-    {
-        return $this->hookDisplayHome($params, 'top');
-    }
-
-    /**
-     * Home page hook
-     */
-    public function hookDisplayHome($params, $class = false)
-    {
-        $data = unserialize(Configuration::get(self::FORM));
-        if (!$data) {
-            return;
-        }
-
-        $smarty['class'] = ($class) ? $class : 'home';
-        $smarty['title'] = $data['data'][$this->context->language->id]['title'];
-        $smarty['form'] = $data['data'][$this->context->language->id]['form'];
-
-        $this->smarty->assign(self::FORM, $smarty);
-
-        return $this->display(__FILE__, 'views/templates/hooks/home.tpl');
-    }
-
-    /**
-     * Left Column Hook
-     */
-    public function hookDisplayRightColumn($params)
-    {
-        return $this->hookDisplayHome($params, 'right');
-    }
-
-    /**
-     * Right Column Hook
-     */
-    public function hookDisplayLeftColumn($params)
-    {
-        return $this->hookDisplayHome($params, 'left');
-    }
-
-    /**
-     * Footer hook
-     */
-    public function hookDisplayFooter($params)
-    {
-        return $this->hookDisplayHome($params, 'footer');
-    }
-
-    /**
-     * Product page hook
-     */
-    public function hookDisplayLeftColumnProduct($params)
-    {
-        return $this->hookDisplayHome($params, 'left-product');
-    }
-
-    /**
-     * Product page hook
-     */
-    public function hookDisplayRightColumProduct($params)
-    {
-        return $this->hookDisplayHome($params, 'right-product');
-    }
-
-    /**
-     * Product page hook
-     */
-    public function hookDisplayFooterProduct($params)
-    {
-        return $this->hookDisplayHome($params, 'footer-product');
-    }
-
-    protected function getMailChimpLanguage($isoCode)
-    {
-        if (array_key_exists($isoCode, self::$mailChimpLanguages)) {
-            return self::$mailChimpLanguages[$isoCode];
-        }
-
-        return 'en';
-    }
-
-    protected function checkWebhook($idList)
-    {
-        $allWebhooks = MailChimpRegisteredWebhook::getWebhooks($idList);
-        foreach ($allWebhooks as &$webhook) {
-            $webhook = $webhook['url'];
-        }
-
-        // Take first active language and store ID
-        $languages = Language::getLanguages(true);
-        $idLang = $languages[0]['id_lang'];
-
-        $shops = Shop::getShops(true);
-        $idShop = $shops[0]['id_shop'];
-
-        $callbackUrl = Context::getContext()->link->getModuleLink($this->name, 'hook', array(), $idLang, $idShop, false);
-
-        if (!in_array($callbackUrl, $allWebhooks)) {
-            return $this->registerWebhook($idList, $callbackUrl);
-        }
-
-        return true;
-    }
-
-    protected function registerWebhook($idList, $url = null)
-    {
-        if (!$url) {
-            // Take first active language and store ID
-            $languages = Language::getLanguages(true);
-            $idLang = $languages[0]['id_lang'];
-
-            $shops = Shop::getShops(true);
-            $idShop = $shops[0]['id_shop'];
-
-            $url = Context::getContext()->link->getModuleLink($this->name, 'hook', array(), $idLang, $idShop, false);
-        }
-
-        $mailChimp = new \ThirtyBees\MailChimp\MailChimp($this->apiKey);
-        $result = $mailChimp->post("lists/{$idList}/webhooks", array(
-            'url' => $url,
-            'events' => array(
-                'subscribe' => true,
-                'unsubscribe' => true,
-                'profile' => false,
-                'cleaned' => true,
-                'upemail' => true,
-                'campaign' => false,
-            ),
-            'sources' => array(
-                'user' => true,
-                'admin' => true,
-                'api' => false,
-            ),
-            'list_id' => $idList,
-        ));
-
-        return (bool) $result;
     }
 }
