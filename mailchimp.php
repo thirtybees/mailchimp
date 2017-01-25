@@ -683,8 +683,22 @@ class MailChimp extends Module
 
     public function hookFooter($params)
     {
-        if (Tools::isSubmit('submitNewsletter')) {
-            d($_POST);
+        if (Tools::isSubmit('submitNewsletter') && Tools::isSubmit('email')) {
+            if (Validate::isEmail(Tools::getValue('email'))) {
+                $iso = Language::getIsoById($this->context->cookie->id_lang);
+                $customer = new MailChimpSubscriber(
+                    Tools::getValue('email'),
+                    SUBSCRIPTION_SUBSCRIBED,
+                    null,
+                    null,
+                    $_SERVER['REMOTE_ADDR'],
+                    $this->getMailchimpLanguageByIso($iso),
+                    date('Y-m-d H:i:s')
+                );
+                if (!$this->addOrUpdateSubscription($customer)) {
+                    PrestaShopLogger::addLog('MailChimp customer subscription failed: ' . $this->_mailchimp->getLastError());
+                }
+            }
         }
     }
 
