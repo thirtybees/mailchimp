@@ -51,13 +51,10 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      */
     public function postProcess()
     {
-        PrestaShopLogger::addLog('Hook worked, json: ' . json_encode($_POST));
         Webhook::subscribe('subscribe', array($this, 'processSubscribe'));
         Webhook::subscribe('unsubscribe', array($this, 'processUnsubscribe'));
         Webhook::subscribe('cleaned', array($this, 'processUnsubscribe'));
         Webhook::subscribe('upemail', array($this, 'processEmailChanged'));
-
-        die($this->status);
     }
 
     /**
@@ -69,7 +66,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      */
     public function processSubscribe($data)
     {
-        \PrestaShopLogger::addLog(Tools::jsonEncode($data));
+        PrestaShopLogger::addLog('processSubscribe hook worked, json: ' . json_encode($data));
         $this->status = '1';
 
         return \Db::getInstance()->update(
@@ -90,7 +87,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      */
     public function processUnsubscribe($data)
     {
-        \PrestaShopLogger::addLog(Tools::jsonEncode($data));
+        PrestaShopLogger::addLog('processUnsubscribe hook worked, json: ' . json_encode($data));
         $this->status = '1';
 
         return \Db::getInstance()->update(
@@ -111,6 +108,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      */
     public function processEmailChanged($data)
     {
+        PrestaShopLogger::addLog('processEmailChanged hook worked, json: ' . json_encode($data));
         return \Db::getInstance()->update(
             'customer',
             array(

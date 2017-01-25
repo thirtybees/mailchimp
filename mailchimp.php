@@ -122,6 +122,7 @@ class MailChimp extends Module
         if (
             !parent::install()
             || !$this->registerHook('displayBackOfficeHeader')
+            || !$this->registerHook('footer') // to catch guest newsletter subscription
             || !$this->registerHook('actionCustomerAccountAdd') // front office account creation
             || !$this->registerHook('actionAdminCustomersControllerSaveAfter') // back office update customer
             || !MailChimpRegisteredWebhook::createDatabase()
@@ -677,6 +678,13 @@ class MailChimp extends Module
             if (Tools::isSubmit('module_name') && Tools::getValue('module_name') == 'mailchimp') {
                 $this->context->controller->addJS($this->_path . 'views/js/mailchimp.js');
             }
+        }
+    }
+
+    public function hookFooter($params)
+    {
+        if (Tools::isSubmit('submitNewsletter')) {
+            d($_POST);
         }
     }
 
