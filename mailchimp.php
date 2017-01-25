@@ -23,6 +23,7 @@ if (!defined('_PS_VERSION_')) {
 
 require_once dirname(__FILE__) . '/lib/autoload.php';
 require_once dirname(__FILE__) . '/classes/MailChimpSubscriber.php';
+require_once dirname(__FILE__) . '/classes/MailChimpRegisteredWebhook.php';
 
 class MailChimp extends Module
 {
@@ -123,6 +124,7 @@ class MailChimp extends Module
             || !$this->registerHook('displayBackOfficeHeader')
             || !$this->registerHook('actionCustomerAccountAdd') // front office account creation
             || !$this->registerHook('actionAdminCustomersControllerSaveAfter') // back office update customer
+            || !MailChimpRegisteredWebhook::createDatabase()
         ) {
             return false;
         }
@@ -141,6 +143,7 @@ class MailChimp extends Module
             || !Configuration::deleteByName('KEY_IMPORT_OPTED_IN')
             || !Configuration::deleteByName('KEY_LAST_IMPORT')
             || !Configuration::deleteByName('KEY_LAST_IMPORT_ID')
+            || !MailChimpRegisteredWebhook::dropDatabase()
         ) {
             return false;
         }
@@ -197,15 +200,21 @@ class MailChimp extends Module
                     $list = $this->_getFinalSubscribersList($all, $optIn);
                     // //
                     $import = $this->_importList($list);
-                    // Inform the user
                     if ($import) {
+                        // Inform the user
                         $this->_html .= $this->displayConfirmation($this->l('Import started. Please note that it might take a while to complete process.'));
+                        // Create MailChimp side webhooks
+                        // TODO: Check if the hooks have been defined before (over DB or API calls)
+                        $register = $this->_registerWebhookForList(Configuration::get('KEY_LAST_IMPORT_ID'));
+                        if ($register) {
+                            $this->_html .= $this->displayError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
+                        }
+                        // //
                         // Save the last import
                         Configuration::updateValue('KEY_LAST_IMPORT', time());
                     } else {
                         $this->_html .= $this->displayError($this->_mailchimp->getLastError());
                     }
-                    // //
                 }
             } else {
                 $this->_html .= $this->displayError($this->l('Some of the settings could not be saved.'));
@@ -583,6 +592,78 @@ class MailChimp extends Module
             \PrestaShopLogger::addLog('MailChimp language code could not be found for language with ISO: ' . $lang);
         }
         return $lang;
+    }
+
+    private function _registerWebhookForList($idList)
+    {
+        $result = true;
+
+        // Fetch previously registered webhooks from database
+        $registeredWebhooks = MailChimpRegisteredWebhook::getWebhooks($idList);
+        foreach ($registeredWebhooks as &$webhook) {
+            $webhook = $webhook['url'];
+        }
+        // //
+
+        // Create a callback url for the webhook
+        $callbackUrl = $this->_urlForWebhook();
+
+        if (!in_array($callbackUrl, $registeredWebhooks)) {
+            $result = $this->_registerWebhook($idList, $callbackUrl);
+            if ($result) {
+                // TODO: Save this to database
+            } else {
+                PrestaShopLogger::addLog('Could not register webhook for list ID: ' . $idList . ', Error: ' . $this->_mailchimp->getLastError());
+            }
+        }
+
+        return $result;
+    }
+
+    private function _registerWebhook($idList, $url = null)
+    {
+        if (!$url) {
+            $url = $this->_urlForWebhook();
+        }
+
+        $urlWebhooks = sprintf('lists/%s/webhooks', Configuration::get('KEY_IMPORT_LIST'));
+        $this->_mailchimp = new \ThirtyBees\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
+        $this->_mailchimp->verifySsl = false;
+        $result = $this->_mailchimp->post($urlWebhooks, array(
+            'url' => $url,
+            'events' => array(
+                'subscribe' => true,
+                'unsubscribe' => true,
+                'profile' => false,
+                'cleaned' => true,
+                'upemail' => true,
+                'campaign' => false,
+            ),
+            'sources' => array(
+                'user' => true,
+                'admin' => true,
+                'api' => false,
+            ),
+            'list_id' => $idList,
+        ));
+
+        return (bool)$result;
+    }
+
+    private function _urlForWebhook()
+    {
+        // TODO: Make sure this is the right way
+        // Take first active language and store ID
+        $languages = Language::getLanguages(true);
+        $idLang = $languages[key($languages)]['id_lang'];
+        // //
+
+        // TODO: Make sure this is the right way
+        $shops = Shop::getShops(true);
+        $idShop = $shops[key($shops)]['id_shop'];
+        // //
+
+        return Context::getContext()->link->getModuleLink($this->name, 'hook', array(), $idLang, $idShop, false);
     }
 
     public function hookDisplayBackOfficeHeader($params)
