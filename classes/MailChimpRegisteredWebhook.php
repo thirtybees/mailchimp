@@ -68,6 +68,23 @@ class MailChimpRegisteredWebhook extends MailChimpObjectModel
     }
 
     /**
+     * Save webhook URL to database
+     *
+     * @param string $url
+     * @param string $idList
+     *
+     * @return bool
+     */
+    public static function saveWebhook($url, $idList)
+    {
+        return Db::getInstance()->insert(bqSQL(self::$definition['table']), array(
+            'url' => $url,
+            'id_list' => $idList,
+            'date_recv' => date('Y-m-d H:i:s'),
+        ));
+    }
+
+    /**
      * Get webhook by callback URL
      *
      * @param string $url

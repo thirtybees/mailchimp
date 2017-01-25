@@ -205,8 +205,8 @@ class MailChimp extends Module
                         $this->_html .= $this->displayConfirmation($this->l('Import started. Please note that it might take a while to complete process.'));
                         // Create MailChimp side webhooks
                         // TODO: Check if the hooks have been defined before (over DB or API calls)
-                        $register = $this->_registerWebhookForList(Configuration::get('KEY_LAST_IMPORT_ID'));
-                        if ($register) {
+                        $register = $this->_registerWebhookForList(Configuration::get('KEY_IMPORT_LIST'));
+                        if (!$register) {
                             $this->_html .= $this->displayError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
                         }
                         // //
@@ -612,6 +612,11 @@ class MailChimp extends Module
             $result = $this->_registerWebhook($idList, $callbackUrl);
             if ($result) {
                 // TODO: Save this to database
+                if (!MailChimpRegisteredWebhook::saveWebhook($callbackUrl, $idList)) {
+                    PrestaShopLogger::addLog('Could not save webhook to database, List ID: ' . $idList . ', URL: ' . $callbackUrl);
+                } else {
+                    PrestaShopLogger::addLog('Webhook saved to database, List ID: ' . $idList . ', URL: ' . $callbackUrl);
+                }
             } else {
                 PrestaShopLogger::addLog('Could not register webhook for list ID: ' . $idList . ', Error: ' . $this->_mailchimp->getLastError());
             }
@@ -626,7 +631,7 @@ class MailChimp extends Module
             $url = $this->_urlForWebhook();
         }
 
-        $urlWebhooks = sprintf('lists/%s/webhooks', Configuration::get('KEY_IMPORT_LIST'));
+        $urlWebhooks = sprintf('lists/%s/webhooks', $idList);
         $this->_mailchimp = new \ThirtyBees\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
         $this->_mailchimp->verifySsl = false;
         $result = $this->_mailchimp->post($urlWebhooks, array(
