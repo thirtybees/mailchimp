@@ -17,13 +17,16 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
-if (!defined('_PS_VERSION_')) {
+use MailChimpModule\MailChimpRegisteredWebhook;
+use MailChimpModule\MailChimpSubscriber;
+
+if (!defined('_TB_VERSION_')) {
     exit;
 }
 
-require_once dirname(__FILE__) . '/lib/autoload.php';
-require_once dirname(__FILE__) . '/classes/MailChimpSubscriber.php';
-require_once dirname(__FILE__) . '/classes/MailChimpRegisteredWebhook.php';
+require_once __DIR__.'/lib/autoload.php';
+require_once __DIR__.'/classes/MailChimpSubscriber.php';
+require_once __DIR__.'/classes/MailChimpRegisteredWebhook.php';
 
 class MailChimp extends Module
 {

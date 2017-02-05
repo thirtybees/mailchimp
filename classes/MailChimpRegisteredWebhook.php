@@ -17,7 +17,9 @@
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
-if (!defined('_PS_VERSION_')) {
+namespace MailChimpModule;
+
+if (!defined('_TB_VERSION_')) {
     exit;
 }
 
@@ -26,7 +28,7 @@ require_once dirname(__FILE__).'/autoload.php';
 /**
  * Class StripeTransaction
  */
-class MailChimpRegisteredWebhook extends MailChimpObjectModel
+class MailChimpRegisteredWebhook extends \ObjectModel
 {
     /** @var string $url */
     public $url;
@@ -53,18 +55,18 @@ class MailChimpRegisteredWebhook extends MailChimpObjectModel
     /**
      * Get all webhooks
      *
-     * @return array|false|mysqli_result|null|PDOStatement|resource
+     * @return array|false|\mysqli_result|null|\PDOStatement|resource
      */
     public static function getWebhooks($idList = null)
     {
-        $sql = new DbQuery();
+        $sql = new \DbQuery();
         $sql->select('*');
         $sql->from(bqSQL(self::$definition['table']));
         if ($idList) {
             $sql->where('`id_list` = \''.pSQL($idList).'\'');
         }
 
-        return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
     }
 
     /**
@@ -77,7 +79,7 @@ class MailChimpRegisteredWebhook extends MailChimpObjectModel
      */
     public static function saveWebhook($url, $idList)
     {
-        return Db::getInstance()->insert(bqSQL(self::$definition['table']), array(
+        return \Db::getInstance()->insert(bqSQL(self::$definition['table']), array(
             'url' => $url,
             'id_list' => $idList,
             'date_recv' => date('Y-m-d H:i:s'),
@@ -93,7 +95,7 @@ class MailChimpRegisteredWebhook extends MailChimpObjectModel
      */
     public static function getByCallbackUrl($url, $idList = null)
     {
-        $sql = new DbQuery();
+        $sql = new \DbQuery();
         $sql->select('mwh.`'.bqSQL(self::$definition['primary']).'`, mwh.`url`, mwh.`date_recv`, mwh.`id_list`');
         $sql->from(bqSQL(self::$definition['table']));
         $sql->where('mwh.`url` = \''.pSQL($url).'\'');
@@ -101,7 +103,7 @@ class MailChimpRegisteredWebhook extends MailChimpObjectModel
             $sql->where('mwh.`id_list` = \''.pSQL($idList).'\'');
         }
 
-        $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
+        $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
 
         if ($result) {
             $webhook = new self();
@@ -132,7 +134,7 @@ class MailChimpRegisteredWebhook extends MailChimpObjectModel
             $url = pSQL($url);
         }
 
-        if (!Db::getInstance()->delete(
+        if (!\Db::getInstance()->delete(
             bqSQL(self::$definition['table']),
             'url NOT IN ('.implode(',', $urls).') AND `id_list` = \''.pSQL($idList).'\''
         )) {
