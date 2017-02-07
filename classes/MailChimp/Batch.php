@@ -29,7 +29,7 @@
  * @license   https://opensource.org/licenses/MIT  Academic Free License (MIT)
  */
 
-namespace ThirtyBees\MailChimp;
+namespace MailchimpModule\MailChimp;
 
 /**
  * A MailChimp Batch operation.
@@ -41,7 +41,7 @@ class Batch
 {
     private $MailChimp;
 
-    private $operations = array();
+    private $operations = [];
     private $batch_id;
 
     public function __construct(MailChimp $mailChimp, $batchId = null)
@@ -72,7 +72,7 @@ class Batch
      *
      * @return  void
      */
-    public function get($id, $method, $args = array())
+    public function get($id, $method, $args = [])
     {
         $this->queueOperation('GET', $id, $method, $args);
     }
@@ -86,7 +86,7 @@ class Batch
      *
      * @return  void
      */
-    public function patch($id, $method, $args = array())
+    public function patch($id, $method, $args = [])
     {
         $this->queueOperation('PATCH', $id, $method, $args);
     }
@@ -100,7 +100,7 @@ class Batch
      *
      * @return  void
      */
-    public function post($id, $method, $args = array())
+    public function post($id, $method, $args = [])
     {
         $this->queueOperation('POST', $id, $method, $args);
     }
@@ -114,7 +114,7 @@ class Batch
      *
      * @return  void
      */
-    public function put($id, $method, $args = array())
+    public function put($id, $method, $args = [])
     {
         $this->queueOperation('PUT', $id, $method, $args);
     }
@@ -128,7 +128,7 @@ class Batch
      */
     public function execute($timeout = 10)
     {
-        $req = array('operations' => $this->operations);
+        $req = ['operations' => $this->operations];
 
         $result = $this->MailChimp->post('batches', $req, $timeout);
 
@@ -178,11 +178,11 @@ class Batch
      */
     private function queueOperation($httpVerb, $id, $method, $args = null)
     {
-        $operation = array(
+        $operation = [
             'operation_id' => $id,
             'method' => $httpVerb,
             'path' => $method,
-        );
+        ];
 
         if ($args) {
             $key = ($httpVerb == 'GET' ? 'params' : 'body');

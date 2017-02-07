@@ -22,6 +22,9 @@ spl_autoload_register(
         if (!in_array($class, [
             'MailChimpModule\\MailChimpRegisteredWebhook',
             'MailChimpModule\\MailChimpSubscriber',
+            'MailChimpModule\\MailChimp\\Batch',
+            'MailChimpModule\\MailChimp\\MailChimp',
+            'MailChimpModule\\MailChimp\\Webhook',
         ])) {
             return;
         }

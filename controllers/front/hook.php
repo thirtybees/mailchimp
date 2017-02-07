@@ -51,10 +51,10 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      */
     public function postProcess()
     {
-        Webhook::subscribe('subscribe', array($this, 'processSubscribe'));
-        Webhook::subscribe('unsubscribe', array($this, 'processUnsubscribe'));
-        Webhook::subscribe('cleaned', array($this, 'processUnsubscribe'));
-        Webhook::subscribe('upemail', array($this, 'processEmailChanged'));
+        Webhook::subscribe('subscribe', [$this, 'processSubscribe']);
+        Webhook::subscribe('unsubscribe', [$this, 'processUnsubscribe']);
+        Webhook::subscribe('cleaned', [$this, 'processUnsubscribe']);
+        Webhook::subscribe('upemail', [$this, 'processEmailChanged']);
     }
 
     /**
@@ -71,20 +71,20 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         // Update customer table
         $customer = \Db::getInstance()->update(
             'customer',
-            array(
+            [
                 'newsletter' => 1,
-            ),
+            ],
             'email = \''.pSQL($data['email']).'\''
         );
         // Update newsletter table
         $newsletter = \Db::getInstance()->insert(
             'newsletter',
-            array(
+            [
                 'email' => pSQL($data['email']),
                 'newsletter_date_add' => date('Y-m-d H:i:s'),
                 'ip_registration_newsletter' => $_SERVER['REMOTE_ADDR'],
                 'active' => 1,
-            )
+            ]
         );
         if (!customer) {
             PrestaShopLogger::addLog('processSubscribe hook failed for customer table.');
@@ -110,17 +110,17 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         // Update customer table
         $customer = \Db::getInstance()->update(
             'customer',
-            array(
+            [
                 'newsletter' => 0,
-            ),
+            ],
             'email = \''.pSQL($data['email']).'\''
         );
         // Update newsletter table
         $newsletter = \Db::getInstance()->update(
             'newsletter',
-            array(
+            [
                 'active' => 0,
-            ),
+            ],
             'email = \''.pSQL($data['email']).'\''
         );
         if (!customer) {
@@ -145,23 +145,23 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         // Update customer table
         $customer = \Db::getInstance()->update(
             'customer',
-            array(
+            [
                 'newsletter' => 0,
-            ),
+            ],
             'email = \''.pSQL($data['old_email']).'\''
         ) && \Db::getInstance()->update(
             'customer',
-            array(
+            [
                 'newsletter' => 1,
-            ),
+            ],
             'email = \''.pSQL($data['new_email']).'\''
         );
         // Update newsletter table
         $newsletter = \Db::getInstance()->update(
             'newsletter',
-            array(
+            [
                 'email' => $data['new_email'],
-            ),
+            ],
             'email = \''.pSQL($data['old_email']).'\''
         );
         if (!customer) {

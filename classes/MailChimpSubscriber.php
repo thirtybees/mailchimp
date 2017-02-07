@@ -23,13 +23,13 @@ if (!defined('_TB_VERSION_')) {
     exit;
 }
 
-const SUBSCRIPTION_SUBSCRIBED = 'subscribed';
-const SUBSCRIPTION_UNSUBSCRIBED = 'unsubscribed';
-const SUBSCRIPTION_PENDING = 'pending';
-const SUBSCRIPTION_CLEANED = 'cleaned';
-
 class MailChimpSubscriber
 {
+    const SUBSCRIPTION_SUBSCRIBED = 'subscribed';
+    const SUBSCRIPTION_UNSUBSCRIBED = 'unsubscribed';
+    const SUBSCRIPTION_PENDING = 'pending';
+    const SUBSCRIPTION_CLEANED = 'cleaned';
+
     private $email;
     private $subscription;
     private $fname;
@@ -68,18 +68,18 @@ class MailChimpSubscriber
 
     public function getAsArray()
     {
-        return array(
+        return [
             'email_address'    => $this->email,
             'status'           => $this->_getSubscriptionStatus($this->subscription),
             'status_if_new'    => $this->_getSubscriptionStatus($this->subscription),
-            'merge_fields'     => array(
+            'merge_fields'     => [
                 'FNAME' => ($this->fname == '') ? '-' : $this->fname,
                 'LNAME' => ($this->lname == '') ? '-' : $this->lname,
-            ),
+            ],
             'ip_signup'        => ($this->ipSignup == '') ? '' : $this->ipSignup,
             'language'         => $this->language,
             'timestamp_signup' => $this->timestampSignup,
-        );
+        ];
     }
 
     public function getAsJSON()

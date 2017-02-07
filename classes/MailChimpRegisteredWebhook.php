@@ -12,9 +12,9 @@
  * obtain it through the world-wide-web, please send an email
  * to license@thirtybees.com so we can send you a copy immediately.
  *
- *  @author    Thirty Bees <modules@thirtybees.com>
- *  @copyright 2017 Thirty Bees
- *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @author    Thirty Bees <modules@thirtybees.com>
+ * @copyright 2017 Thirty Bees
+ * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
 namespace MailChimpModule;
@@ -30,44 +30,26 @@ require_once dirname(__FILE__).'/autoload.php';
  */
 class MailChimpRegisteredWebhook extends \ObjectModel
 {
-    /** @var string $url */
-    public $url;
-
-    /** @var string $id_list */
-    public $id_list;
-
-    /** @var string $date_recv */
-    public $date_recv;
-
     /**
      * @see ObjectModel::$definition
      */
-    public static $definition = array(
-        'table' => 'mailchimp_webhook',
+    public static $definition = [
+        'table'   => 'mailchimp_webhook',
         'primary' => 'id_mailchimp_webhook',
-        'fields' => array(
-            'url' => array('type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(1024)'),
-            'id_list' => array('type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(32)'),
-            'date_recv' => array('type' => self::TYPE_DATE, 'validate' => 'isDate', 'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'),
-        ),
-    );
-
-    /**
-     * Get all webhooks
-     *
-     * @return array|false|\mysqli_result|null|\PDOStatement|resource
-     */
-    public static function getWebhooks($idList = null)
-    {
-        $sql = new \DbQuery();
-        $sql->select('*');
-        $sql->from(bqSQL(self::$definition['table']));
-        if ($idList) {
-            $sql->where('`id_list` = \''.pSQL($idList).'\'');
-        }
-
-        return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-    }
+        'fields'  => [
+            'url'       => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(1024)'],
+            'id_list'   => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(32)'],
+            'date_recv' => ['type' => self::TYPE_DATE, 'validate' => 'isDate', 'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'],
+        ],
+    ];
+    // @codingStandardsIgnoreStart
+    /** @var string $url */
+    public $url;
+    /** @var string $id_list */
+    public $id_list;
+    /** @var string $date_recv */
+    public $date_recv;
+    // @codingStandardsIgnoreEnd
 
     /**
      * Save webhook URL to database
@@ -79,17 +61,21 @@ class MailChimpRegisteredWebhook extends \ObjectModel
      */
     public static function saveWebhook($url, $idList)
     {
-        return \Db::getInstance()->insert(bqSQL(self::$definition['table']), array(
-            'url' => $url,
-            'id_list' => $idList,
-            'date_recv' => date('Y-m-d H:i:s'),
-        ));
+        return \Db::getInstance()->insert(
+            bqSQL(self::$definition['table']),
+            [
+                'url'       => $url,
+                'id_list'   => $idList,
+                'date_recv' => date('Y-m-d H:i:s'),
+            ]
+        );
     }
 
     /**
      * Get webhook by callback URL
      *
-     * @param string $url
+     * @param string      $url
+     * @param string|null $idList
      *
      * @return bool|MailChimpRegisteredWebhook
      */
@@ -118,7 +104,7 @@ class MailChimpRegisteredWebhook extends \ObjectModel
     /**
      * Refresh webhook list
      *
-     * @param array $urls
+     * @param array  $urls
      * @param string $idList
      *
      * @return bool Indicates whether the list was successfully refreshed
@@ -137,7 +123,8 @@ class MailChimpRegisteredWebhook extends \ObjectModel
         if (!\Db::getInstance()->delete(
             bqSQL(self::$definition['table']),
             'url NOT IN ('.implode(',', $urls).') AND `id_list` = \''.pSQL($idList).'\''
-        )) {
+        )
+        ) {
             return false;
         }
 
@@ -152,5 +139,24 @@ class MailChimpRegisteredWebhook extends \ObjectModel
         }
 
         return true;
+    }
+
+    /**
+     * Get all webhooks
+     *
+     * @param string|null $idList
+     *
+     * @return array|false|\mysqli_result|null|\PDOStatement|resource
+     */
+    public static function getWebhooks($idList = null)
+    {
+        $sql = new \DbQuery();
+        $sql->select('*');
+        $sql->from(bqSQL(self::$definition['table']));
+        if ($idList) {
+            $sql->where('`id_list` = \''.pSQL($idList).'\'');
+        }
+
+        return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
     }
 }

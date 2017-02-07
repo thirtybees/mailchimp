@@ -29,7 +29,7 @@
  *  @license   https://opensource.org/licenses/MIT  Academic Free License (MIT)
  */
 
-namespace ThirtyBees\MailChimp;
+namespace MailChimpModule\MailChimp;
 
 /**
  * A MailChimp Webhook request.
@@ -39,7 +39,7 @@ namespace ThirtyBees\MailChimp;
  */
 class Webhook
 {
-    private static $eventSubscriptions = array();
+    private static $eventSubscriptions = [];
     private static $receivedWebhook = null;
 
     /**
@@ -53,7 +53,7 @@ class Webhook
     public static function subscribe($event, callable $callback)
     {
         if (!isset(self::$eventSubscriptions[$event])) {
-            self::$eventSubscriptions[$event] = array();
+            self::$eventSubscriptions[$event] = [];
         }
         self::$eventSubscriptions[$event][] = $callback;
 
@@ -119,7 +119,7 @@ class Webhook
                 $callback($data);
             }
             // reset subscriptions
-            self::$eventSubscriptions[$event] = array();
+            self::$eventSubscriptions[$event] = [];
         }
     }
 }
