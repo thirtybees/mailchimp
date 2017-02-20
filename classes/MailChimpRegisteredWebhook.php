@@ -23,7 +23,7 @@ if (!defined('_TB_VERSION_')) {
     exit;
 }
 
-require_once dirname(__FILE__).'/autoload.php';
+require_once __DIR__.'/autoload.php';
 
 /**
  * Class StripeTransaction

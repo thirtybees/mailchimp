@@ -17,9 +17,13 @@
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
-require_once dirname(__FILE__).'/../../lib/autoload.php';
+if (!defined('TB_VERSION')) {
+    exit;
+}
 
-use \ThirtyBees\MailChimp\Webhook;
+use MailChimpModule\MailChimp\Webhook;
+
+require_once __DIR__.'/../../classes/autoload.php';
 
 /**
  * Class StripeHookModuleFrontController
@@ -60,13 +64,13 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
     /**
      * Process subscribe list
      *
-     * @param $data
+     * @param array $data
      *
      * @return bool Indicates whether the customer was successfully subscribed
      */
     public function processSubscribe($data)
     {
-        PrestaShopLogger::addLog('processSubscribe hook worked, json: ' . json_encode($data));
+        Logger::addLog('processSubscribe hook worked, json: '.json_encode($data));
         $this->status = '1';
         // Update customer table
         $customer = \Db::getInstance()->update(
@@ -86,25 +90,26 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
                 'active' => 1,
             ]
         );
-        if (!customer) {
-            PrestaShopLogger::addLog('processSubscribe hook failed for customer table.');
+        if (!$customer) {
+            Logger::addLog('processSubscribe hook failed for customer table.');
         }
         if (!$newsletter) {
-            PrestaShopLogger::addLog('processSubscribe hook failed for newsletter table.');
+            Logger::addLog('processSubscribe hook failed for newsletter table.');
         }
+
         return $customer && $newsletter;
     }
 
     /**
      * Process unsubscribe list
      *
-     * @param $data
+     * @param array $data
      *
      * @return bool Indicates whether the customer was successfully unsubscribed
      */
     public function processUnsubscribe($data)
     {
-        PrestaShopLogger::addLog('processUnsubscribe hook worked, json: ' . json_encode($data));
+        Logger::addLog('processUnsubscribe hook worked, json: '.json_encode($data));
         $this->status = '1';
 
         // Update customer table
@@ -123,25 +128,26 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             ],
             'email = \''.pSQL($data['email']).'\''
         );
-        if (!customer) {
-            PrestaShopLogger::addLog('processUnsubscribe hook failed for customer table.');
+        if (!$customer) {
+            Logger::addLog('processUnsubscribe hook failed for customer table.');
         }
         if (!$newsletter) {
-            PrestaShopLogger::addLog('processUnsubscribe hook failed for newsletter table.');
+            Logger::addLog('processUnsubscribe hook failed for newsletter table.');
         }
+
         return $customer && $newsletter;
     }
 
     /**
      * Process email changed event
      *
-     * @param $data
+     * @param array $data
      *
      * @return bool Indicates whether the event was successfully processed
      */
     public function processEmailChanged($data)
     {
-        PrestaShopLogger::addLog('processEmailChanged hook worked, json: ' . json_encode($data));
+        Logger::addLog('processEmailChanged hook worked, json: '.json_encode($data));
         // Update customer table
         $customer = \Db::getInstance()->update(
             'customer',
@@ -164,12 +170,13 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             ],
             'email = \''.pSQL($data['old_email']).'\''
         );
-        if (!customer) {
-            PrestaShopLogger::addLog('processUnsubscribe hook failed for customer table.');
+        if (!$customer) {
+            Logger::addLog('processUnsubscribe hook failed for customer table.');
         }
         if (!$newsletter) {
-            PrestaShopLogger::addLog('processUnsubscribe hook failed for newsletter table.');
+            Logger::addLog('processUnsubscribe hook failed for newsletter table.');
         }
+
         return $customer && $newsletter;
     }
 }

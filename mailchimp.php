@@ -158,14 +158,14 @@ class MailChimp extends Module
     public function uninstall()
     {
         if (!parent::uninstall()
-            || !Configuration::deleteByName('KEY_API_KEY')
-            || !Configuration::deleteByName('KEY_IMPORT_LIST')
-            || !Configuration::deleteByName('KEY_CONFIRMATION_EMAIL')
-            || !Configuration::deleteByName('KEY_UPDATE_EXISTING')
-            || !Configuration::deleteByName('KEY_IMPORT_ALL')
-            || !Configuration::deleteByName('KEY_IMPORT_OPTED_IN')
-            || !Configuration::deleteByName('KEY_LAST_IMPORT')
-            || !Configuration::deleteByName('KEY_LAST_IMPORT_ID')
+            || !Configuration::deleteByName(self::KEY_API_KEY)
+            || !Configuration::deleteByName(self::KEY_IMPORT_LIST)
+            || !Configuration::deleteByName(self::KEY_CONFIRMATION_EMAIL)
+            || !Configuration::deleteByName(self::KEY_UPDATE_EXISTING)
+            || !Configuration::deleteByName(self::KEY_IMPORT_ALL)
+            || !Configuration::deleteByName(self::KEY_IMPORT_OPTED_IN)
+            || !Configuration::deleteByName(self::KEY_LAST_IMPORT)
+            || !Configuration::deleteByName(self::KEY_LAST_IMPORT_ID)
             || !MailChimpRegisteredWebhook::dropDatabase()
         ) {
             return false;
@@ -199,7 +199,7 @@ class MailChimp extends Module
                 $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Tools::getValue('mailchimpApiKey'));
                 $mailchimp->verifySsl = false;
                 $getLists = $mailchimp->get('lists');
-                $update = Configuration::updateValue('KEY_API_KEY', Tools::getValue('mailchimpApiKey'));
+                $update = Configuration::updateValue(self::KEY_API_KEY, Tools::getValue('mailchimpApiKey'));
                 if (!$getLists) {
                     $this->html .= $this->displayError($this->l('An error occurred. Please check your API key.'));
                 } else {
@@ -211,23 +211,23 @@ class MailChimp extends Module
                 }
             } catch (Exception $e) {
                 // Remove existing value
-                Configuration::deleteByName('KEY_API_KEY');
+                Configuration::deleteByName(self::KEY_API_KEY);
                 $this->html .= $this->displayError($e->getMessage());
             }
         } else {
             if (Tools::isSubmit('submitSettings')) {
                 // Update all the configuration
                 // And check if updates were successful
-                if (Configuration::updateValue('KEY_IMPORT_LIST', Tools::getValue('importList'))
-                    && Configuration::updateValue('KEY_CONFIRMATION_EMAIL', Tools::getValue('confirmationEmail'))
-                    && Configuration::updateValue('KEY_UPDATE_EXISTING', Tools::getValue('updateExisting'))
-                    && Configuration::updateValue('KEY_IMPORT_ALL', Tools::getValue('importAll'))
-                    && Configuration::updateValue('KEY_IMPORT_OPTED_IN', Tools::getValue('importOptedIn'))
+                if (Configuration::updateValue(self::KEY_IMPORT_LIST, Tools::getValue('importList'))
+                    && Configuration::updateValue(self::KEY_CONFIRMATION_EMAIL, Tools::getValue('confirmationEmail'))
+                    && Configuration::updateValue(self::KEY_UPDATE_EXISTING, Tools::getValue('updateExisting'))
+                    && Configuration::updateValue(self::KEY_IMPORT_ALL, Tools::getValue('importAll'))
+                    && Configuration::updateValue(self::KEY_IMPORT_OPTED_IN, Tools::getValue('importOptedIn'))
                 ) {
                     $this->html .= $this->displayConfirmation($this->l('Settings updated.'));
                     // Create MailChimp side webhooks
                     // TODO: Check if the hooks have been defined before (over DB or API calls)
-                    $register = $this->registerWebhookForList(Configuration::get('KEY_IMPORT_LIST'));
+                    $register = $this->registerWebhookForList(Configuration::get(self::KEY_IMPORT_LIST));
                     if (!$register) {
                         $this->html .= $this->displayError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
                     }
@@ -235,8 +235,8 @@ class MailChimp extends Module
                     // Check if asked for a manual import
                     if (Tools::isSubmit('manualImport_0') && (bool) Tools::getValue('manualImport_0')) {
                         // Get subscribers list from Prestashop
-                        $all = (bool) Configuration::get('KEY_IMPORT_ALL');
-                        $optIn = (bool) Configuration::get('KEY_IMPORT_OPTED_IN');
+                        $all = (bool) Configuration::get(self::KEY_IMPORT_ALL);
+                        $optIn = (bool) Configuration::get(self::KEY_IMPORT_OPTED_IN);
                         $list = $this->getFinalSubscribersList($all, $optIn);
                         // //
                         $import = $this->importList($list);
@@ -244,7 +244,7 @@ class MailChimp extends Module
                             // Inform the user
                             $this->html .= $this->displayConfirmation($this->l('Import started. Please note that it might take a while to complete process.'));
                             // Save the last import
-                            Configuration::updateValue('KEY_LAST_IMPORT', time());
+                            Configuration::updateValue(self::KEY_LAST_IMPORT, time());
                         } else {
                             $this->html .= $this->displayError($this->mailChimp->getLastError());
                         }
@@ -330,7 +330,7 @@ class MailChimp extends Module
         }
 
         $urlWebhooks = sprintf('lists/%s/webhooks', $idList);
-        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
+        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::KEY_API_KEY));
         $this->mailChimp->verifySsl = false;
         $result = $this->mailChimp->post(
             $urlWebhooks,
@@ -404,7 +404,7 @@ class MailChimp extends Module
 
             if ($result) {
                 // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
-                $subscription = (bool) Configuration::get('KEY_CONFIRMATION_EMAIL') ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
+                $subscription = (bool) Configuration::get(self::KEY_CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
                 // Get default shop language since Newsletter Block registrations don't contain any language info
                 $lang = $this->mailChimpLanguages[$this->context->language->iso_code];
                 // Safety check
@@ -465,7 +465,7 @@ class MailChimp extends Module
 
         if ($result) {
             // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
-            $subscription = (bool) Configuration::get('KEY_CONFIRMATION_EMAIL') ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
+            $subscription = (bool) Configuration::get(self::KEY_CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
             // Create an array for non-exist language codes
             $logLang = [];
             // Create and append subscribers
@@ -504,7 +504,7 @@ class MailChimp extends Module
     protected function importList($list)
     {
         // Prepare the request
-        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
+        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::KEY_API_KEY));
         $this->mailChimp->verifySsl = false;
 
         $batch = $this->mailChimp->newBatch();
@@ -513,7 +513,7 @@ class MailChimp extends Module
         for ($i = 0; $i < count($list); $i++) {
             $subscriber = $list[$i];
             $hash = $this->mailChimp->subscriberHash($subscriber->getEmail());
-            $url = sprintf('lists/%s/members/%s', Configuration::get('KEY_IMPORT_LIST'), $hash);
+            $url = sprintf('lists/%s/members/%s', Configuration::get(self::KEY_IMPORT_LIST), $hash);
             $batch->put('op'.($i + 1), $url, $subscriber->getAsArray());
         }
 
@@ -525,7 +525,7 @@ class MailChimp extends Module
         } else {
             $batchId = $result['id'];
             Logger::addLog('MailChimp batch operation started with ID: '.$batchId);
-            Configuration::updateValue('KEY_LAST_IMPORT_ID', $batchId);
+            Configuration::updateValue(self::KEY_LAST_IMPORT_ID, $batchId);
 
             return true;
         }
@@ -575,13 +575,13 @@ class MailChimp extends Module
         $fields[] = $fieldsForm1;
 
         // Show settings form only if API key is set and working
-        $apiKey = Configuration::get('KEY_API_KEY');
+        $apiKey = Configuration::get(self::KEY_API_KEY);
         $validKey = false;
         $lists = [];
         if (isset($apiKey) && $apiKey != '') {
             // Check if API key is valid
             try {
-                $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get('KEY_API_KEY'));
+                $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::KEY_API_KEY));
                 $mailchimp->verifySsl = false;
                 $getLists = $mailchimp->get('lists');
                 if ($getLists) {
@@ -686,7 +686,7 @@ class MailChimp extends Module
                 ],
             ];
 
-            $lastImport = Configuration::get('KEY_LAST_IMPORT');
+            $lastImport = Configuration::get(self::KEY_LAST_IMPORT);
             $lastImport = $lastImport == '' ? $this->l('No previous import has been found.') : date('Y-m-d H:i', $lastImport);
             $inputs2[] = [
                 'type'   => 'checkbox',
@@ -741,12 +741,12 @@ class MailChimp extends Module
     protected function getConfigFieldsValues()
     {
         return [
-            'mailchimpApiKey'   => Configuration::get('KEY_API_KEY'),
-            'importList'        => Configuration::get('KEY_IMPORT_LIST'),
-            'confirmationEmail' => Configuration::get('KEY_CONFIRMATION_EMAIL'),
-            'updateExisting'    => Configuration::get('KEY_UPDATE_EXISTING'),
-            'importAll'         => Configuration::get('KEY_IMPORT_ALL'),
-            'importOptedIn'     => Configuration::get('KEY_IMPORT_OPTED_IN'),
+            'mailchimpApiKey'   => Configuration::get(self::KEY_API_KEY),
+            'importList'        => Configuration::get(self::KEY_IMPORT_LIST),
+            'confirmationEmail' => Configuration::get(self::KEY_CONFIRMATION_EMAIL),
+            'updateExisting'    => Configuration::get(self::KEY_UPDATE_EXISTING),
+            'importAll'         => Configuration::get(self::KEY_IMPORT_ALL),
+            'importOptedIn'     => Configuration::get(self::KEY_IMPORT_OPTED_IN),
         ];
     }
 

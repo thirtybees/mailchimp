@@ -23,6 +23,13 @@ if (!defined('_TB_VERSION_')) {
     exit;
 }
 
+/**
+ * Class MailChimpSubscriber
+ *
+ * @package MailChimpModule
+ *
+ * @since 1.0.0
+ */
 class MailChimpSubscriber
 {
     const SUBSCRIPTION_SUBSCRIBED = 'subscribed';
@@ -41,12 +48,12 @@ class MailChimpSubscriber
     /**
      * MailChimpSubscriber constructor.
      * @param string $email
-     * @param $subscription
-     * @param $fname
-     * @param $lname
-     * @param $ipSignup
-     * @param $language
-     * @param $timestampSignup
+     * @param string $subscription
+     * @param string $fname
+     * @param string $lname
+     * @param string $ipSignup
+     * @param string $language
+     * @param string $timestampSignup
      */
     public function __construct(
         $email,
@@ -66,12 +73,15 @@ class MailChimpSubscriber
         $this->timestampSignup = $timestampSignup;
     }
 
+    /**
+     * @return array
+     */
     public function getAsArray()
     {
         return [
             'email_address'    => $this->email,
-            'status'           => $this->_getSubscriptionStatus($this->subscription),
-            'status_if_new'    => $this->_getSubscriptionStatus($this->subscription),
+            'status'           => $this->getSubscriptionStatus($this->subscription),
+            'status_if_new'    => $this->getSubscriptionStatus($this->subscription),
             'merge_fields'     => [
                 'FNAME' => ($this->fname == '') ? '-' : $this->fname,
                 'LNAME' => ($this->lname == '') ? '-' : $this->lname,
@@ -82,27 +92,35 @@ class MailChimpSubscriber
         ];
     }
 
+    /**
+     * @return string
+     */
     public function getAsJSON()
     {
         return json_encode($this->getAsArray());
     }
 
-    private function _getSubscriptionStatus($subscription = null)
+    /**
+     * @param string|null $subscription
+     *
+     * @return string
+     */
+    protected function getSubscriptionStatus($subscription = null)
     {
         if (!$subscription) {
             $subscription = $this->subscription;
         }
         switch ($subscription) {
-            case SUBSCRIPTION_SUBSCRIBED:
+            case self::SUBSCRIPTION_SUBSCRIBED:
                 return 'subscribed';
                 break;
-            case SUBSCRIPTION_UNSUBSCRIBED:
+            case self::SUBSCRIPTION_UNSUBSCRIBED:
                 return 'unsubscribed';
                 break;
-            case SUBSCRIPTION_PENDING:
+            case self::SUBSCRIPTION_PENDING:
                 return 'pending';
                 break;
-            case SUBSCRIPTION_CLEANED:
+            case self::SUBSCRIPTION_CLEANED:
                 return 'cleaned';
                 break;
             default:
