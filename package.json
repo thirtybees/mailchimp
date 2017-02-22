@@ -1,0 +1,24 @@
+{
+  "name": "mailchimp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "Gruntfile.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@bitbucket.org:mijnpresta/mailchimp.git"
+  },
+  "keywords": [
+    "eboekhouden"
+  ],
+  "author": "Michael Dekker",
+  "license": "MIT",
+  "homepage": "git@bitbucket.org:mijnpresta/mailchimp.git",
+  "devDependencies": {
+    "grunt": "^0.4.5",
+    "grunt-cli": "^0.1.13",
+    "grunt-contrib-compress": "^0.14.0"
+  }
+}
