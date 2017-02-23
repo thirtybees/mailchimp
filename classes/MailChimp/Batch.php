@@ -31,6 +31,10 @@
 
 namespace MailchimpModule\MailChimp;
 
+if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * A MailChimp Batch operation.
  * http://developer.mailchimp.com/documentation/mailchimp/reference/batches/

@@ -19,7 +19,7 @@
 
 namespace MailChimpModule;
 
-if (!defined('_TB_VERSION_')) {
+if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
     exit;
 }
 
@@ -28,7 +28,7 @@ require_once __DIR__.'/autoload.php';
 /**
  * Class StripeTransaction
  */
-class MailChimpRegisteredWebhook extends \ObjectModel
+class MailChimpRegisteredWebhook extends MailChimpObjectModel
 {
     /**
      * @see ObjectModel::$definition

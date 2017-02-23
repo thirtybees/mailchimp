@@ -31,6 +31,10 @@
 
 namespace MailChimpModule\MailChimp;
 
+if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * A MailChimp Webhook request.
  * How to Set Up Webhooks: http://eepurl.com/bs-j_T

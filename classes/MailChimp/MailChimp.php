@@ -31,6 +31,10 @@
 
 namespace MailChimpModule\MailChimp;
 
+if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Super-simple, minimum abstraction MailChimp API v3 wrapper
  * MailChimp API v3: http://developer.mailchimp.com

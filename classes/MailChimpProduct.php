@@ -19,7 +19,7 @@
 
 namespace MailChimpModule;
 
-if (!defined('_TB_VERSION_')) {
+if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
     exit;
 }
 
@@ -30,7 +30,7 @@ if (!defined('_TB_VERSION_')) {
  *
  * @since 1.1.0
  */
-class MailChimpProduct extends \ObjectModel
+class MailChimpProduct extends MailChimpObjectModel
 {
     /**
      * @see ObjectModel::$definition

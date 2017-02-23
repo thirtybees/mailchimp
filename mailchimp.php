@@ -17,14 +17,7 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
-use MailChimpModule\MailChimpCart;
-use MailChimpModule\MailChimpOrder;
-use MailChimpModule\MailChimpProduct;
-use MailChimpModule\MailChimpRegisteredWebhook;
-use MailChimpModule\MailChimpShop;
-use MailChimpModule\MailChimpSubscriber;
-
-if (!defined('_TB_VERSION_')) {
+if (!defined('_PS_VERSION_') && !defined('_TB_VERSION_')) {
     exit;
 }
 
@@ -37,6 +30,7 @@ require_once __DIR__.'/classes/autoload.php';
  */
 class MailChimp extends Module
 {
+    // Always store this key for the first store and the first shop group
     const API_KEY = 'MAILCHIMP_API_KEY';
     const API_KEY_VALID = 'MAILCHIMP_API_KEY_VALID';
     const IMPORT_LIST = 'MAILCHIMP_IMPORT_LIST';
@@ -167,11 +161,11 @@ class MailChimp extends Module
             || !$this->registerHook('actionObjectCustomerAddAfter') // front office account creation
             || !$this->registerHook('actionObjectCustomerUpdateAfter') // front office account creation
             || !$this->registerHook('actionAdminCustomersControllerSaveAfter') // back office update customer
-            || !MailChimpRegisteredWebhook::createDatabase()
-            || !MailChimpShop::createDatabase()
-            || !MailChimpProduct::createDatabase()
-            || !MailChimpCart::createDatabase()
-            || !MailChimpOrder::createDatabase()
+            || !\MailChimpModule\MailChimpRegisteredWebhook::createDatabase()
+            || !\MailChimpModule\MailChimpShop::createDatabase()
+            || !\MailChimpModule\MailChimpProduct::createDatabase()
+            || !\MailChimpModule\MailChimpCart::createDatabase()
+            || !\MailChimpModule\MailChimpOrder::createDatabase()
         ) {
             return false;
         }
@@ -196,11 +190,11 @@ class MailChimp extends Module
             || !Configuration::deleteByName(self::IMPORT_OPTED_IN)
             || !Configuration::deleteByName(self::LAST_IMPORT)
             || !Configuration::deleteByName(self::LAST_IMPORT_ID)
-            || !MailChimpRegisteredWebhook::dropDatabase()
-            || !MailChimpShop::dropDatabase()
-            || !MailChimpProduct::dropDatabase()
-            || !MailChimpCart::dropDatabase()
-            || !MailChimpOrder::dropDatabase()
+            || !\MailChimpModule\MailChimpRegisteredWebhook::dropDatabase()
+            || !\MailChimpModule\MailChimpShop::dropDatabase()
+            || !\MailChimpModule\MailChimpProduct::dropDatabase()
+            || !\MailChimpModule\MailChimpCart::dropDatabase()
+            || !\MailChimpModule\MailChimpOrder::dropDatabase()
         ) {
             return false;
         }
@@ -234,7 +228,7 @@ class MailChimp extends Module
     public function getLists($prepare = false)
     {
         try {
-            $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, 0, 0));
+            $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
             $mailchimp->verifySsl = false;
             $lists = $mailchimp->get('lists');
 
@@ -262,7 +256,8 @@ class MailChimp extends Module
     {
         if (Tools::isSubmit('submitApiKey')) {
             // Check if MailChimp API key is valid
-            Configuration::updateValue(self::API_KEY, false, false, 0, 0);
+            Configuration::updateValue(self::API_KEY, Tools::getValue(self::API_KEY), false, null, 1);
+            Configuration::updateValue(self::API_KEY_VALID, false, false, null, 1);
             $this->checkApiKey();
         } elseif (Tools::isSubmit('submitSettings')) {
             // Update all the configuration
@@ -305,7 +300,7 @@ class MailChimp extends Module
             }
         } elseif (Tools::isSubmit('submitShops')) {
             $shopLists = Tools::getValue('shop_list_id');
-            $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
+            $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
             $batch = $mailChimp->newBatch();
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
@@ -327,7 +322,7 @@ class MailChimp extends Module
                     );
 
 
-                    $mailChimpShop = MailChimpShop::getByShopId($idShop);
+                    $mailChimpShop = \MailChimpModule\MailChimpShop::getByShopId($idShop);
                     $mailChimpShop->list_id = $idList;
                     $mailChimpShop->synced = true;
 
@@ -353,7 +348,7 @@ class MailChimp extends Module
         $result = true;
 
         // Fetch previously registered webhooks from database
-        $registeredWebhooks = MailChimpRegisteredWebhook::getWebhooks($idList);
+        $registeredWebhooks = \MailChimpModule\MailChimpRegisteredWebhook::getWebhooks($idList);
         foreach ($registeredWebhooks as &$webhook) {
             $webhook = $webhook['url'];
         }
@@ -364,7 +359,7 @@ class MailChimp extends Module
         if (!in_array($callbackUrl, $registeredWebhooks)) {
             $result = $this->registerWebhook($idList, $callbackUrl);
             if ($result) {
-                if (!MailChimpRegisteredWebhook::saveWebhook($callbackUrl, $idList)) {
+                if (!\MailChimpModule\MailChimpRegisteredWebhook::saveWebhook($callbackUrl, $idList)) {
                     Logger::addLog('Could not save webhook to database, List ID: '.$idList.', URL: '.$callbackUrl);
                 } else {
                     Logger::addLog('Webhook saved to database, List ID: '.$idList.', URL: '.$callbackUrl);
@@ -409,7 +404,7 @@ class MailChimp extends Module
         }
 
         $urlWebhooks = sprintf('lists/%s/webhooks', $idList);
-        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, 0, 0));
+        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
         $this->mailChimp->verifySsl = false;
         $result = $this->mailChimp->post(
             $urlWebhooks,
@@ -476,7 +471,7 @@ class MailChimp extends Module
 
             if ($result) {
                 // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
-                $subscription = (string) Configuration::get(self::CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
+                $subscription = (string) Configuration::get(self::CONFIRMATION_EMAIL) ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_PENDING : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
                 // Get default shop language since Newsletter Block registrations don't contain any language info
                 $lang = $this->mailChimpLanguages[$this->context->language->iso_code];
                 // Safety check
@@ -486,7 +481,7 @@ class MailChimp extends Module
                 }
                 // Create and append subscribers
                 foreach ($result as $row) {
-                    $list[] = new MailChimpSubscriber(
+                    $list[] = new \MailChimpModule\MailChimpSubscriber(
                         $row['email'],
                         $subscription,
                         null,
@@ -528,7 +523,7 @@ class MailChimp extends Module
 
         if ($result) {
             // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
-            $subscription = (string) Configuration::get(self::CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
+            $subscription = (string) Configuration::get(self::CONFIRMATION_EMAIL) ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_PENDING : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
             // Create an array for non-exist language codes
             $logLang = [];
             // Create and append subscribers
@@ -539,7 +534,7 @@ class MailChimp extends Module
                     $logLang[$lang] = true;
                     $lang = 'en';
                 }
-                $list[] = new MailChimpSubscriber(
+                $list[] = new \MailChimpModule\MailChimpSubscriber(
                     $row['email'],
                     $subscription,
                     $row['firstname'],
@@ -567,7 +562,7 @@ class MailChimp extends Module
     protected function importList($list)
     {
         // Prepare the request
-        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, 0, 0));
+        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
         $this->mailChimp->verifySsl = false;
 
         $batch = $this->mailChimp->newBatch();
@@ -629,9 +624,9 @@ class MailChimp extends Module
         if (Tools::isSubmit('submitNewsletter') && Tools::isSubmit('email')) {
             if (Validate::isEmail(Tools::getValue('email'))) {
                 $iso = Language::getIsoById($this->context->cookie->id_lang);
-                $customer = new MailChimpSubscriber(
+                $customer = new \MailChimpModule\MailChimpSubscriber(
                     Tools::getValue('email'),
-                    MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED,
+                    \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED,
                     null,
                     null,
                     Tools::getRemoteAddr(),
@@ -664,13 +659,13 @@ class MailChimp extends Module
     }
 
     /**
-     * @param MailChimpSubscriber $subscription
+     * @param \MailChimpModule\MailChimpSubscriber $subscription
      *
      * @return bool
      *
      * @since 1.0.0
      */
-    public function addOrUpdateSubscription(MailChimpSubscriber $subscription)
+    public function addOrUpdateSubscription(\MailChimpModule\MailChimpSubscriber $subscription)
     {
         return $this->importList([$subscription]);
     }
@@ -684,9 +679,9 @@ class MailChimp extends Module
     {
         // Check if creation is successful
         if (isset($params['newCustomer']) && $params['newCustomer']->id > 0) {
-            $subscription = (string) $params['newCustomer']->newsletter ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+            $subscription = (string) $params['newCustomer']->newsletter ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
             $iso = Language::getIsoById($params['newCustomer']->id_lang);
-            $customer = new MailChimpSubscriber(
+            $customer = new \MailChimpModule\MailChimpSubscriber(
                 $params['newCustomer']->email,
                 $subscription,
                 $params['newCustomer']->firstname,
@@ -711,9 +706,9 @@ class MailChimp extends Module
         /** @var Customer $customer */
         $customer = $params['object'];
 
-        $subscription = (string) $customer->newsletter ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+        $subscription = (string) $customer->newsletter ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
         $iso = LanguageCore::getIsoById($customer->id_lang);
-        $customerMC = new MailChimpSubscriber(
+        $customerMC = new \MailChimpModule\MailChimpSubscriber(
             $customer->email,
             $subscription,
             $customer->firstname,
@@ -736,9 +731,9 @@ class MailChimp extends Module
     {
         /** @var Customer $customer */
         $customer = $params['object'];
-        $subscription = (string) $customer->newsletter ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+        $subscription = (string) $customer->newsletter ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
         $iso = LanguageCore::getIsoById($customer->id_lang);
-        $customerMC = new MailChimpSubscriber(
+        $customerMC = new \MailChimpModule\MailChimpSubscriber(
             $customer->email,
             $subscription,
             $customer->firstname,
@@ -762,9 +757,9 @@ class MailChimp extends Module
     {
         if (Tools::isSubmit('newsletter')) {
             $object = $params['return'];
-            $subscription = (string) Tools::getValue('newsletter') ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+            $subscription = (string) Tools::getValue('newsletter') ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
             $iso = Language::getIsoById($object->id_lang);
-            $customer = new MailChimpSubscriber(
+            $customer = new \MailChimpModule\MailChimpSubscriber(
                 $object->email,
                 $subscription,
                 $object->firstname,
@@ -994,7 +989,7 @@ class MailChimp extends Module
     protected function getConfigFieldsValues()
     {
         return [
-            self::API_KEY            => Configuration::get(self::API_KEY, null, 0, 0),
+            self::API_KEY            => Configuration::get(self::API_KEY, null, null, 1),
             self::IMPORT_LIST        => Configuration::get(self::IMPORT_LIST),
             self::CONFIRMATION_EMAIL => Configuration::get(self::CONFIRMATION_EMAIL),
             self::UPDATE_EXISTING    => Configuration::get(self::UPDATE_EXISTING),
@@ -1012,7 +1007,7 @@ class MailChimp extends Module
         $helper = new HelperForm();
 
         $helper->show_toolbar = false;
-        $helper->table = MailChimpShop::$definition['table'];
+        $helper->table = \MailChimpModule\MailChimpShop::$definition['table'];
         $helper->module = $this;
         $helper->default_form_language = $this->context->language->id;
         $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
@@ -1048,7 +1043,7 @@ class MailChimp extends Module
                         'label' => $this->l('Shops to sync'),
                         'name'  => 'mailchimp_shops',
                         'lists' => [0 => $this->l('Do not sync')] + $this->getLists(true),
-                        'shops' => MailChimpShop::getShops(true),
+                        'shops' => \MailChimpModule\MailChimpShop::getShops(true),
                     ],
                 ],
                 'submit' => [
@@ -1070,7 +1065,7 @@ class MailChimp extends Module
         $helper = new HelperForm();
 
         $helper->show_toolbar = false;
-        $helper->table = MailChimpShop::$definition['table'];
+        $helper->table = \MailChimpModule\MailChimpShop::$definition['table'];
         $helper->module = $this;
         $helper->default_form_language = $this->context->language->id;
         $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
@@ -1105,7 +1100,7 @@ class MailChimp extends Module
                         'type'  => 'mailchimp_products',
                         'label' => $this->l('Products to sync'),
                         'name'  => 'mailchimp_products',
-                        'shops' => MailChimpShop::getShops(true),
+                        'shops' => \MailChimpModule\MailChimpShop::getShops(true),
                     ],
                 ],
 //                'submit' => [
@@ -1127,7 +1122,7 @@ class MailChimp extends Module
         $helper = new HelperForm();
 
         $helper->show_toolbar = false;
-        $helper->table = MailChimpShop::$definition['table'];
+        $helper->table = \MailChimpModule\MailChimpShop::$definition['table'];
         $helper->module = $this;
         $helper->default_form_language = $this->context->language->id;
         $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
@@ -1162,7 +1157,7 @@ class MailChimp extends Module
                         'type'  => 'mailchimp_carts',
                         'label' => $this->l('Carts to sync'),
                         'name'  => 'mailchimp_carts',
-                        'shops' => MailChimpShop::getShops(true),
+                        'shops' => \MailChimpModule\MailChimpShop::getShops(true),
                     ],
                 ],
                 //                'submit' => [
@@ -1184,7 +1179,7 @@ class MailChimp extends Module
         $helper = new HelperForm();
 
         $helper->show_toolbar = false;
-        $helper->table = MailChimpShop::$definition['table'];
+        $helper->table = \MailChimpModule\MailChimpShop::$definition['table'];
         $helper->module = $this;
         $helper->default_form_language = $this->context->language->id;
         $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
@@ -1219,7 +1214,7 @@ class MailChimp extends Module
                         'type'  => 'mailchimp_orders',
                         'label' => $this->l('Orders to sync'),
                         'name'  => 'mailchimp_orders',
-                        'shops' => MailChimpShop::getShops(true),
+                        'shops' => \MailChimpModule\MailChimpShop::getShops(true),
                     ],
                 ],
                 //                'submit' => [
@@ -1248,7 +1243,7 @@ class MailChimp extends Module
         if (isset($apiKey) && $apiKey != '') {
             // Check if API key is valid
             try {
-                $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, 0, 0));
+                $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
                 $mailchimp->verifySsl = false;
                 $getLists = $mailchimp->get('lists');
                 if ($getLists) {
@@ -1348,7 +1343,7 @@ class MailChimp extends Module
     public function displayAjaxExportAllProducts()
     {
         if (Tools::isSubmit('start')) {
-            $totalProducts = MailChimpProduct::countProducts();
+            $totalProducts = \MailChimpModule\MailChimpProduct::countProducts();
             $totalChunks = ceil($totalProducts / 1000);
 
             Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
@@ -1379,7 +1374,7 @@ class MailChimp extends Module
     {
         $idShop = Context::getContext()->shop->id;
 
-        $products = MailChimpProduct::getProducts($idShop, $offset, self::EXPORT_CHUNK_SIZE);
+        $products = \MailChimpModule\MailChimpProduct::getProducts($idShop, $offset, self::EXPORT_CHUNK_SIZE);
 
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
@@ -1408,7 +1403,7 @@ class MailChimp extends Module
     public function displayAjaxExportAllCarts()
     {
         if (Tools::isSubmit('start')) {
-            $totalCarts = MailChimpCart::countCarts();
+            $totalCarts = \MailChimpModule\MailChimpCart::countCarts();
             $totalChunks = ceil($totalCarts / 1000);
 
             Configuration::updateValue(self::CARTS_SYNC_COUNT, 0, false, 0, 0);
@@ -1439,7 +1434,7 @@ class MailChimp extends Module
     {
         $idShop = Context::getContext()->shop->id;
 
-        $carts = MailChimpCart::getCarts($idShop, $offset, self::EXPORT_CHUNK_SIZE);
+        $carts = \MailChimpModule\MailChimpCart::getCarts($idShop, $offset, self::EXPORT_CHUNK_SIZE);
 
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
@@ -1470,7 +1465,7 @@ class MailChimp extends Module
     public function displayAjaxExportAllOrders()
     {
         if (Tools::isSubmit('start')) {
-            $totalOrders = MailChimpOrder::countOrders();
+            $totalOrders = \MailChimpModule\MailChimpOrder::countOrders();
             $totalChunks = ceil($totalOrders / 1000);
 
             Configuration::updateValue(self::ORDERS_SYNC_COUNT, 0, false, 0, 0);
@@ -1502,7 +1497,7 @@ class MailChimp extends Module
         $idShop = Context::getContext()->shop->id;
 
         // We use the cart objects
-        $carts = MailChimpOrder::getOrders($idShop, $offset, self::EXPORT_CHUNK_SIZE);
+        $carts = \MailChimpModule\MailChimpOrder::getOrders($idShop, $offset, self::EXPORT_CHUNK_SIZE);
 
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
