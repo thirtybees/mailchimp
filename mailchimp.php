@@ -53,7 +53,7 @@ class MailChimp extends Module
     const CARTS_LAST_SYNC = 'CARTS_LAST_SYNC';
     const ORDERS_LAST_SYNC = 'ORDERS_LAST_SYNC';
 
-    const EXPORT_CHUNK_SIZE = 1000;
+    const EXPORT_CHUNK_SIZE = 100;
 
     const MENU_IMPORT = 1;
     const MENU_SHOPS = 2;
@@ -1432,6 +1432,12 @@ class MailChimp extends Module
      */
     protected function getShopsForm()
     {
+        $lists = [0 => $this->l('Do not sync')];
+        $thisLists = $this->getLists(true);
+        if (is_array($thisLists)) {
+            $lists = array_merge($lists, $thisLists);
+        }
+
         return [
             'form' => [
                 'legend' => [
@@ -1443,7 +1449,7 @@ class MailChimp extends Module
                         'type'  => 'mailchimp_shops',
                         'label' => $this->l('Shops to sync'),
                         'name'  => 'mailchimp_shops',
-                        'lists' => [0 => $this->l('Do not sync')] + $this->getLists(true),
+                        'lists' => $lists,
                         'shops' => \MailChimpModule\MailChimpShop::getShops(true),
                     ],
                 ],
@@ -1674,7 +1680,7 @@ class MailChimp extends Module
      */
     protected function checkApiKey()
     {
-        if (Configuration::get(self::API_KEY_VALID)) {
+        if (Configuration::get(self::API_KEY) && Configuration::get(self::API_KEY_VALID)) {
             return true;
         }
 

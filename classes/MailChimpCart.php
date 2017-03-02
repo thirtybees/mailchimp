@@ -180,4 +180,31 @@ class MailChimpCart extends MailChimpObjectModel
             $insert
         );
     }
+
+    /**
+     * Adds the indexes as well
+     *
+     * @param string|null $className
+     *
+     * @return bool Status
+     */
+    public static function createDatabase($className = null)
+    {
+        if (parent::createDatabase($className)) {
+            if (!\Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
+            SELECT *
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = \''._DB_NAME_.'\'
+            AND TABLE_NAME = \''._DB_PREFIX_.bqSQL(self::$definition['table']).'\'
+            AND INDEX_NAME = \'mailchimp_cart_id_cart\'')) {
+                \Db::getInstance()->execute(
+                    'CREATE INDEX `mailchimp_cart_id_cart` ON `'._DB_PREFIX_.bqSQL(self::$definition['table']).'` (`id_cart`)'
+                );
+            }
+
+            return true;
+        }
+
+        return false;
+    }
 }

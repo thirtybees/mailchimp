@@ -164,4 +164,41 @@ class MailChimpProduct extends MailChimpObjectModel
             $insert
         );
     }
+
+    /**
+     * Adds the indexes as well
+     *
+     * @param string|null $className
+     *
+     * @return bool Status
+     */
+    public static function createDatabase($className = null)
+    {
+        if (parent::createDatabase($className)) {
+            if (!\Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
+            SELECT *
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = \''._DB_NAME_.'\'
+            AND TABLE_NAME = \''._DB_PREFIX_.bqSQL(self::$definition['table']).'\'
+            AND INDEX_NAME = \'mailchimp_product_id_product\'')) {
+                \Db::getInstance()->execute(
+                    'CREATE INDEX `mailchimp_product_id_product` ON `'._DB_PREFIX_.bqSQL(self::$definition['table']).'` (`id_product`)'
+                );
+            }
+            if (!\Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
+            SELECT *
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = \''._DB_NAME_.'\'
+            AND TABLE_NAME = \''._DB_PREFIX_.bqSQL(self::$definition['table']).'\'
+            AND INDEX_NAME = \'mailchimp_product_id_shop\'')) {
+                \Db::getInstance()->execute(
+                    'CREATE INDEX `mailchimp_product_id_shop` ON `'._DB_PREFIX_.bqSQL(self::$definition['table']).'` (`id_shop`)'
+                );
+            }
+
+            return true;
+        }
+
+        return false;
+    }
 }
