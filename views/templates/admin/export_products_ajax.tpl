@@ -57,7 +57,7 @@
         $.get(exportUrl + '&ajax&action=exportAllProducts&shop=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           var remaining = parseInt(response.remaining, 10);
-          var processed = (totalChunks - remaining) * 1000;
+          var processed = (totalChunks - remaining) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
           var progress = (processed / totalProducts) * 100;
 
           // check max
