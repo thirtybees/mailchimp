@@ -49,6 +49,10 @@ class MailChimp extends Module
     const ORDERS_SYNC_COUNT = 'MAILCHIMP_ORDERS_SYNC_COUNT';
     const ORDERS_SYNC_TOTAL = 'MAILCHIMP_ORDERS_SYNC_TOTAL';
 
+    const PRODUCTS_LAST_SYNC = 'PRODUCTS_LAST_SYNC';
+    const CARTS_LAST_SYNC = 'CARTS_LAST_SYNC';
+    const ORDERS_LAST_SYNC = 'ORDERS_LAST_SYNC';
+
     const EXPORT_CHUNK_SIZE = 1000;
 
     const MENU_IMPORT = 1;
@@ -126,7 +130,7 @@ class MailChimp extends Module
     {
         $this->name = 'mailchimp';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.0.0';
+        $this->version = '1.1.0';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -135,6 +139,8 @@ class MailChimp extends Module
 
         $this->displayName = $this->l('MailChimp');
         $this->description = $this->l('Synchronize with MailChimp');
+
+        $this->controllers = ['cron', 'hook'];
 
         if (isset(Context::getContext()->employee->id) && Context::getContext()->employee->id) {
             $this->baseUrl = $this->context->link->getAdminLink('AdminModules', true).'&'.http_build_query([
@@ -186,7 +192,6 @@ class MailChimp extends Module
             || !Configuration::deleteByName(self::API_KEY)
             || !Configuration::deleteByName(self::IMPORT_LIST)
             || !Configuration::deleteByName(self::CONFIRMATION_EMAIL)
-            || !Configuration::deleteByName(self::UPDATE_EXISTING)
             || !Configuration::deleteByName(self::IMPORT_OPTED_IN)
             || !Configuration::deleteByName(self::LAST_IMPORT)
             || !Configuration::deleteByName(self::LAST_IMPORT_ID)
@@ -210,7 +215,9 @@ class MailChimp extends Module
     public function getContent()
     {
         if (Tools::isSubmit('ajax')) {
-            return $this->displayAjax();
+            $this->displayAjax();
+
+            return '';
         } else {
             $this->postProcess();
 
@@ -228,9 +235,9 @@ class MailChimp extends Module
     public function getLists($prepare = false)
     {
         try {
-            $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
-            $mailchimp->verifySsl = false;
-            $lists = $mailchimp->get('lists');
+            $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
+            $mailChimp->verifySsl = false;
+            $lists = $mailChimp->get('lists');
 
             if ($prepare) {
                 $preparedList = [];
@@ -250,6 +257,427 @@ class MailChimp extends Module
     }
 
     /**
+     *
+     * @since 1.0.0
+     */
+    public function hookDisplayBackOfficeHeader()
+    {
+        if ($this->context->controller->controller_name) {
+            if (Tools::isSubmit('module_name') && Tools::getValue('module_name') == 'mailchimp') {
+                $this->context->controller->addJquery();
+                $this->context->controller->addJS($this->_path.'views/js/mailchimp.js');
+                $this->context->controller->addJS($this->_path.'views/js/jquery.the-modal.js');
+            }
+        }
+    }
+
+    /**
+     *
+     * @since 1.0.0
+     */
+    public function hookFooter()
+    {
+        if (Tools::isSubmit('submitNewsletter') && Tools::isSubmit('email')) {
+            if (Validate::isEmail(Tools::getValue('email'))) {
+                $iso = Language::getIsoById($this->context->cookie->id_lang);
+                $customer = new \MailChimpModule\MailChimpSubscriber(
+                    Tools::getValue('email'),
+                    \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED,
+                    null,
+                    null,
+                    Tools::getRemoteAddr(),
+                    $this->getMailchimpLanguageByIso($iso),
+                    date('Y-m-d H:i:s')
+                );
+                if (!$this->addOrUpdateSubscription($customer)) {
+                    Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+                }
+            }
+        }
+    }
+
+    /**
+     * @param string $iso
+     *
+     * @return mixed|string
+     *
+     * @since 1.0.0
+     */
+    public function getMailchimpLanguageByIso($iso)
+    {
+        $lang = $this->mailChimpLanguages[$iso];
+        if ($lang == '') {
+            $lang = 'en';
+            Logger::addLog('MailChimp language code could not be found for language with ISO: '.$lang);
+        }
+
+        return $lang;
+    }
+
+    /**
+     * @param \MailChimpModule\MailChimpSubscriber $subscription
+     *
+     * @return bool
+     *
+     * @since 1.0.0
+     */
+    public function addOrUpdateSubscription(\MailChimpModule\MailChimpSubscriber $subscription)
+    {
+        return $this->importList([$subscription]);
+    }
+
+    /**
+     * @param array $params
+     *
+     * @since 1.0.0
+     */
+    public function hookActionCustomerAccountAdd($params)
+    {
+        // Check if creation is successful
+        if (isset($params['newCustomer']) && $params['newCustomer']->id > 0) {
+            $subscription = (string) $params['newCustomer']->newsletter ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+            $iso = Language::getIsoById($params['newCustomer']->id_lang);
+            $customer = new \MailChimpModule\MailChimpSubscriber(
+                $params['newCustomer']->email,
+                $subscription,
+                $params['newCustomer']->firstname,
+                $params['newCustomer']->lastname,
+                $params['newCustomer']->ip_registration_newsletter,
+                $this->getMailchimpLanguageByIso($iso),
+                $params['newCustomer']->newsletter_date_add
+            );
+            if (!$this->addOrUpdateSubscription($customer)) {
+                Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+            }
+        }
+    }
+
+    /**
+     * Action update customer after
+     *
+     * @param array $params
+     */
+    public function hookActionObjectCustomerUpdateAfter($params)
+    {
+        /** @var Customer $customer */
+        $customer = $params['object'];
+        $subscription = (string) $customer->newsletter ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+        $iso = LanguageCore::getIsoById($customer->id_lang);
+        $customerMC = new \MailChimpModule\MailChimpSubscriber(
+            $customer->email,
+            $subscription,
+            $customer->firstname,
+            $customer->lastname,
+            Tools::getRemoteAddr(),
+            $this->getMailchimpLanguageByIso($iso),
+            date('Y-m-d H:i:s')
+        );
+        if (!$this->addOrUpdateSubscription($customerMC)) {
+            Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+        }
+
+    }
+
+    /**
+     * Action add customer after
+     *
+     * @param array $params
+     */
+    public function hookActionObjectCustomerAddAfter($params)
+    {
+        /** @var Customer $customer */
+        $customer = $params['object'];
+
+        $subscription = (string) $customer->newsletter ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+        $iso = LanguageCore::getIsoById($customer->id_lang);
+        $customerMC = new \MailChimpModule\MailChimpSubscriber(
+            $customer->email,
+            $subscription,
+            $customer->firstname,
+            $customer->lastname,
+            Tools::getRemoteAddr(),
+            $this->getMailchimpLanguageByIso($iso),
+            date('Y-m-d H:i:s')
+        );
+        if (!$this->addOrUpdateSubscription($customerMC)) {
+            Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+        }
+    }
+
+    /**
+     * @param array $params
+     *
+     * @since 1.0.0
+     */
+    public function hookActionAdminCustomersControllerSaveAfter($params)
+    {
+        if (Tools::isSubmit('newsletter')) {
+            $object = $params['return'];
+            $subscription = (string) Tools::getValue('newsletter') ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+            $iso = Language::getIsoById($object->id_lang);
+            $customer = new \MailChimpModule\MailChimpSubscriber(
+                $object->email,
+                $subscription,
+                $object->firstname,
+                $object->lastname,
+                Tools::getRemoteAddr(),
+                $this->getMailchimpLanguageByIso($iso),
+                date('Y-m-d H:i:s')
+            );
+            if (!$this->addOrUpdateSubscription($customer)) {
+                Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+            }
+        }
+    }
+
+    /**
+     * Display export modals
+     *
+     * @return string
+     *
+     * @since 1.1.0
+     */
+    public function displayModals()
+    {
+        $modals = [
+            [
+                'modal_id'      => 'exportProductsProgress',
+                'modal_class'   => 'modal-md',
+                'modal_title'   => $this->l('Exporting...'),
+                'modal_content' => $this->display(__FILE__, 'views/templates/admin/export_products_progress.tpl'),
+            ],
+            [
+                'modal_id'      => 'exportCartsProgress',
+                'modal_class'   => 'modal-md',
+                'modal_title'   => $this->l('Exporting...'),
+                'modal_content' => $this->display(__FILE__, 'views/templates/admin/export_carts_progress.tpl'),
+            ],
+            [
+                'modal_id'      => 'exportOrdersProgress',
+                'modal_class'   => 'modal-md',
+                'modal_title'   => $this->l('Exporting...'),
+                'modal_content' => $this->display(__FILE__, 'views/templates/admin/export_orders_progress.tpl'),
+            ],
+        ];
+
+        $this->context->smarty->assign('modals', $modals);
+
+        return $this->display(__FILE__, 'views/templates/admin/modals.tpl');
+    }
+
+    /**
+     * Add information message
+     *
+     * @param string $message Message
+     * @param bool   $private
+     */
+    public function addInformation($message, $private = false)
+    {
+        if (!Tools::isSubmit('configure')) {
+            if (!$private) {
+                $this->context->controller->informations[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
+            }
+        } else {
+            $this->context->controller->informations[] = $message;
+        }
+    }
+
+    /**
+     * Add confirmation message
+     *
+     * @param string $message Message
+     * @param bool   $private
+     */
+    public function addConfirmation($message, $private = false)
+    {
+        if (!Tools::isSubmit('configure')) {
+            if (!$private) {
+                $this->context->controller->confirmations[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
+            }
+        } else {
+            $this->context->controller->confirmations[] = $message;
+        }
+    }
+
+    /**
+     * Add warning message
+     *
+     * @param string $message Message
+     * @param bool   $private
+     */
+    public function addWarning($message, $private = false)
+    {
+        if (!Tools::isSubmit('configure')) {
+            if (!$private) {
+                $this->context->controller->warnings[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
+            }
+        } else {
+            $this->context->controller->warnings[] = $message;
+        }
+    }
+
+    /**
+     * Add error message
+     *
+     * @param string $message Message
+     * @param bool   $private
+     */
+    public function addError($message, $private = false)
+    {
+        if (!Tools::isSubmit('configure')) {
+            if (!$private) {
+                $this->context->controller->errors[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
+            }
+        } else {
+            // Do not add error in this case
+            // It will break execution of AdminController
+            $this->context->controller->warnings[] = $message;
+        }
+    }
+
+    /**
+     * Process ajax calls
+     *
+     * @return void
+     *
+     * @since 1.1.0
+     */
+    public function displayAjax()
+    {
+        $action = ucfirst(Tools::getValue('action'));
+        if (in_array($action, [
+            'ExportAllProducts',
+            'ExportAllCarts',
+            'ExportAllOrders',
+        ])) {
+            $this->{'displayAjax'.$action}();
+        }
+    }
+
+    /**
+     * Ajax process export all products
+     *
+     * @return void
+     *
+     * @since 1.1.0
+     */
+    public function displayAjaxExportAllProducts()
+    {
+        $remaining = (bool) Tools::isSubmit('remaining');
+        $idShop = (int) Tools::getValue('shop');
+        if (!$idShop) {
+            $idShop = Context::getContext()->shop->id;
+        }
+
+        if (Tools::isSubmit('start')) {
+            $totalProducts = \MailChimpModule\MailChimpProduct::countProducts($idShop, $remaining);
+            $totalChunks = ceil($totalProducts / 1000);
+
+            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(self::PRODUCTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+
+            die(json_encode([
+                'totalChunks'   => $totalChunks,
+                'totalProducts' => $totalProducts,
+            ]));
+        }
+
+        if (Tools::isSubmit('next')) {
+            $count = (int) Configuration::get(self::PRODUCTS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(self::PRODUCTS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
+            $remaining = $total - $count;
+
+            $this->exportProducts(($count - 1) * self::EXPORT_CHUNK_SIZE, $idShop, $remaining);
+
+            die(json_encode([
+                'success'   => true,
+                'remaining' => $remaining,
+            ]));
+        }
+    }
+
+    /**
+     * Ajax process export all carts
+     *
+     * @return void
+     *
+     * @since 1.1.0
+     */
+    public function displayAjaxExportAllCarts()
+    {
+        $remaining = (bool) Tools::isSubmit('remaining');
+        $idShop = (int) Tools::getValue('shop');
+        if (!$idShop) {
+            $idShop = Context::getContext()->shop->id;
+        }
+
+        if (Tools::isSubmit('start')) {
+            $totalCarts = \MailChimpModule\MailChimpCart::countCarts($idShop, $remaining);
+            $totalChunks = ceil($totalCarts / 1000);
+
+            Configuration::updateValue(self::CARTS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(self::CARTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+
+            die(json_encode([
+                'totalChunks' => $totalChunks,
+                'totalCarts'  => $totalCarts,
+            ]));
+        }
+
+        if (Tools::isSubmit('next')) {
+            $count = (int) Configuration::get(self::CARTS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(self::CARTS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(self::CARTS_SYNC_COUNT, $count, null, 0, 0);
+            $remaining = $total - $count;
+
+            $this->exportCarts(($count - 1) * self::EXPORT_CHUNK_SIZE);
+
+            die(json_encode([
+                'success'   => true,
+                'remaining' => $remaining,
+            ]));
+        }
+    }
+
+    /**
+     * Ajax export all orders
+     *
+     * @return void
+     *
+     * @since 1.0.0
+     */
+    public function displayAjaxExportAllOrders()
+    {
+        if (Tools::isSubmit('start')) {
+            $totalOrders = \MailChimpModule\MailChimpOrder::countOrders();
+            $totalChunks = ceil($totalOrders / 1000);
+
+            Configuration::updateValue(self::ORDERS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(self::ORDERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+
+            die(json_encode([
+                'totalChunks' => $totalChunks,
+                'totalOrders' => $totalOrders,
+            ]));
+        }
+
+        if (Tools::isSubmit('next')) {
+            $count = (int) Configuration::get(self::ORDERS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(self::ORDERS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(self::ORDERS_SYNC_COUNT, $count, null, 0, 0);
+            $remaining = $total - $count;
+
+            $this->exportOrders(($count - 1) * self::EXPORT_CHUNK_SIZE);
+
+            die(json_encode([
+                'success'   => true,
+                'remaining' => $remaining,
+            ]));
+        }
+    }
+
+    /**
      * Process configuration
      */
     protected function postProcess()
@@ -265,11 +693,9 @@ class MailChimp extends Module
             $importList = Tools::getValue(self::IMPORT_LIST);
             $confirmationEmail = (bool) Tools::getvalue(self::CONFIRMATION_EMAIL);
             $importOptedIn = (bool) Configuration::get(self::IMPORT_OPTED_IN);
-            $updateExisting = (bool) Configuration::get(self::UPDATE_EXISTING);
 
             if (Configuration::updateValue(self::IMPORT_LIST, $importList)
                 && Configuration::updateValue(self::CONFIRMATION_EMAIL, $confirmationEmail)
-                && Configuration::updateValue(self::UPDATE_EXISTING, $updateExisting)
                 && Configuration::updateValue(self::IMPORT_OPTED_IN, $importOptedIn)
             ) {
                 $this->addConfirmation($this->l('Settings updated.'));
@@ -281,8 +707,7 @@ class MailChimp extends Module
 
                 // Check if asked for a manual import
                 if (Tools::isSubmit('manualImport_0') && (bool) Tools::getValue('manualImport_0')) {
-                    // Get subscribers list from Prestashop
-
+                    // Get subscribers list from thirty bees
                     $list = $this->getTotalSubscriberList($importOptedIn);
                     // //
                     $import = $this->importList($list);
@@ -324,6 +749,7 @@ class MailChimp extends Module
 
                     $mailChimpShop = \MailChimpModule\MailChimpShop::getByShopId($idShop);
                     $mailChimpShop->list_id = $idList;
+                    $mailChimpShop->id_shop = $idShop;
                     $mailChimpShop->synced = true;
 
                     $mailChimpShop->save();
@@ -602,234 +1028,6 @@ class MailChimp extends Module
     }
 
     /**
-     *
-     * @since 1.0.0
-     */
-    public function hookDisplayBackOfficeHeader()
-    {
-        if ($this->context->controller->controller_name) {
-            if (Tools::isSubmit('module_name') && Tools::getValue('module_name') == 'mailchimp') {
-                $this->context->controller->addJS($this->_path.'views/js/mailchimp.js');
-                $this->context->controller->addJS($this->_path.'views/js/jquery.the-modal.js');
-            }
-        }
-    }
-
-    /**
-     *
-     * @since 1.0.0
-     */
-    public function hookFooter()
-    {
-        if (Tools::isSubmit('submitNewsletter') && Tools::isSubmit('email')) {
-            if (Validate::isEmail(Tools::getValue('email'))) {
-                $iso = Language::getIsoById($this->context->cookie->id_lang);
-                $customer = new \MailChimpModule\MailChimpSubscriber(
-                    Tools::getValue('email'),
-                    \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED,
-                    null,
-                    null,
-                    Tools::getRemoteAddr(),
-                    $this->getMailchimpLanguageByIso($iso),
-                    date('Y-m-d H:i:s')
-                );
-                if (!$this->addOrUpdateSubscription($customer)) {
-                    Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-                }
-            }
-        }
-    }
-
-    /**
-     * @param string $iso
-     *
-     * @return mixed|string
-     *
-     * @since 1.0.0
-     */
-    public function getMailchimpLanguageByIso($iso)
-    {
-        $lang = $this->mailChimpLanguages[$iso];
-        if ($lang == '') {
-            $lang = 'en';
-            Logger::addLog('MailChimp language code could not be found for language with ISO: '.$lang);
-        }
-
-        return $lang;
-    }
-
-    /**
-     * @param \MailChimpModule\MailChimpSubscriber $subscription
-     *
-     * @return bool
-     *
-     * @since 1.0.0
-     */
-    public function addOrUpdateSubscription(\MailChimpModule\MailChimpSubscriber $subscription)
-    {
-        return $this->importList([$subscription]);
-    }
-
-    /**
-     * @param array $params
-     *
-     * @since 1.0.0
-     */
-    public function hookActionCustomerAccountAdd($params)
-    {
-        // Check if creation is successful
-        if (isset($params['newCustomer']) && $params['newCustomer']->id > 0) {
-            $subscription = (string) $params['newCustomer']->newsletter ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
-            $iso = Language::getIsoById($params['newCustomer']->id_lang);
-            $customer = new \MailChimpModule\MailChimpSubscriber(
-                $params['newCustomer']->email,
-                $subscription,
-                $params['newCustomer']->firstname,
-                $params['newCustomer']->lastname,
-                $params['newCustomer']->ip_registration_newsletter,
-                $this->getMailchimpLanguageByIso($iso),
-                $params['newCustomer']->newsletter_date_add
-            );
-            if (!$this->addOrUpdateSubscription($customer)) {
-                Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-            }
-        }
-    }
-
-    /**
-     * Action add customer after
-     *
-     * @param array $params
-     */
-    public function hookActionObjectCustomerAddAfter($params)
-    {
-        /** @var Customer $customer */
-        $customer = $params['object'];
-
-        $subscription = (string) $customer->newsletter ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
-        $iso = LanguageCore::getIsoById($customer->id_lang);
-        $customerMC = new \MailChimpModule\MailChimpSubscriber(
-            $customer->email,
-            $subscription,
-            $customer->firstname,
-            $customer->lastname,
-            Tools::getRemoteAddr(),
-            $this->getMailchimpLanguageByIso($iso),
-            date('Y-m-d H:i:s')
-        );
-        if (!$this->addOrUpdateSubscription($customerMC)) {
-            Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-        }
-    }
-
-    /**
-     * Action update customer after
-     *
-     * @param array $params
-     */
-    public function hookActionObjectCustomerUpdateAfter($params)
-    {
-        /** @var Customer $customer */
-        $customer = $params['object'];
-        $subscription = (string) $customer->newsletter ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
-        $iso = LanguageCore::getIsoById($customer->id_lang);
-        $customerMC = new \MailChimpModule\MailChimpSubscriber(
-            $customer->email,
-            $subscription,
-            $customer->firstname,
-            $customer->lastname,
-            Tools::getRemoteAddr(),
-            $this->getMailchimpLanguageByIso($iso),
-            date('Y-m-d H:i:s')
-        );
-        if (!$this->addOrUpdateSubscription($customerMC)) {
-            Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-        }
-
-    }
-
-    /**
-     * @param array $params
-     *
-     * @since 1.0.0
-     */
-    public function hookActionAdminCustomersControllerSaveAfter($params)
-    {
-        if (Tools::isSubmit('newsletter')) {
-            $object = $params['return'];
-            $subscription = (string) Tools::getValue('newsletter') ? \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : \MailChimpModule\MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
-            $iso = Language::getIsoById($object->id_lang);
-            $customer = new \MailChimpModule\MailChimpSubscriber(
-                $object->email,
-                $subscription,
-                $object->firstname,
-                $object->lastname,
-                Tools::getRemoteAddr(),
-                $this->getMailchimpLanguageByIso($iso),
-                date('Y-m-d H:i:s')
-            );
-            if (!$this->addOrUpdateSubscription($customer)) {
-                Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-            }
-        }
-    }
-
-    /**
-     * @return void
-     *
-     * @since 1.0.0
-     */
-    protected function loadTabs()
-    {
-        $contents = [
-            [
-                'name'  => $this->l('Import Settings'),
-                'icon'  => 'icon-download',
-                'value' => $this->displayImportForm(),
-                'badge' => false,
-            ],
-        ];
-
-        if ($this->checkApiKey()) {
-            $contents[] = [
-                'name'  => $this->l('Shops'),
-                'icon'  => 'icon-building',
-                'value' => $this->displayShopsForm(),
-                'badge' => false,
-            ];
-            $contents[] = [
-                'name'  => $this->l('Products'),
-                'icon'  => 'icon-archive',
-                'value' => $this->displayProductsForm(),
-                'badge' => false,
-            ];
-            $contents[] = [
-                'name'  => $this->l('Carts'),
-                'icon'  => 'icon-shopping-cart',
-                'value' => $this->displayCartsForm(),
-                'badge' => false,
-            ];
-            $contents[] = [
-                'name'  => $this->l('Orders'),
-                'icon'  => 'icon-shopping-cart',
-                'value' => $this->displayOrdersForm(),
-                'badge' => false,
-            ];
-        }
-
-        $tabContents = [
-            'title'    => $this->l('MailChimp'),
-            'contents' => $contents,
-        ];
-
-        $this->context->smarty->assign('tab_contents', $tabContents);
-        $this->context->smarty->assign('ps_version', _PS_VERSION_);
-        $this->context->smarty->assign('new_base_dir', $this->_path);
-        $this->context->controller->addCss($this->_path.'/views/css/configtabs.css');
-        $this->context->controller->addJs($this->_path.'/views/js/configtabs.js');
-    }
-
-    /**
      * Display form
      */
     protected function displayImportForm()
@@ -864,6 +1062,34 @@ class MailChimp extends Module
      */
     protected function generateApiForm()
     {
+        $context = Context::getContext();
+        $token = Tools::substr(Tools::encrypt($this->name.'/cron'), 0, 10);
+
+        $idShop = array_values(Shop::getShops(true, null, true));
+        if (is_array($idShop) && !empty($idShop)) {
+            $idShop = $idShop[0];
+        } else {
+            $idShop = $context->shop->id;
+        }
+
+        $idLang = array_values(Language::getLanguages(true, false, true));
+        if (is_array($idLang) && !empty($idLang)) {
+            $idLang = $idLang[0];
+        } else {
+            $idLang = $context->language->id;
+        }
+
+        $context->smarty->assign(
+            [
+                'cron_all_products'       => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllProducts',       'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_remaining_products' => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingProducts', 'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_all_carts'          => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllCarts',          'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_remaining_carts'    => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingCarts',    'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_all_orders'         => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllOrders',         'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_remaining_orders'   => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingOrders',   'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+            ]
+        );
+
         $fields = [];
 
         $inputs1 = [];
@@ -890,7 +1116,18 @@ class MailChimp extends Module
             ],
         ];
 
+        $fieldsForm2 = [
+            'form' => [
+                'legend' => [
+                    'title' => $this->l('Cron Settings'),
+                    'icon'  => 'icon-cogs',
+                ],
+                'description' => $this->display(__FILE__, 'views/templates/admin/cron_settings.tpl'),
+            ],
+        ];
+
         $fields[] = $fieldsForm1;
+        $fields[] = $fieldsForm2;
 
         if ($this->checkApiKey()) {
             $inputs2 = [];
@@ -908,25 +1145,6 @@ class MailChimp extends Module
                     ],
                     [
                         'id'    => 'confirmationSwitch_off',
-                        'value' => 0,
-                        'label' => $this->l('Disabled'),
-                    ],
-                ],
-            ];
-
-            $inputs2[] = [
-                'type'   => 'switch',
-                'label'  => $this->l('Update if exists'),
-                'name'   => self::UPDATE_EXISTING,
-                'desc'   => $this->l('Do you wish to update the subscriber details if they already exist?'),
-                'values' => [
-                    [
-                        'id'    => 'updateSwitch_on',
-                        'value' => 1,
-                        'label' => $this->l('Enabled'),
-                    ],
-                    [
-                        'id'    => 'updateSwitch_off',
                         'value' => 0,
                         'label' => $this->l('Disabled'),
                     ],
@@ -992,7 +1210,6 @@ class MailChimp extends Module
             self::API_KEY            => Configuration::get(self::API_KEY, null, null, 1),
             self::IMPORT_LIST        => Configuration::get(self::IMPORT_LIST),
             self::CONFIRMATION_EMAIL => Configuration::get(self::CONFIRMATION_EMAIL),
-            self::UPDATE_EXISTING    => Configuration::get(self::UPDATE_EXISTING),
             self::IMPORT_OPTED_IN    => Configuration::get(self::IMPORT_OPTED_IN),
         ];
     }
@@ -1103,11 +1320,6 @@ class MailChimp extends Module
                         'shops' => \MailChimpModule\MailChimpShop::getShops(true),
                     ],
                 ],
-//                'submit' => [
-//                    'title' => $this->l('Save'),
-//                    'class' => 'btn btn-default pull-right',
-//                    'name'  => 'submitProducts',
-//                ],
             ],
         ];
     }
@@ -1160,11 +1372,6 @@ class MailChimp extends Module
                         'shops' => \MailChimpModule\MailChimpShop::getShops(true),
                     ],
                 ],
-                //                'submit' => [
-                //                    'title' => $this->l('Save'),
-                //                    'class' => 'btn btn-default pull-right',
-                //                    'name'  => 'submitProducts',
-                //                ],
             ],
         ];
     }
@@ -1207,9 +1414,9 @@ class MailChimp extends Module
             'form' => [
                 'legend' => [
                     'title' => $this->l('Order settings'),
-                    'icon' => 'icon-shopping-cart',
+                    'icon'  => 'icon-shopping-cart',
                 ],
-                'input' => [
+                'input'  => [
                     [
                         'type'  => 'mailchimp_orders',
                         'label' => $this->l('Orders to sync'),
@@ -1217,13 +1424,63 @@ class MailChimp extends Module
                         'shops' => \MailChimpModule\MailChimpShop::getShops(true),
                     ],
                 ],
-                //                'submit' => [
-                //                    'title' => $this->l('Save'),
-                //                    'class' => 'btn btn-default pull-right',
-                //                    'name'  => 'submitProducts',
-                //                ],
             ],
         ];
+    }
+
+    /**
+     * @return void
+     *
+     * @since 1.0.0
+     */
+    protected function loadTabs()
+    {
+        $contents = [
+            [
+                'name'  => $this->l('Import Settings'),
+                'icon'  => 'icon-download',
+                'value' => $this->displayImportForm(),
+                'badge' => false,
+            ],
+        ];
+
+        if ($this->checkApiKey()) {
+            $contents[] = [
+                'name'  => $this->l('Shops'),
+                'icon'  => 'icon-building',
+                'value' => $this->displayShopsForm(),
+                'badge' => false,
+            ];
+            $contents[] = [
+                'name'  => $this->l('Products'),
+                'icon'  => 'icon-archive',
+                'value' => $this->displayProductsForm(),
+                'badge' => false,
+            ];
+            $contents[] = [
+                'name'  => $this->l('Carts'),
+                'icon'  => 'icon-shopping-cart',
+                'value' => $this->displayCartsForm(),
+                'badge' => false,
+            ];
+            $contents[] = [
+                'name'  => $this->l('Orders'),
+                'icon'  => 'icon-shopping-cart',
+                'value' => $this->displayOrdersForm(),
+                'badge' => false,
+            ];
+        }
+
+        $tabContents = [
+            'title'    => $this->l('MailChimp'),
+            'contents' => $contents,
+        ];
+
+        $this->context->smarty->assign('tab_contents', $tabContents);
+        $this->context->smarty->assign('ps_version', _PS_VERSION_);
+        $this->context->smarty->assign('new_base_dir', $this->_path);
+        $this->context->controller->addCss($this->_path.'/views/css/configtabs.css');
+        $this->context->controller->addJs($this->_path.'/views/js/configtabs.js');
     }
 
     /**
@@ -1240,7 +1497,7 @@ class MailChimp extends Module
         // Show settings form only if API key is set and working
         $apiKey = Configuration::get(self::API_KEY);
         $validKey = false;
-        if (isset($apiKey) && $apiKey != '') {
+        if (isset($apiKey) && $apiKey) {
             // Check if API key is valid
             try {
                 $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
@@ -1259,122 +1516,26 @@ class MailChimp extends Module
     }
 
     /**
-     * Add information message
+     * Export products
      *
-     * @param string $message Message
-     * @param bool   $private
-     */
-    public function addInformation($message, $private = false)
-    {
-        if (!Tools::isSubmit('configure')) {
-            if (!$private) {
-                $this->context->controller->informations[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
-            }
-        } else {
-            $this->context->controller->informations[] = $message;
-        }
-    }
-
-    /**
-     * Add confirmation message
+     * @param int  $offset
+     * @param int  $idShop
+     * @param bool $remaining
      *
-     * @param string $message Message
-     * @param bool   $private
-     */
-    public function addConfirmation($message, $private = false)
-    {
-        if (!Tools::isSubmit('configure')) {
-            if (!$private) {
-                $this->context->controller->confirmations[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
-            }
-        } else {
-            $this->context->controller->confirmations[] = $message;
-        }
-    }
-
-    /**
-     * Add warning message
+     * @return void
      *
-     * @param string $message Message
-     * @param bool   $private
+     * @since 1.0.0
      */
-    public function addWarning($message, $private = false)
+    protected function exportProducts($offset, $idShop = null, $remaining = false)
     {
-        if (!Tools::isSubmit('configure')) {
-            if (!$private) {
-                $this->context->controller->warnings[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
-            }
-        } else {
-            $this->context->controller->warnings[] = $message;
-        }
-    }
-
-    /**
-     * Add error message
-     *
-     * @param string $message Message
-     * @param bool   $private
-     */
-    public function addError($message, $private = false)
-    {
-        if (!Tools::isSubmit('configure')) {
-            if (!$private) {
-                $this->context->controller->errors[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
-            }
-        } else {
-            // Do not add error in this case
-            // It will break execution of AdminController
-            $this->context->controller->warnings[] = $message;
-        }
-    }
-
-    public function displayAjax()
-    {
-        $action = ucfirst(Tools::getValue('action'));
-        if (in_array($action, [
-            'ExportAllProducts',
-            'ExportAllCarts',
-            'ExportAllOrders',
-        ])) {
-            $this->{'displayAjax'.$action}();
-        }
-    }
-
-    public function displayAjaxExportAllProducts()
-    {
-        if (Tools::isSubmit('start')) {
-            $totalProducts = \MailChimpModule\MailChimpProduct::countProducts();
-            $totalChunks = ceil($totalProducts / 1000);
-
-            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::PRODUCTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
-
-            die(json_encode([
-                'totalChunks'   => $totalChunks,
-                'totalProducts' => $totalProducts,
-            ]));
+        if (!$idShop) {
+            $idShop = Context::getContext()->shop->id;
         }
 
-        if (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(self::PRODUCTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::PRODUCTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
-            $remaining = $total - $count;
-
-            $this->exportProducts(($count - 1) * self::EXPORT_CHUNK_SIZE);
-
-            die(json_encode([
-                'success'   => true,
-                'remaining' => $remaining,
-            ]));
+        $products = \MailChimpModule\MailChimpProduct::getProducts($idShop, $offset, self::EXPORT_CHUNK_SIZE, $remaining);
+        if (empty($products)) {
+            return;
         }
-    }
-
-    protected function exportProducts($offset)
-    {
-        $idShop = Context::getContext()->shop->id;
-
-        $products = \MailChimpModule\MailChimpProduct::getProducts($idShop, $offset, self::EXPORT_CHUNK_SIZE);
 
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
@@ -1398,43 +1559,30 @@ class MailChimp extends Module
         }
 
         $batch->execute(self::API_TIMEOUT);
-    }
 
-    public function displayAjaxExportAllCarts()
-    {
-        if (Tools::isSubmit('start')) {
-            $totalCarts = \MailChimpModule\MailChimpCart::countCarts();
-            $totalChunks = ceil($totalCarts / 1000);
-
-            Configuration::updateValue(self::CARTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::CARTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
-
-            die(json_encode([
-                'totalChunks' => $totalChunks,
-                'totalCarts'  => $totalCarts,
-            ]));
-        }
-
-        if (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(self::CARTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::CARTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::CARTS_SYNC_COUNT, $count, null, 0, 0);
-            $remaining = $total - $count;
-
-            $this->exportCarts(($count - 1) * self::EXPORT_CHUNK_SIZE);
-
-            die(json_encode([
-                'success'   => true,
-                'remaining' => $remaining,
-            ]));
+        if (\MailChimpModule\MailChimpProduct::setSynced(array_column($products, 'id_product'), $idShop)) {
+            Configuration::updateValue(self::PRODUCTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
         }
     }
 
-    protected function exportCarts($offset)
+    /**
+     * Export all carts
+     *
+     * @param int  $offset
+     *
+     * @param bool $remaining
+     *
+     * @return void
+     * @since 1.1.0
+     */
+    protected function exportCarts($offset, $remaining = false)
     {
         $idShop = Context::getContext()->shop->id;
 
-        $carts = \MailChimpModule\MailChimpCart::getCarts($idShop, $offset, self::EXPORT_CHUNK_SIZE);
+        $carts = \MailChimpModule\MailChimpCart::getCarts($idShop, $offset, self::EXPORT_CHUNK_SIZE, $remaining);
+        if (empty($carts)) {
+            return;
+        }
 
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
@@ -1444,8 +1592,8 @@ class MailChimp extends Module
                 'op'.(int) $cart['id_cart'],
                 "ecommerce/stores/tbstore_{$idShop}/carts",
                 [
-                    'id'       => (string) $cart['id_cart'],
-                    'customer'    => [
+                    'id'            => (string) $cart['id_cart'],
+                    'customer'      => [
                         'id'            => (string) $cart['id_customer'],
                         'email_address' => (string) $cart['email'],
                         'first_name'    => (string) $cart['firstname'],
@@ -1453,51 +1601,35 @@ class MailChimp extends Module
                         'opt_in_status' => (bool) $cart['newsletter'],
                     ],
                     'currency_code' => (string) $cart['currency_code'],
-                    'order_total' => (string) $cart['order_total'],
-                    'lines' => $cart['lines'],
+                    'order_total'   => (string) $cart['order_total'],
+                    'lines'         => $cart['lines'],
                 ]
             );
         }
 
         $batch->execute(self::API_TIMEOUT);
-    }
 
-    public function displayAjaxExportAllOrders()
-    {
-        if (Tools::isSubmit('start')) {
-            $totalOrders = \MailChimpModule\MailChimpOrder::countOrders();
-            $totalChunks = ceil($totalOrders / 1000);
-
-            Configuration::updateValue(self::ORDERS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::ORDERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
-
-            die(json_encode([
-                'totalChunks' => $totalChunks,
-                'totalOrders' => $totalOrders,
-            ]));
-        }
-
-        if (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(self::ORDERS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::ORDERS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::ORDERS_SYNC_COUNT, $count, null, 0, 0);
-            $remaining = $total - $count;
-
-            $this->exportOrders(($count - 1) * self::EXPORT_CHUNK_SIZE);
-
-            die(json_encode([
-                'success'   => true,
-                'remaining' => $remaining,
-            ]));
+        if (\MailChimpModule\MailChimpCart::setSynced(array_column($carts, 'id_cart'))) {
+            Configuration::updateValue(self::CARTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
         }
     }
 
+    /**
+     * Export orders
+     *
+     * @param int $offset
+     *
+     * @return void
+     */
     protected function exportOrders($offset)
     {
         $idShop = Context::getContext()->shop->id;
 
         // We use the cart objects
         $carts = \MailChimpModule\MailChimpOrder::getOrders($idShop, $offset, self::EXPORT_CHUNK_SIZE);
+        if (empty($carts)) {
+            return;
+        }
 
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
@@ -1512,8 +1644,8 @@ class MailChimp extends Module
                 'op'.(int) $cart['id_cart'],
                 "ecommerce/stores/tbstore_{$idShop}/orders",
                 [
-                    'id'       => (string) $cart['id_cart'],
-                    'customer'    => [
+                    'id'            => (string) $cart['id_cart'],
+                    'customer'      => [
                         'id'            => (string) $cart['id_customer'],
                         'email_address' => (string) $cart['email'],
                         'first_name'    => (string) $cart['firstname'],
@@ -1521,43 +1653,16 @@ class MailChimp extends Module
                         'opt_in_status' => (bool) $cart['newsletter'],
                     ],
                     'currency_code' => (string) $cart['currency_code'],
-                    'order_total' => (string) $cart['order_total'],
-                    'lines' => $cart['lines'],
+                    'order_total'   => (string) $cart['order_total'],
+                    'lines'         => $cart['lines'],
                 ]
             );
         }
 
         $batch->execute(self::API_TIMEOUT);
-    }
 
-    /**
-     * @since 1.0.0
-     */
-    public function displayModals()
-    {
-        $modals = [
-            [
-                'modal_id'      => 'exportProductsProgress',
-                'modal_class'   => 'modal-md',
-                'modal_title'   => $this->l('Exporting...'),
-                'modal_content' => $this->display(__FILE__, 'views/templates/admin/export_products_progress.tpl'),
-            ],
-            [
-                'modal_id'      => 'exportCartsProgress',
-                'modal_class'   => 'modal-md',
-                'modal_title'   => $this->l('Exporting...'),
-                'modal_content' => $this->display(__FILE__, 'views/templates/admin/export_carts_progress.tpl'),
-            ],
-            [
-                'modal_id'      => 'exportOrdersProgress',
-                'modal_class'   => 'modal-md',
-                'modal_title'   => $this->l('Exporting...'),
-                'modal_content' => $this->display(__FILE__, 'views/templates/admin/export_orders_progress.tpl'),
-            ],
-        ];
-
-        $this->context->smarty->assign('modals', $modals);
-
-        return $this->display(__FILE__, 'views/templates/admin/modals.tpl');
+        if (\MailChimpModule\MailChimpOrder::setSynced(array_column($carts, 'id_order'))) {
+            Configuration::updateValue(self::ORDERS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
+        }
     }
 }

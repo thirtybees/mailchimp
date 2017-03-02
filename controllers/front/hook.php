@@ -23,8 +23,6 @@ if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
 
 use MailChimpModule\MailChimp\Webhook;
 
-require_once __DIR__.'/../../classes/autoload.php';
-
 /**
  * Class StripeHookModuleFrontController
  */

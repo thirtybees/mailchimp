@@ -37,9 +37,9 @@ class MailChimpRegisteredWebhook extends MailChimpObjectModel
         'table'   => 'mailchimp_webhook',
         'primary' => 'id_mailchimp_webhook',
         'fields'  => [
-            'url'       => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(1024)'],
-            'id_list'   => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(32)'],
-            'date_recv' => ['type' => self::TYPE_DATE, 'validate' => 'isDate', 'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'],
+            'url'       => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '',                    'db_type' => 'VARCHAR(1024)'],
+            'id_list'   => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '',                    'db_type' => 'VARCHAR(32)'],
+            'date_recv' => ['type' => self::TYPE_DATE,   'validate' => 'isDate',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'],
         ],
     ];
     // @codingStandardsIgnoreStart

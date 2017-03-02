@@ -51,11 +51,15 @@ class MailChimpCart extends MailChimpObjectModel
     // @codingStandardsIgnoreEnd
 
     /**
+     * Count Carts
      *
+     * @param int|null $idShop    Shop ID
+     * @param bool     $remaining Remaining carts only
      *
-     * @param int|null $idShop
+     * @return int
+     * @since 1.1.0
      */
-    public static function countCarts($idShop = null)
+    public static function countCarts($idShop = null, $remaining = false)
     {
         if (!$idShop) {
             $idShop = \Context::getContext()->shop->id;
@@ -65,6 +69,13 @@ class MailChimpCart extends MailChimpObjectModel
         $sql->select('COUNT(c.`id_cart`)');
         $sql->from('cart', 'c');
         $sql->where('c.`id_shop` = '.(int) $idShop);
+        if ($remaining) {
+            $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
+            $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
+            if ($cartsLastSynced) {
+                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < '.pSQL($cartsLastSynced));
+            }
+        }
 
         return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
     }
@@ -76,10 +87,12 @@ class MailChimpCart extends MailChimpObjectModel
      * @param int      $offset
      * @param int      $limit
      *
+     * @param bool     $remaining
+     *
      * @return array|false|\mysqli_result|null|\PDOStatement|resource
      * @since 1.1.0
      */
-    public static function getCarts($idShop = null, $offset = 0, $limit = 0)
+    public static function getCarts($idShop = null, $offset = 0, $limit = 0, $remaining = false)
     {
         if (!$idShop) {
             $idShop = \Context::getContext()->shop->id;
@@ -90,6 +103,13 @@ class MailChimpCart extends MailChimpObjectModel
         $sql->from('cart', 'c');
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
         $sql->where('c.`id_shop` = '.(int) $idShop);
+        if ($remaining) {
+            $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
+            $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
+            if ($cartsLastSynced) {
+                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < '.pSQL($cartsLastSynced));
+            }
+        }
         if ($offset || $limit) {
             $sql->limit($limit, $offset);
         }
@@ -125,5 +145,39 @@ class MailChimpCart extends MailChimpObjectModel
         }
 
         return $results;
+    }
+
+    /**
+     * Set synced
+     *
+     * @param array $range
+     *
+     * @return bool
+     * @since 1.1.0
+     */
+    public static function setSynced($range)
+    {
+        if (empty($range)) {
+            return false;
+        }
+
+        $insert = [];
+        $now = date('Y-m-d H:i:s');
+        foreach ($range as &$item) {
+            $insert[] = [
+                'id_cart'     => $item,
+                'last_synced' => $now,
+            ];
+        }
+
+        \Db::getInstance()->delete(
+            bqSQL(self::$definition['table']),
+            '`id_cart` IN ('.implode(',', $range).')'
+        );
+
+        return \Db::getInstance()->insert(
+            bqSQL(self::$definition['table']),
+            $insert
+        );
     }
 }

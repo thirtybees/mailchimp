@@ -84,10 +84,10 @@
 										<span>{$shop['list_id']|escape:'htmlall':'UTF-8'}</span>
 									</td>
 									<td>
-										<div class="btn btn-default" id="sync-remaining-products-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync remaining products'}</div>
+										<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-remaining-products-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync remaining products'}</div>
 									</td>
 									<td>
-										<div class="btn btn-default" id="sync-all-products-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync all products'}</div>
+										<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-products-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync all products'}</div>
 									</td>
 								</tr>
 							{/foreach}
@@ -135,10 +135,10 @@
 										<span>{$shop['list_id']|escape:'htmlall':'UTF-8'}</span>
 									</td>
 									<td>
-										<div class="btn btn-default" id="sync-remaining-carts-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync remaining carts'}</div>
+										<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-remaining-carts-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync remaining carts'}</div>
 									</td>
 									<td>
-										<div class="btn btn-default" id="sync-all-carts-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync all carts'}</div>
+										<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-carts-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync all carts'}</div>
 									</td>
 								</tr>
 							{/foreach}
@@ -186,10 +186,10 @@
 										<span>{$shop['list_id']|escape:'htmlall':'UTF-8'}</span>
 									</td>
 									<td>
-										<div class="btn btn-default" id="sync-remaining-orders-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync remaining orders'}</div>
+										<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-remaining-orders-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync remaining orders'}</div>
 									</td>
 									<td>
-										<div class="btn btn-default" id="sync-all-orders-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync all orders'}</div>
+										<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-orders-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync all orders'}</div>
 									</td>
 								</tr>
 							{/foreach}
