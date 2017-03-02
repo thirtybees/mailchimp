@@ -12,9 +12,9 @@
  * obtain it through the world-wide-web, please send an email
  * to license@thirtybees.com so we can send you a copy immediately.
  *
- *  @author    Thirty Bees <modules@thirtybees.com>
- *  @copyright 2017 Thirty Bees
- *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @author    Thirty Bees <modules@thirtybees.com>
+ * @copyright 2017 Thirty Bees
+ * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
 if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
@@ -82,10 +82,10 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         $newsletter = \Db::getInstance()->insert(
             'newsletter',
             [
-                'email' => pSQL($data['email']),
-                'newsletter_date_add' => date('Y-m-d H:i:s'),
+                'email'                      => pSQL($data['email']),
+                'newsletter_date_add'        => date('Y-m-d H:i:s'),
                 'ip_registration_newsletter' => $_SERVER['REMOTE_ADDR'],
-                'active' => 1,
+                'active'                     => 1,
             ]
         );
         if (!$customer) {
@@ -116,7 +116,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             [
                 'newsletter' => 0,
             ],
-            'email = \''.pSQL($data['email']).'\''
+            '`email` = \''.pSQL($data['email']).'\''
         );
         // Update newsletter table
         $newsletter = \Db::getInstance()->update(
@@ -124,7 +124,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             [
                 'active' => 0,
             ],
-            'email = \''.pSQL($data['email']).'\''
+            '`email` = \''.pSQL($data['email']).'\''
         );
         if (!$customer) {
             Logger::addLog('processUnsubscribe hook failed for customer table.');
@@ -148,25 +148,25 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         Logger::addLog('processEmailChanged hook worked, json: '.json_encode($data));
         // Update customer table
         $customer = \Db::getInstance()->update(
-            'customer',
-            [
-                'newsletter' => 0,
-            ],
-            'email = \''.pSQL($data['old_email']).'\''
-        ) && \Db::getInstance()->update(
-            'customer',
-            [
-                'newsletter' => 1,
-            ],
-            'email = \''.pSQL($data['new_email']).'\''
-        );
+                'customer',
+                [
+                    'newsletter' => 0,
+                ],
+                '`email` = \''.pSQL($data['old_email']).'\''
+            ) && \Db::getInstance()->update(
+                'customer',
+                [
+                    'newsletter' => 1,
+                ],
+                '`email` = \''.pSQL($data['new_email']).'\''
+            );
         // Update newsletter table
         $newsletter = \Db::getInstance()->update(
             'newsletter',
             [
                 'email' => $data['new_email'],
             ],
-            'email = \''.pSQL($data['old_email']).'\''
+            '`email` = \''.pSQL($data['old_email']).'\''
         );
         if (!$customer) {
             Logger::addLog('processUnsubscribe hook failed for customer table.');

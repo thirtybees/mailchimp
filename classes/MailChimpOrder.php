@@ -70,7 +70,7 @@ class MailChimpOrder extends MailChimpObjectModel
             $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
             $ordersLastSynced = \Configuration::get(\MailChimp::ORDERS_LAST_SYNC);
             if ($ordersLastSynced) {
-                $sql->where('mo.`last_synced` IS NULL OR mo.`last_synced` < '.pSQL($ordersLastSynced));
+                $sql->where('mo.`last_synced` IS NULL OR mo.`last_synced` < \''.pSQL($ordersLastSynced).'\'');
             }
         }
 
@@ -105,7 +105,7 @@ class MailChimpOrder extends MailChimpObjectModel
         if ($remaining) {
             $ordersLastSynced = \Configuration::get(\MailChimp::ORDERS_LAST_SYNC);
             if ($ordersLastSynced) {
-                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < '.pSQL($ordersLastSynced));
+                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($ordersLastSynced).'\'');
             }
         }
         if ($offset || $limit) {
@@ -177,32 +177,5 @@ class MailChimpOrder extends MailChimpObjectModel
             bqSQL(self::$definition['table']),
             $insert
         );
-    }
-
-    /**
-     * Adds the indexes as well
-     *
-     * @param string|null $className
-     *
-     * @return bool Status
-     */
-    public static function createDatabase($className = null)
-    {
-        if (parent::createDatabase($className)) {
-            if (!\Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
-            SELECT *
-            FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = \''._DB_NAME_.'\'
-            AND TABLE_NAME = \''._DB_PREFIX_.bqSQL(self::$definition['table']).'\'
-            AND INDEX_NAME = \'mailchimp_order_id_order\'')) {
-                \Db::getInstance()->execute(
-                    'CREATE INDEX `mailchimp_order_id_order` ON `'._DB_PREFIX_.bqSQL(self::$definition['table']).'` (`id_order`)'
-                );
-            }
-
-            return true;
-        }
-
-        return false;
     }
 }

@@ -76,7 +76,7 @@ class MailChimpProduct extends MailChimpObjectModel
             $sql->leftJoin(bqSQL(self::$definition['table']), 'mp', 'mp.`id_product` = ps.`id_product`');
             $productsLastSynced = \Configuration::get(\MailChimp::PRODUCTS_LAST_SYNC, null, null, $idShop);
             if ($productsLastSynced) {
-                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < '.pSQL($productsLastSynced));
+                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < \''.pSQL($productsLastSynced).'\'');
             }
         }
 
@@ -114,7 +114,7 @@ class MailChimpProduct extends MailChimpObjectModel
         if ($remaining) {
             $productsLastSynced = \Configuration::get(\MailChimp::PRODUCTS_LAST_SYNC, null, null, $idShop);
             if ($productsLastSynced) {
-                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < '.pSQL($productsLastSynced));
+                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < \''.pSQL($productsLastSynced).'\'');
             }
         }
         if ($offset || $limit) {
@@ -163,42 +163,5 @@ class MailChimpProduct extends MailChimpObjectModel
             bqSQL(self::$definition['table']),
             $insert
         );
-    }
-
-    /**
-     * Adds the indexes as well
-     *
-     * @param string|null $className
-     *
-     * @return bool Status
-     */
-    public static function createDatabase($className = null)
-    {
-        if (parent::createDatabase($className)) {
-            if (!\Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
-            SELECT *
-            FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = \''._DB_NAME_.'\'
-            AND TABLE_NAME = \''._DB_PREFIX_.bqSQL(self::$definition['table']).'\'
-            AND INDEX_NAME = \'mailchimp_product_id_product\'')) {
-                \Db::getInstance()->execute(
-                    'CREATE INDEX `mailchimp_product_id_product` ON `'._DB_PREFIX_.bqSQL(self::$definition['table']).'` (`id_product`)'
-                );
-            }
-            if (!\Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
-            SELECT *
-            FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = \''._DB_NAME_.'\'
-            AND TABLE_NAME = \''._DB_PREFIX_.bqSQL(self::$definition['table']).'\'
-            AND INDEX_NAME = \'mailchimp_product_id_shop\'')) {
-                \Db::getInstance()->execute(
-                    'CREATE INDEX `mailchimp_product_id_shop` ON `'._DB_PREFIX_.bqSQL(self::$definition['table']).'` (`id_shop`)'
-                );
-            }
-
-            return true;
-        }
-
-        return false;
     }
 }
