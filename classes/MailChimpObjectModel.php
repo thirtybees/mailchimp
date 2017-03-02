@@ -133,6 +133,7 @@ class MailChimpObjectModel extends \ObjectModel
             $sql .= 'PRIMARY KEY (`'.bqSQL($definition['primary']).'`, `id_shop`)';
 
             $sql .= ')';
+            ddd($sql);
 
             try {
                 $success &= \Db::getInstance()->execute($sql);

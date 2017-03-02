@@ -41,12 +41,14 @@ class MailChimpTracking extends MailChimpObjectModel
         'table'   => 'mailchimp_tracking',
         'primary' => 'id_mailchimp_tracking',
         'fields'  => [
-            'id_order' => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true, 'db_type' => 'INT(11) UNSIGNED'],
-            'mc_tc'    => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'db_type' => 'VARCHAR(255)'],
+            'id_order' => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                  'db_type' => 'INT(11) UNSIGNED'],
+            'mc_tc'    => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(255)'    ],
+            'mc_cid'   => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(255)'    ],
         ],
     ];
     // @codingStandardsIgnoreStart
     public $id_order;
     public $mc_tc;
+    public $mc_cid;
     // @codingStandardsIgnoreEnd
 }

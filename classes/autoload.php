@@ -27,6 +27,7 @@ spl_autoload_register(
             'MailChimpModule\\MailChimpCart',
             'MailChimpModule\\MailChimpObjectModel',
             'MailChimpModule\\MailChimpOrder',
+            'MailChimpModule\\MailChimpTracking',
             'MailChimpModule\\MailChimp\\Batch',
             'MailChimpModule\\MailChimp\\MailChimp',
             'MailChimpModule\\MailChimp\\Webhook',
