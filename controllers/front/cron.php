@@ -65,33 +65,105 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
         die('N/A');
     }
 
+    /**
+     * Process export all products
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
     protected function processExportAllProducts($idShop)
     {
+        $data = $this->module->cronExportProducts($idShop, false, 'start');
+        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            $this->module->cronExportProducts($idShop, false, 'next');
+        }
+
         die('ok');
     }
 
+    /**
+     * Process export all carts
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
     protected function processExportAllCarts($idShop)
     {
+        $data = $this->module->cronExportCarts($idShop, false, 'start');
+        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            $this->module->cronExportCarts($idShop, false, 'next');
+        }
+
         die('ok');
     }
 
+    /**
+     * Process export all orders
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
     protected function processExportAllOrders($idShop)
     {
+        $data = $this->module->cronExportOrders($idShop, false, 'start');
+        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            $this->module->cronExportOrders($idShop, false, 'next');
+        }
+
         die('ok');
     }
 
+    /**
+     * Process export remaining products
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
     protected function processExportRemainingProducts($idShop)
     {
+        $data = $this->module->cronExportProducts($idShop, true, 'start');
+        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            $this->module->cronExportProducts($idShop, true, 'next');
+        }
+
         die('ok');
     }
 
+    /**
+     * Process export remaining carts
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
     protected function processExportRemainingCarts($idShop)
     {
+        $data = $this->module->cronExportCarts($idShop, true, 'start');
+        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            $this->module->cronExportCarts($idShop, true, 'next');
+        }
+
         die('ok');
     }
 
+    /**
+     * Process export remaining orders
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
     protected function processExportRemainingOrders($idShop)
     {
+        $data = $this->module->cronExportOrders($idShop, true, 'start');
+        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            $this->module->cronExportOrders($idShop, true, 'next');
+        }
+
         die('ok');
     }
 }

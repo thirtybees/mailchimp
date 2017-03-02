@@ -754,6 +754,130 @@ class MailChimp extends Module
     }
 
     /**
+     * Cron process export all products
+     *
+     * @param int    $idShop
+     * @param bool   $exportRemaining
+     * @param string $submit
+     *
+     * @return false|array
+     * @since 1.1.0
+     */
+    public function cronExportProducts($idShop, $exportRemaining, $submit)
+    {
+        if ($submit === 'start') {
+            $totalProducts = \MailChimpModule\MailChimpProduct::countProducts($idShop, $exportRemaining);
+            $totalChunks = ceil($totalProducts / self::EXPORT_CHUNK_SIZE);
+
+            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(self::PRODUCTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+
+            return [
+                'totalChunks'   => $totalChunks,
+                'totalProducts' => $totalProducts,
+            ];
+        } elseif ($submit === 'next') {
+            $count = (int) Configuration::get(self::PRODUCTS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(self::PRODUCTS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
+            $remaining = $total - $count;
+
+            $idBatch = $this->exportProducts(($count - 1) * self::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
+
+            return [
+                'success'   => true,
+                'remaining' => $remaining,
+                'batch_id'  => $idBatch,
+            ];
+        }
+
+        return false;
+    }
+
+    /**
+     * Cron process export all carts
+     *
+     * @param int    $idShop
+     * @param bool   $exportRemaining
+     * @param string $submit
+     *
+     * @return array|false
+     * @since 1.1.0
+     */
+    public function cronExportCarts($idShop, $exportRemaining, $submit)
+    {
+        if ($submit === 'start') {
+            $totalCarts = \MailChimpModule\MailChimpCart::countCarts($idShop, $exportRemaining);
+            $totalChunks = ceil($totalCarts / self::EXPORT_CHUNK_SIZE);
+
+            Configuration::updateValue(self::CARTS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(self::CARTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+
+            return [
+                'totalChunks' => $totalChunks,
+                'totalCarts'  => $totalCarts,
+            ];
+        } elseif ($submit === 'next') {
+            $count = (int) Configuration::get(self::CARTS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(self::CARTS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(self::CARTS_SYNC_COUNT, $count, null, 0, 0);
+            $remaining = $total - $count;
+
+            $idBatch = $this->exportCarts(($count - 1) * self::EXPORT_CHUNK_SIZE, $exportRemaining);
+
+            return [
+                'success'   => true,
+                'remaining' => $remaining,
+                'batch_id'  => $idBatch,
+            ];
+        }
+
+        return false;
+    }
+
+    /**
+     * Cron export all orders
+     *
+     * @param int    $idShop
+     * @param bool   $exportRemaining
+     * @param string $submit
+     *
+     * @return false|array
+     *
+     * @since 1.0.0
+     */
+    public function cronExportOrders($idShop, $exportRemaining, $submit)
+    {
+        if ($submit === 'start') {
+            $totalOrders = \MailChimpModule\MailChimpOrder::countOrders($idShop, $exportRemaining);
+            $totalChunks = ceil($totalOrders / self::EXPORT_CHUNK_SIZE);
+
+            Configuration::updateValue(self::ORDERS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(self::ORDERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+
+            return [
+                'totalChunks' => $totalChunks,
+                'totalOrders' => $totalOrders,
+            ];
+        } elseif ($submit === 'next') {
+            $count = (int) Configuration::get(self::ORDERS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(self::ORDERS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(self::ORDERS_SYNC_COUNT, $count, null, 0, 0);
+            $remaining = $total - $count;
+
+            $idBatch = $this->exportOrders(($count - 1) * self::EXPORT_CHUNK_SIZE, $exportRemaining);
+
+            return [
+                'success'   => true,
+                'remaining' => $remaining,
+                'batch_id'  => $idBatch,
+            ];
+        }
+
+        return false;
+    }
+
+    /**
      * Process configuration
      */
     protected function postProcess()
