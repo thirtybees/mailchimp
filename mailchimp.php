@@ -273,9 +273,10 @@ class MailChimp extends Module
     public function hookDisplayHeader()
     {
         // Set MailChimp tracking code
-        if (Tools::isSubmit('mc_tc')) {
+        if (Tools::isSubmit('mc_tc') || Tools::isSubmit('mc_cid')) {
             $cookie = new Cookie('tb_mailchimp');
             $cookie->mc_tc = Tools::getValue('mc_tc');
+            $cookie->mc_cid = Tools::getValue('mc_cid');
             $cookie->setExpire(self::COOKIE_LIFETIME);
             $cookie->write();
         }
@@ -340,7 +341,7 @@ class MailChimp extends Module
     {
         try {
             $cookie = new Cookie('tb_mailchimp');
-            if ($cookie->mc_tc) {
+            if ($cookie->mc_tc || $cookie->mc_cid) {
                 /** @var Order $order */
                 $order = $params['order'];
                 if (!($order instanceof Order)) {
@@ -348,16 +349,20 @@ class MailChimp extends Module
                 }
                 $mailChimpTracking = new \MailChimpModule\MailChimpTracking();
                 $mailChimpTracking->mc_tc = $cookie->mc_tc;
+                $mailChimpTracking->mc_cid = $cookie->mc_cid;
                 $mailChimpTracking->id_order = $order->id;
 
                 $mailChimpTracking->save();
 
                 unset($cookie->mc_tc);
+                unset($cookie->mc_cid);
                 $cookie->write();
             }
         } catch (Exception $e) {
             if (isset ($cookie->mc_tc) && isset($params['order']->id)) {
                 Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_tc for Order {$params['order']->id}", 3);
+            } elseif (isset ($cookie->mc_cid) && isset($params['order']->id)) {
+                Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_cid for Order {$params['order']->id}", 3);
             } else {
                 Logger::addLog('Unable to set Mailchimp tracking code for Order', 3);
             }
