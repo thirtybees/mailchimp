@@ -81,6 +81,7 @@ class MailChimp
      *
      * @param string $batchId Optional ID of an existing batch, if you need to check its status for example.
      *
+     *
      * @return Batch            New Batch object.
      */
     public function newBatch($batchId = null)

@@ -99,12 +99,12 @@ class MailChimpCart extends MailChimpObjectModel
         }
 
         $sql = new \DbQuery();
-        $sql->select('c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`');
+        $sql->select('c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, mc.`last_synced`');
         $sql->from('cart', 'c');
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
         $sql->where('c.`id_shop` = '.(int) $idShop);
+        $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
         if ($remaining) {
-            $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
             if ($cartsLastSynced) {
                 $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < '.pSQL($cartsLastSynced));

@@ -104,14 +104,14 @@ class MailChimpProduct extends MailChimpObjectModel
         $idLang = (int) \Configuration::get('PS_LANG_DEFAULT');
 
         $sql = new \DbQuery();
-        $sql->select('ps.*, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`');
+        $sql->select('ps.*, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`, mp.`last_synced`');
         $sql->from('product_shop', 'ps');
         $sql->innerJoin('product_lang', 'pl', 'pl.`id_product` = ps.`id_product` AND pl.`id_lang` = '.(int) $idLang);
         $sql->innerJoin('product', 'p', 'p.`id_product` = ps.`id_product`');
         $sql->leftJoin('manufacturer', 'm', 'm.`id_manufacturer` = p.`id_manufacturer`');
         $sql->where('ps.`id_shop` = '.(int) $idShop);
+        $sql->leftJoin(bqSQL(self::$definition['table']), 'mp', 'mp.`id_product` = ps.`id_product`');
         if ($remaining) {
-            $sql->leftJoin(bqSQL(self::$definition['table']), 'mp', 'mp.`id_product` = ps.`id_product`');
             $productsLastSynced = \Configuration::get(\MailChimp::PRODUCTS_LAST_SYNC, null, null, $idShop);
             if ($productsLastSynced) {
                 $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < '.pSQL($productsLastSynced));

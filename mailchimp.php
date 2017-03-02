@@ -1613,32 +1613,37 @@ class MailChimp extends Module
                     'id' => $combination['id_product_attribute'],
                     'title' => $product['name'],
                     'sku' => $combination['reference'],
-                    'price' => $combination['price'],
+                    'price' => (float) $product['price'] + (float) $combination['price'],
                     'inventory_quantity' => $combination['quantity'],
                 ];
                 if (isset($allCombinationImages[$combination['id_product_attribute']])) {
                     $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]}");
                 }
+                $variants[] = $variant;
             }
 
-            // Delete then add again for upsert behavior
-            $batch->delete(
-                'opdelete'.(int) $product['id_product'],
-                "ecommerce/stores/tb_store_{$idShop}/products/{$product['id_product']}"
-            );
-            $batch->post(
-                'op'.(int) $product['id_product'],
-                "ecommerce/stores/tbstore_{$idShop}/products",
-                [
-                    'id'       => (string) $product['id_product'],
-                    'title'    => (string) $product['name'],
-                    'url'      => $link->getProductLink($product['id_product']),
-                    'description' => $product['description_short'],
-                    'vendor' => $product['manufacturer'],
-                    'image_url' => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
-                    'variants' => $variants,
-                ]
-            );
+            $payload = [
+                'id'       => (string) $product['id_product'],
+                'title'    => (string) $product['name'],
+                'url'      => $link->getProductLink($product['id_product']),
+                'description' => $product['description_short'],
+                'vendor' => $product['manufacturer'] ?: '',
+                'image_url' => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
+                'variants' => $variants,
+            ];
+            if ($product['last_synced']) {
+                $batch->patch(
+                    'op'.(int) $product['id_product'],
+                    "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
+                    $payload
+                );
+            } else {
+                $batch->post(
+                    'op'.(int) $product['id_product'],
+                    "ecommerce/stores/tbstore_{$idShop}/products",
+                    $payload
+                );
+            }
         }
 
         $result = $batch->execute(self::API_TIMEOUT);
@@ -1677,28 +1682,33 @@ class MailChimp extends Module
         $batch = $mailChimp->newBatch();
 
         foreach ($carts as &$cart) {
-            // Delete then add again for upsert behavior
-            $batch->delete(
-                'opdelete'.(int) $cart['id_cart'],
-                "ecommerce/stores/tb_store_{$idShop}/carts/{$cart['id_cart']}"
-            );
-            $batch->post(
-                'op'.(int) $cart['id_cart'],
-                "ecommerce/stores/tbstore_{$idShop}/carts",
-                [
-                    'id'            => (string) $cart['id_cart'],
-                    'customer'      => [
-                        'id'            => (string) $cart['id_customer'],
-                        'email_address' => (string) $cart['email'],
-                        'first_name'    => (string) $cart['firstname'],
-                        'last_name'     => (string) $cart['lastname'],
-                        'opt_in_status' => (bool) $cart['newsletter'],
-                    ],
-                    'currency_code' => (string) $cart['currency_code'],
-                    'order_total'   => (string) $cart['order_total'],
-                    'lines'         => $cart['lines'],
-                ]
-            );
+            $payload = [
+                'id'            => (string) $cart['id_cart'],
+                'customer'      => [
+                    'id'            => (string) $cart['id_customer'],
+                    'email_address' => (string) $cart['email'],
+                    'first_name'    => (string) $cart['firstname'],
+                    'last_name'     => (string) $cart['lastname'],
+                    'opt_in_status' => (bool) $cart['newsletter'],
+                ],
+                'currency_code' => (string) $cart['currency_code'],
+                'order_total'   => (string) $cart['order_total'],
+                'lines'         => $cart['lines'],
+            ];
+
+            if ($cart['last_synced']) {
+                $batch->patch(
+                    'op'.(int) $cart['id_cart'],
+                    "ecommerce/stores/tbstore_{$idShop}/carts/{$cart['id_cart']}",
+                    $payload
+                );
+            } else {
+                $batch->post(
+                    'op'.(int) $cart['id_cart'],
+                    "ecommerce/stores/tbstore_{$idShop}/carts",
+                    $payload
+                );
+            }
         }
 
         $result = $batch->execute(self::API_TIMEOUT);
@@ -1742,29 +1752,34 @@ class MailChimp extends Module
                 continue;
             }
 
-            // Delete then add again for upsert behavior
-            $batch->delete(
-                'opdelete'.(int) $cart['id_order'],
-                "ecommerce/stores/tb_store_{$idShop}/orders/{$cart['id_order']}"
-            );
-            $batch->post(
-                'op'.(int) $cart['id_cart'],
-                "ecommerce/stores/tbstore_{$idShop}/orders",
-                [
-                    'id'            => (string) $cart['id_cart'],
-                    'customer'      => [
-                        'id'            => (string) $cart['id_customer'],
-                        'email_address' => (string) $cart['email'],
-                        'first_name'    => (string) $cart['firstname'],
-                        'last_name'     => (string) $cart['lastname'],
-                        'opt_in_status' => (bool) $cart['newsletter'],
-                    ],
-                    'currency_code' => (string) $cart['currency_code'],
-                    'order_total'   => (string) $cart['order_total'],
-                    'lines'         => $cart['lines'],
-                    'tracking_code' => $cart['mc_tc'],
-                ]
-            );
+            $payload = [
+                'id'            => (string) $cart['id_cart'],
+                'customer'      => [
+                    'id'            => (string) $cart['id_customer'],
+                    'email_address' => (string) $cart['email'],
+                    'first_name'    => (string) $cart['firstname'],
+                    'last_name'     => (string) $cart['lastname'],
+                    'opt_in_status' => (bool) $cart['newsletter'],
+                ],
+                'currency_code' => (string) $cart['currency_code'],
+                'order_total'   => (string) $cart['order_total'],
+                'lines'         => $cart['lines'],
+                'tracking_code' => $cart['mc_tc'],
+            ];
+
+            if ($cart['last_synced']) {
+                $batch->patch(
+                    'op'.(int) $cart['id_order'],
+                    "ecommerce/stores/tbstore_{$idShop}/orders/{$cart['id_order']}",
+                    $payload
+                );
+            } else {
+                $batch->post(
+                    'op'.(int) $cart['id_cart'],
+                    "ecommerce/stores/tbstore_{$idShop}/orders",
+                    $payload
+                );
+            }
         }
 
         $result = $batch->execute(self::API_TIMEOUT);
