@@ -99,6 +99,7 @@ class MailChimpOrder extends MailChimpObjectModel
         $sql->from('orders', 'o');
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = o.`id_customer`');
         $sql->innerJoin('cart', 'c', 'c.`id_cart` = o.`id_cart`');
+        $sql->leftJoin('mailchimp_tracking', 'mt', 'mt.`id_order` = o.`id_order`');
         $sql->where('o.`id_shop` = '.(int) $idShop);
         if ($remaining) {
             $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
@@ -123,7 +124,7 @@ class MailChimpOrder extends MailChimpObjectModel
 
             $cart['lines'] = [];
             $sql = new \DbQuery();
-            $sql->select('cp.*, ps.`price`');
+            $sql->select('cp.*, ps.`price`, mt.`mc_tc`');
             $sql->from('cart_product', 'cp');
             $sql->innerJoin('product_shop', 'ps', 'ps.`id_product` = cp.`id_product` AND ps.`id_shop` = '.(int) $idShop);
             $sql->where('cp.`id_cart` = '.(int) $cart['id_cart']);

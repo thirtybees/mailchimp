@@ -161,12 +161,14 @@ class MailChimp extends Module
     public function install()
     {
         if (!parent::install()
+            || !$this->registerHook('displayHeader')
             || !$this->registerHook('displayBackOfficeHeader')
             || !$this->registerHook('footer') // to catch guest newsletter subscription
             || !$this->registerHook('actionCustomerAccountAdd') // front office account creation
             || !$this->registerHook('actionObjectCustomerAddAfter') // front office account creation
             || !$this->registerHook('actionObjectCustomerUpdateAfter') // front office account creation
             || !$this->registerHook('actionAdminCustomersControllerSaveAfter') // back office update customer
+            || !$this->registerHook('actionValidateOrder') // validate order
             || !\MailChimpModule\MailChimpRegisteredWebhook::createDatabase()
             || !\MailChimpModule\MailChimpShop::createDatabase()
             || !\MailChimpModule\MailChimpProduct::createDatabase()
@@ -211,6 +213,8 @@ class MailChimp extends Module
      * Module configuration page
      *
      * @return string
+     *
+     * @since 1.0.0
      */
     public function getContent()
     {
@@ -257,6 +261,27 @@ class MailChimp extends Module
     }
 
     /**
+     * Hook to display header
+     *
+     * @return void
+     *
+     * @since 1.1.0
+     **/
+    public function hookDisplayHeader()
+    {
+        // Set MailChimp tracking code
+        if (Tools::isSubmit('mc_tc')) {
+            $cookie = Context::getContext()->cookie;
+            if (!$cookie->mc_tc) {
+                $cookie->mc_tc = Tools::getValue('mc_tc');
+            }
+        }
+    }
+
+    /**
+     * Hook to back office header
+     *
+     * @return void
      *
      * @since 1.0.0
      */
@@ -272,6 +297,9 @@ class MailChimp extends Module
     }
 
     /**
+     * Hook to front office footer
+     *
+     * @return void
      *
      * @since 1.0.0
      */
@@ -293,6 +321,34 @@ class MailChimp extends Module
                     Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
                 }
             }
+        }
+    }
+
+    /**
+     * Hook action validate order
+     *
+     * @param array $params
+     *
+     * @return void
+     *
+     * @since 1.1.0
+     */
+    public function hookActionValidateOrder($params)
+    {
+        $cookie = Context::getContext()->cookie;
+        if ($cookie->mc_tc) {
+            /** @var Order $order */
+            $order = $params['order'];
+            if (!($order instanceof Order)) {
+                return;
+            }
+            $mailChimpTracking = new \MailChimpModule\MailChimpTracking();
+            $mailChimpTracking->mc_tc = $cookie->mc_tc;
+            $mailChimpTracking->id_order = $order->id;
+
+            $mailChimpTracking->save();
+            unset($cookie->mc_tc);
+            $cookie->write();
         }
     }
 
@@ -1655,6 +1711,7 @@ class MailChimp extends Module
                     'currency_code' => (string) $cart['currency_code'],
                     'order_total'   => (string) $cart['order_total'],
                     'lines'         => $cart['lines'],
+                    'tracking_code' => $cart['mc_tc'],
                 ]
             );
         }
