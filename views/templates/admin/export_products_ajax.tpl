@@ -33,11 +33,11 @@
         }
       }
 
-      function exportProducts(elem, remaining) {
+      function exportProducts(elem, exportRemaining) {
         var idShop = parseInt(elem.attr('data-shop'), 10);
         productExportStatus(PRODUCT_IN_PROGRESS);
 
-        $.get(exportUrl + '&ajax=true&action=exportAllProducts&shop=' + idShop +'&start' + (remaining ? '&remaining' : ''), function (response) {
+        $.get(exportUrl + '&ajax=true&action=exportAllProducts&shop=' + idShop +'&start' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           $('#export_products_total').html(response.totalProducts);
           $('#export_products_progressbar_done').width('0%');
@@ -45,16 +45,16 @@
           $('#export_products_current').html(0);
 
           inProgress = true;
-          exportProductsNext(idShop, response.totalProducts, response.totalChunks, remaining);
+          exportProductsNext(idShop, response.totalProducts, response.totalChunks, exportRemaining);
         });
       }
 
-      function exportProductsNext(idShop, totalProducts, totalChunks, remaining) {
+      function exportProductsNext(idShop, totalProducts, totalChunks, exportRemaining) {
         if (!inProgress) {
           return;
         }
 
-        $.get(exportUrl + '&ajax&action=exportAllProducts&shop=' + idShop + '&next' + (remaining ? '&remaining' : ''), function (response) {
+        $.get(exportUrl + '&ajax&action=exportAllProducts&shop=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           var remaining = parseInt(response.remaining, 10);
           var processed = (totalChunks - remaining) * 1000;
@@ -77,7 +77,7 @@
           $('#export_products_current').html(parseInt(processed, 10));
 
           if (response.remaining && inProgress) {
-            return exportProductsNext(idShop, totalProducts, totalChunks, remaining);
+            return exportProductsNext(idShop, totalProducts, totalChunks, exportRemaining);
           }
 
           // finish

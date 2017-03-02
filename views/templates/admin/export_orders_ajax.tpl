@@ -33,11 +33,11 @@
         }
       }
 
-      function exportAllOrders(elem, remaining) {
+      function exportAllOrders(elem, exportRemaining) {
         var idShop = parseInt(elem.attr('data-shop'), 10);
         orderExportStatus(ORDER_IN_PROGRESS);
 
-        $.get(exportUrl + '&ajax=true&action=exportAllOrders&shop=' + idShop +'&start' + (remaining ? '&remaining' : ''), function (response) {
+        $.get(exportUrl + '&ajax=true&action=exportAllOrders&shop=' + idShop +'&start' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           $('#export_orders_total').html(response.totalOrders);
           $('#export_orders_progressbar_done').width('0%');
@@ -45,16 +45,16 @@
           $('#export_orders_current').html(0);
 
           inProgress = true;
-          exportAllOrdersNext(idShop, response.totalOrders, response.totalChunks, remaining);
+          exportAllOrdersNext(idShop, response.totalOrders, response.totalChunks, exportRemaining);
         });
       }
 
-      function exportAllOrdersNext(idShop, totalOrders, totalChunks, remaining) {
+      function exportAllOrdersNext(idShop, totalOrders, totalChunks, exportRemaining) {
         if (!inProgress) {
           return;
         }
 
-        $.get(exportUrl + '&ajax&action=exportAllOrders&shop=' + idShop +'&next' + (remaining ? '&remaining' : ''), function (response) {
+        $.get(exportUrl + '&ajax&action=exportAllOrders&shop=' + idShop +'&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           var remaining = parseInt(response.remaining, 10);
           var processed = (totalChunks - remaining) * 1000;
@@ -77,7 +77,7 @@
           $('#export_orders_current').html(parseInt(processed, 10));
 
           if (response.remaining && inProgress) {
-            return exportAllOrdersNext(idShop, totalOrders, totalChunks, remaining);
+            return exportAllOrdersNext(idShop, totalOrders, totalChunks, exportRemaining);
           }
 
           // finish

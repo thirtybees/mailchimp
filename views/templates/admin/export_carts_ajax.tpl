@@ -33,11 +33,11 @@
         }
       }
 
-      function exportAllCarts(elem, remaining) {
+      function exportAllCarts(elem, exportRemaining) {
         var idShop = parseInt(elem.attr('data-shop'), 10);
         cartExportStatus(CART_IN_PROGRESS);
 
-        $.get(exportUrl + '&ajax=true&action=exportAllCarts&shop' + idShop +'&start' + (remaining ? '&remaining' : ''), function (response) {
+        $.get(exportUrl + '&ajax=true&action=exportAllCarts&shop' + idShop +'&start' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           $('#export_carts_total').html(response.totalCarts);
           $('#export_carts_progressbar_done').width('0%');
@@ -45,16 +45,16 @@
           $('#export_carts_current').html(0);
 
           inProgress = true;
-          exportAllCartsNext(idShop, response.totalCarts, response.totalChunks, remaining);
+          exportAllCartsNext(idShop, response.totalCarts, response.totalChunks, exportRemaining);
         });
       }
 
-      function exportAllCartsNext(idShop, totalCarts, totalChunks, remaining) {
+      function exportAllCartsNext(idShop, totalCarts, totalChunks, exportRemaining) {
         if (!inProgress) {
           return;
         }
 
-        $.get(exportUrl + '&ajax&action=exportAllCarts&shop' + idShop +'&next' + (remaining ? '&remaining' : ''), function (response) {
+        $.get(exportUrl + '&ajax&action=exportAllCarts&shop' + idShop +'&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           var remaining = parseInt(response.remaining, 10);
           var processed = (totalChunks - remaining) * 1000;
@@ -77,7 +77,7 @@
           $('#export_carts_current').html(parseInt(processed, 10));
 
           if (response.remaining && inProgress) {
-            return exportAllCartsNext(idShop, totalCarts, totalChunks, remaining);
+            return exportAllCartsNext(idShop, totalCarts, totalChunks, exportRemaining);
           }
 
           // finish
