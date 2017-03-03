@@ -70,7 +70,7 @@ class MailChimpOrder extends MailChimpObjectModel
             $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
             $ordersLastSynced = \Configuration::get(\MailChimp::ORDERS_LAST_SYNC);
             if ($ordersLastSynced) {
-                $sql->where('mo.`last_synced` IS NULL OR mo.`last_synced` < \''.pSQL($ordersLastSynced).'\'');
+                $sql->where('mo.`last_synced` IS NULL OR mo.`last_synced` < \''.pSQL($ordersLastSynced).'\' OR mo.`last_synced` < o.`date_upd`');
             }
         }
 
@@ -105,7 +105,7 @@ class MailChimpOrder extends MailChimpObjectModel
         if ($remaining) {
             $ordersLastSynced = \Configuration::get(\MailChimp::ORDERS_LAST_SYNC);
             if ($ordersLastSynced) {
-                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($ordersLastSynced).'\'');
+                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($ordersLastSynced).'\' OR mo.`last_synced` < o.`date_upd`');
             }
         }
         if ($offset || $limit) {

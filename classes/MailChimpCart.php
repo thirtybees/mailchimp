@@ -73,7 +73,7 @@ class MailChimpCart extends MailChimpObjectModel
             $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
             if ($cartsLastSynced) {
-                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($cartsLastSynced).'\'');
+                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($cartsLastSynced).'\' OR mc.`last_synced` < c.`date_upd`');
             }
         }
 
@@ -107,7 +107,7 @@ class MailChimpCart extends MailChimpObjectModel
         if ($remaining) {
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
             if ($cartsLastSynced) {
-                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($cartsLastSynced).'\'');
+                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($cartsLastSynced).'\'  OR mc.`last_synced` < c.`date_upd`');
             }
         }
         if ($offset || $limit) {
