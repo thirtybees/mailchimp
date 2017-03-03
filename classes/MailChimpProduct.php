@@ -76,7 +76,8 @@ class MailChimpProduct extends MailChimpObjectModel
             $sql->leftJoin(bqSQL(self::$definition['table']), 'mp', 'mp.`id_product` = ps.`id_product`');
             $productsLastSynced = \Configuration::get(\MailChimp::PRODUCTS_LAST_SYNC, null, null, $idShop);
             if ($productsLastSynced) {
-                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < \''.pSQL($productsLastSynced).'\' OR mp.`last_synced` < ps.`date_upd`');
+                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < ps.`date_upd`');
+                $sql->where('STR_TO_DATE(ps.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
             }
         }
 
@@ -114,7 +115,8 @@ class MailChimpProduct extends MailChimpObjectModel
         if ($remaining) {
             $productsLastSynced = \Configuration::get(\MailChimp::PRODUCTS_LAST_SYNC, null, null, $idShop);
             if ($productsLastSynced) {
-                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < \''.pSQL($productsLastSynced).'\' OR mp.`last_synced` < ps.`date_upd`');
+                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < ps.`date_upd`');
+                $sql->where('STR_TO_DATE(ps.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
             }
         }
         if ($offset || $limit) {
@@ -156,12 +158,16 @@ class MailChimpProduct extends MailChimpObjectModel
 
         \Db::getInstance()->delete(
             bqSQL(self::$definition['table']),
-            '`id_product` IN ('.implode(',', $range).') AND `id_shop` = '.(int) $idShop
+            '`id_product` IN ('.implode(',', $range).') AND `id_shop` = '.(int) $idShop,
+            0,
+            false
         );
 
         return \Db::getInstance()->insert(
             bqSQL(self::$definition['table']),
-            $insert
+            $insert,
+            false,
+            false
         );
     }
 }

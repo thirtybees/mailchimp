@@ -70,7 +70,8 @@ class MailChimpOrder extends MailChimpObjectModel
             $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
             $ordersLastSynced = \Configuration::get(\MailChimp::ORDERS_LAST_SYNC);
             if ($ordersLastSynced) {
-                $sql->where('mo.`last_synced` IS NULL OR mo.`last_synced` < \''.pSQL($ordersLastSynced).'\' OR mo.`last_synced` < o.`date_upd`');
+                $sql->where('mo.`last_synced` IS NULL OR mo.`last_synced` < o.`date_upd`');
+                $sql->where('STR_TO_DATE(o.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
             }
         }
 
@@ -105,7 +106,8 @@ class MailChimpOrder extends MailChimpObjectModel
         if ($remaining) {
             $ordersLastSynced = \Configuration::get(\MailChimp::ORDERS_LAST_SYNC);
             if ($ordersLastSynced) {
-                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($ordersLastSynced).'\' OR mo.`last_synced` < o.`date_upd`');
+                $sql->where('mo.`last_synced` IS NULL OR mo.`last_synced` < o.`date_upd`');
+                $sql->where('STR_TO_DATE(o.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
             }
         }
         if ($offset || $limit) {
@@ -130,6 +132,9 @@ class MailChimpOrder extends MailChimpObjectModel
             $sql->where('cp.`id_cart` = '.(int) $cart['id_cart']);
 
             $orderProducts = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            if (!$orderProducts) {
+                continue;
+            }
 
             foreach ($orderProducts as &$cartProduct) {
                 $cart['lines'][] = [
@@ -170,12 +175,16 @@ class MailChimpOrder extends MailChimpObjectModel
 
         \Db::getInstance()->delete(
             bqSQL(self::$definition['table']),
-            '`id_order` IN ('.implode(',', $range).')'
+            '`id_order` IN ('.implode(',', $range).')',
+            0,
+            false
         );
 
         return \Db::getInstance()->insert(
             bqSQL(self::$definition['table']),
-            $insert
+            $insert,
+            false,
+            false
         );
     }
 }

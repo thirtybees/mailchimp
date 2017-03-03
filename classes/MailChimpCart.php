@@ -73,7 +73,8 @@ class MailChimpCart extends MailChimpObjectModel
             $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
             if ($cartsLastSynced) {
-                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($cartsLastSynced).'\' OR mc.`last_synced` < c.`date_upd`');
+                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < c.`date_upd`');
+                $sql->where('STR_TO_DATE(c.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
             }
         }
 
@@ -107,7 +108,8 @@ class MailChimpCart extends MailChimpObjectModel
         if ($remaining) {
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
             if ($cartsLastSynced) {
-                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < \''.pSQL($cartsLastSynced).'\'  OR mc.`last_synced` < c.`date_upd`');
+                $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < c.`date_upd`');
+                $sql->where('STR_TO_DATE(c.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
             }
         }
         if ($offset || $limit) {
@@ -132,6 +134,9 @@ class MailChimpCart extends MailChimpObjectModel
             $sql->where('cp.`id_cart` = '.(int) $cart['id_cart']);
 
             $cartProducts = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            if (!$cartProducts) {
+                continue;
+            }
 
             foreach ($cartProducts as &$cartProduct) {
                 $cart['lines'][] = [
@@ -172,12 +177,16 @@ class MailChimpCart extends MailChimpObjectModel
 
         \Db::getInstance()->delete(
             bqSQL(self::$definition['table']),
-            '`id_cart` IN ('.implode(',', $range).')'
+            '`id_cart` IN ('.implode(',', $range).')',
+            0,
+            false
         );
 
         return \Db::getInstance()->insert(
             bqSQL(self::$definition['table']),
-            $insert
+            $insert,
+            false,
+            false
         );
     }
 }
