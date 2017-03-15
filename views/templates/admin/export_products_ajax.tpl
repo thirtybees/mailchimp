@@ -7,6 +7,9 @@
       var PRODUCT_STOP = 2;
       var PRODUCT_IN_PROGRESS = 3;
 
+      var availableShops = [{foreach $availableShops as $idShop}{$idShop|intval},{/foreach}];
+      var exportUrl = '{$exportUrl|escape:'javascript':'UTF-8'}';
+
       function productExportStatus(status) {
         switch (status) {
           case PRODUCT_COMPLETED:
@@ -89,19 +92,33 @@
         new ConfigTabs(el);
       });
 
-      availableShops = [{foreach $availableShops as $idShop}{$idShop|intval},{/foreach}];
-      exportUrl = '{$exportUrl|escape:'javascript':'UTF-8'}';
-
-      for (var i = 0; i < availableShops.length; i++) {
-        $('#sync-all-products-btn-' + availableShops[i]).click(function () {
-          $('#exportProductsProgress').modal('show');
+      $.each(availableShops, function(index, idShop) {
+        $('#sync-all-products-btn-' + idShop).click(function () {
+          $('#exportProductsProgress').modal({
+            backdrop: 'static',
+            keyboard: false
+          }).modal('show');
           exportProducts($(this), false);
         });
-        $('#sync-remaining-products-btn-' + availableShops[i]).click(function () {
-          $('#exportProductsProgress').modal('show');
+
+        $('#sync-remaining-products-btn-' + idShop).click(function () {
+          $('#exportProductsProgress').modal({
+            backdrop: 'static',
+            keyboard: false
+          }).modal('show');
           exportProducts($(this), true);
         });
-      }
+
+        $('#reset-product-sync-data-btn-' + idShop).click(function () {
+          $.get(exportUrl + '&ajax=true&action=resetProducts&shop=' + idShop, function (response) {
+            if (response && JSON.parse(response).success) {
+              alert('{l s='Product sync data has been reset' mod='mailchimp' js=1}');
+            } else {
+              alert('{l s='Unable to reset product sync data' mod='mailchimp' js=1}');
+            }
+          });
+        });
+      });
 
       $('#export_products_stop_button').click(function () {
         inProgress = false;

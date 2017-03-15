@@ -69,6 +69,9 @@
 								<th>
 									<span class="title_box">{l s='Sync all products' mod='mailchimp'}</span>
 								</th>
+								<th>
+									<span class="title_box">{l s='Reset' mod='mailchimp'}</span>
+								</th>
 							</tr>
 							</thead>
 							<tbody>
@@ -84,10 +87,13 @@
 										<span>{$shop['list_id']|escape:'htmlall':'UTF-8'}</span>
 									</td>
 									<td>
-										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-remaining-products-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync remaining products'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-remaining-products-btn-{$shop['id_shop']|intval}"><i class="icon icon-upload"></i> {l s='Upload remaining products'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
 									</td>
 									<td>
-										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-products-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync all products'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-products-btn-{$shop['id_shop']|intval}"><i class="icon icon-upload"></i> {l s='Upload all products'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+									</td>
+									<td>
+                                        {if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="reset-product-sync-data-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Reset product sync data' mod='mailchimp'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
 									</td>
 								</tr>
 							{/foreach}
@@ -120,6 +126,9 @@
 								<th>
 									<span class="title_box">{l s='Sync all carts' mod='mailchimp'}</span>
 								</th>
+								<th>
+									<span class="title_box">{l s='Reset' mod='mailchimp'}</span>
+								</th>
 							</tr>
 							</thead>
 							<tbody>
@@ -135,10 +144,13 @@
 										<span>{$shop['list_id']|escape:'htmlall':'UTF-8'}</span>
 									</td>
 									<td>
-										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-remaining-carts-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync remaining carts'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-remaining-carts-btn-{$shop['id_shop']|intval}"><i class="icon icon-upload"></i> {l s='Upload remaining carts' mod='mailchimp'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
 									</td>
 									<td>
-										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-carts-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync all carts'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-carts-btn-{$shop['id_shop']|intval}"><i class="icon icon-upload"></i> {l s='Upload all carts' mod='mailchimp'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+									</td>
+									<td>
+                                        {if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="reset-cart-sync-data-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Reset cart sync data' mod='mailchimp'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
 									</td>
 								</tr>
 							{/foreach}
@@ -171,6 +183,9 @@
 								<th>
 									<span class="title_box">{l s='Sync all orders' mod='mailchimp'}</span>
 								</th>
+								<th>
+									<span class="title_box">{l s='Reset' mod='mailchimp'}</span>
+								</th>
 							</tr>
 							</thead>
 							<tbody>
@@ -186,10 +201,13 @@
 										<span>{$shop['list_id']|escape:'htmlall':'UTF-8'}</span>
 									</td>
 									<td>
-										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-remaining-orders-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync remaining orders'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-remaining-orders-btn-{$shop['id_shop']|intval}"><i class="icon icon-upload"></i> {l s='Upload remaining orders' mod='mailchimp'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
 									</td>
 									<td>
-										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-orders-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Sync all orders'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+										{if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-orders-btn-{$shop['id_shop']|intval}"><i class="icon icon-upload"></i> {l s='Upload all orders' mod='mailchimp'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+									</td>
+									<td>
+                                        {if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="reset-order-sync-data-btn-{$shop['id_shop']|intval}"><i class="icon icon-refresh"></i> {l s='Reset order sync data' mod='mailchimp'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
 									</td>
 								</tr>
 							{/foreach}

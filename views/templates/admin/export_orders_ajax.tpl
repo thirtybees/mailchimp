@@ -7,6 +7,9 @@
       var ORDER_STOP = 2;
       var ORDER_IN_PROGRESS = 3;
 
+      var availableShops = [{foreach $availableShops as $idShop}{$idShop|intval},{/foreach}];
+      var exportUrl = '{$exportUrl|escape:'javascript':'UTF-8'}';
+
       function orderExportStatus(status) {
         switch (status) {
           case ORDER_COMPLETED:
@@ -85,17 +88,34 @@
         });
       }
 
-      for (var i = 0; i < availableShops.length; i++) {
-        $('#sync-all-orders-btn-' + availableShops[i]).click(function () {
-          $('#exportOrdersProgress').modal('show');
+      $.each(availableShops, function (index, idShop) {
+        $('#sync-all-orders-btn-' + idShop).click(function () {
+          $('#exportOrdersProgress').modal({
+            backdrop: 'static',
+            keyboard: false
+          }).modal('show');
+
           exportAllOrders($(this), false);
         });
 
-        $('#sync-remaining-orders-btn-' + availableShops[i]).click(function () {
-          $('#exportOrdersProgress').modal('show');
+        $('#sync-remaining-orders-btn-' + idShop).click(function () {
+          $('#exportOrdersProgress').modal({
+            backdrop: 'static',
+            keyboard: false
+          }).modal('show');
           exportAllOrders($(this), true);
         });
-      }
+
+        $('#reset-order-sync-data-btn-' + idShop).click(function () {
+          $.get(exportUrl + '&ajax=true&action=resetOrders&shop=' + idShop, function (response) {
+            if (response && JSON.parse(response).success) {
+              alert('{l s='Order sync data has been reset' mod='mailchimp' js=1}');
+            } else {
+              alert('{l s='Unable to reset order sync data' mod='mailchimp' js=1}');
+            }
+          });
+        });
+      });
 
       $('#export_orders_stop_button').click(function () {
         inProgress = false;

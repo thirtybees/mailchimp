@@ -7,6 +7,9 @@
       var CART_STOP = 2;
       var CART_IN_PROGRESS = 3;
 
+      var availableShops = [{foreach $availableShops as $idShop}{$idShop|intval},{/foreach}];
+      var exportUrl = '{$exportUrl|escape:'javascript':'UTF-8'}';
+
       function cartExportStatus(status) {
         switch (status) {
           case CART_COMPLETED:
@@ -85,16 +88,35 @@
         });
       }
 
-      for (var i = 0; i < availableShops.length; i++) {
-        $('#sync-all-carts-btn-' + availableShops[i]).click(function () {
-          $('#exportCartsProgress').modal('show');
+      console.log(availableShops);
+      $.each(availableShops, function (index, idShop) {
+        console.log(idShop);
+        $('#sync-all-carts-btn-' + idShop).click(function () {
+          $('#exportCartsProgress').modal({
+            backdrop: 'static',
+            keyboard: false
+          }).modal('show');
           exportAllCarts($(this), false);
         });
-        $('#sync-remaining-carts-btn-' + availableShops[i]).click(function () {
-          $('#exportCartsProgress').modal('show');
+
+        $('#sync-remaining-carts-btn-' + idShop).click(function () {
+          $('#exportCartsProgress').modal({
+            backdrop: 'static',
+            keyboard: false
+          }).modal('show');
           exportAllCarts($(this), true);
         });
-      }
+
+        $('#reset-cart-sync-data-btn-' + idShop).click(function () {
+          $.get(exportUrl + '&ajax=true&action=resetCarts&shop=' + idShop, function (response) {
+            if (response && JSON.parse(response).success) {
+              alert('{l s='Cart sync data has been reset' mod='mailchimp' js=1}');
+            } else {
+              alert('{l s='Unable to reset cart sync data' mod='mailchimp' js=1}');
+            }
+          });
+        });
+      });
 
       $('#export_carts_stop_button').click(function () {
         inProgress = false;

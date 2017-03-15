@@ -45,11 +45,9 @@ if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
  */
 class MailChimp
 {
+    public $verifySsl = true;
     private $apiKey;
     private $apiEndpoint = 'https://<dc>.api.mailchimp.com/3.0';
-
-    public $verifySsl = true;
-
     private $requestSuccessful = false;
     private $lastError = '';
     private $lastResponse = [];
@@ -157,62 +155,6 @@ class MailChimp
     }
 
     /**
-     * Make an HTTP GET request - for retrieving data
-     *
-     * @param   string $method  URL of the API request method
-     * @param   array  $args    Assoc array of arguments (usually your data)
-     * @param   int    $timeout Timeout limit for request in seconds
-     *
-     * @return  array|false   Assoc array of API response, decoded from JSON
-     */
-    public function get($method, $args = [], $timeout = 10)
-    {
-        return $this->makeRequest('get', $method, $args, $timeout);
-    }
-
-    /**
-     * Make an HTTP PATCH request - for performing partial updates
-     *
-     * @param   string $method  URL of the API request method
-     * @param   array  $args    Assoc array of arguments (usually your data)
-     * @param   int    $timeout Timeout limit for request in seconds
-     *
-     * @return  array|false   Assoc array of API response, decoded from JSON
-     */
-    public function patch($method, $args = [], $timeout = 10)
-    {
-        return $this->makeRequest('patch', $method, $args, $timeout);
-    }
-
-    /**
-     * Make an HTTP POST request - for creating and updating items
-     *
-     * @param   string $method  URL of the API request method
-     * @param   array  $args    Assoc array of arguments (usually your data)
-     * @param   int    $timeout Timeout limit for request in seconds
-     *
-     * @return  array|false   Assoc array of API response, decoded from JSON
-     */
-    public function post($method, $args = [], $timeout = 10)
-    {
-        return $this->makeRequest('post', $method, $args, $timeout);
-    }
-
-    /**
-     * Make an HTTP PUT request - for creating new items
-     *
-     * @param   string $method  URL of the API request method
-     * @param   array  $args    Assoc array of arguments (usually your data)
-     * @param   int    $timeout Timeout limit for request in seconds
-     *
-     * @return  array|false   Assoc array of API response, decoded from JSON
-     */
-    public function put($method, $args = [], $timeout = 10)
-    {
-        return $this->makeRequest('put', $method, $args, $timeout);
-    }
-
-    /**
      * Performs the underlying HTTP request. Not very exciting.
      *
      * @param  string $httpVerb The HTTP verb to use: get, post, put, patch, delete
@@ -237,10 +179,10 @@ class MailChimp
         $this->lastResponse = $response;
 
         $this->lastRequest = [
-            'method' => $httpVerb,
-            'path' => $method,
-            'url' => $url,
-            'body' => '',
+            'method'  => $httpVerb,
+            'path'    => $method,
+            'url'     => $url,
+            'body'    => '',
             'timeout' => $timeout,
         ];
 
@@ -252,10 +194,10 @@ class MailChimp
             [
                 'Accept: application/vnd.api+json',
                 'Content-Type: application/vnd.api+json',
-                'Authorization: apikey '.$this->apiKey,
+                "Authorization: apikey {$this->apiKey}",
             ]
         );
-        curl_setopt($ch, CURLOPT_USERAGENT, 'DrewM/MailChimp-API/3.0 (github.com/drewm/mailchimp-api)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'thirty-bees/MailChimp-API/3.0 (https://github.com/thirtybees/mailchimp)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $this->verifySsl);
@@ -307,14 +249,6 @@ class MailChimp
         $this->determineSuccess($response, $formattedResponse);
 
         return $formattedResponse;
-    }
-
-    /**
-     * @return string The url to the API endpoint
-     */
-    public function getApiEndpoint()
-    {
-        return $this->apiEndpoint;
     }
 
     /**
@@ -396,5 +330,69 @@ class MailChimp
         }
 
         return 418;
+    }
+
+    /**
+     * Make an HTTP GET request - for retrieving data
+     *
+     * @param   string $method  URL of the API request method
+     * @param   array  $args    Assoc array of arguments (usually your data)
+     * @param   int    $timeout Timeout limit for request in seconds
+     *
+     * @return  array|false   Assoc array of API response, decoded from JSON
+     */
+    public function get($method, $args = [], $timeout = 10)
+    {
+        return $this->makeRequest('get', $method, $args, $timeout);
+    }
+
+    /**
+     * Make an HTTP PATCH request - for performing partial updates
+     *
+     * @param   string $method  URL of the API request method
+     * @param   array  $args    Assoc array of arguments (usually your data)
+     * @param   int    $timeout Timeout limit for request in seconds
+     *
+     * @return  array|false   Assoc array of API response, decoded from JSON
+     */
+    public function patch($method, $args = [], $timeout = 10)
+    {
+        return $this->makeRequest('patch', $method, $args, $timeout);
+    }
+
+    /**
+     * Make an HTTP POST request - for creating and updating items
+     *
+     * @param   string $method  URL of the API request method
+     * @param   array  $args    Assoc array of arguments (usually your data)
+     * @param   int    $timeout Timeout limit for request in seconds
+     *
+     * @return  array|false   Assoc array of API response, decoded from JSON
+     */
+    public function post($method, $args = [], $timeout = 10)
+    {
+        return $this->makeRequest('post', $method, $args, $timeout);
+    }
+
+    /**
+     * Make an HTTP PUT request - for creating new items
+     *
+     * @param   string $method  URL of the API request method
+     * @param   array  $args    Assoc array of arguments (usually your data)
+     * @param   int    $timeout Timeout limit for request in seconds
+     *
+     * @return  array|false   Assoc array of API response, decoded from JSON
+     */
+    public function put($method, $args = [], $timeout = 10)
+    {
+        return $this->makeRequest('put', $method, $args, $timeout);
+    }
+
+    /**
+     * @return string The url to the API endpoint
+     */
+    public function getApiEndpoint()
+    {
+        return $this->apiEndpoint;
     }
 }

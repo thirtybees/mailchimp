@@ -148,18 +148,18 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         Logger::addLog('processEmailChanged hook worked, json: '.json_encode($data));
         // Update customer table
         $customer = \Db::getInstance()->update(
-                'customer',
-                [
-                    'newsletter' => 0,
-                ],
-                '`email` = \''.pSQL($data['old_email']).'\''
-            ) && \Db::getInstance()->update(
-                'customer',
-                [
-                    'newsletter' => 1,
-                ],
-                '`email` = \''.pSQL($data['new_email']).'\''
-            );
+            'customer',
+            [
+                'newsletter' => 0,
+            ],
+            '`email` = \''.pSQL($data['old_email']).'\''
+        ) && \Db::getInstance()->update(
+            'customer',
+            [
+                'newsletter' => 1,
+            ],
+            '`email` = \''.pSQL($data['new_email']).'\''
+        );
         // Update newsletter table
         $newsletter = \Db::getInstance()->update(
             'newsletter',

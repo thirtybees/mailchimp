@@ -19,46 +19,62 @@
 
 spl_autoload_register(
     function ($class) {
-        if (!in_array($class, [
-            'MailChimpModule\\MailChimpRegisteredWebhook',
-            'MailChimpModule\\MailChimpSubscriber',
-            'MailChimpModule\\MailChimpShop',
-            'MailChimpModule\\MailChimpProduct',
-            'MailChimpModule\\MailChimpCart',
-            'MailChimpModule\\MailChimpObjectModel',
-            'MailChimpModule\\MailChimpOrder',
-            'MailChimpModule\\MailChimpTracking',
+        if (in_array($class, [
             'MailChimpModule\\MailChimp\\Batch',
             'MailChimpModule\\MailChimp\\MailChimp',
             'MailChimpModule\\MailChimp\\Webhook',
         ])) {
-            return;
+            // project-specific namespace prefix
+            $prefix = 'MailChimpModule\\';
+
+            // base directory for the namespace prefix
+            $baseDir = __DIR__.'/';
+
+            // does the class use the namespace prefix?
+            $len = strlen($prefix);
+            if (strncmp($prefix, $class, $len) !== 0) {
+                // no, move to the next registered autoloader
+                return;
+            }
+
+            // get the relative class name
+            $relativeClass = substr($class, $len);
+
+            // replace the namespace prefix with the base directory, replace namespace
+            // separators with directory separators in the relative class name, append
+            // with .php
+            $file = $baseDir.str_replace('\\', '/', $relativeClass).'.php';
+
+            // if the file exists, require it
+            if (file_exists($file)) {
+                require $file;
+            }
         }
 
-        // project-specific namespace prefix
-        $prefix = 'MailChimpModule\\';
+        if (in_array($class, [
+            'MailChimpRegisteredWebhook',
+            'MailChimpSubscriber',
+            'MailChimpShop',
+            'MailChimpProduct',
+            'MailChimpCart',
+            'MailChimpObjectModel',
+            'MailChimpOrder',
+            'MailChimpTracking',
+        ])) {
+            // project-specific namespace prefix
 
-        // base directory for the namespace prefix
-        $baseDir = __DIR__.'/';
+            // base directory for the namespace prefix
+            $baseDir = __DIR__.'/';
 
-        // does the class use the namespace prefix?
-        $len = strlen($prefix);
-        if (strncmp($prefix, $class, $len) !== 0) {
-            // no, move to the next registered autoloader
-            return;
-        }
+            // replace the namespace prefix with the base directory, replace namespace
+            // separators with directory separators in the relative class name, append
+            // with .php
+            $file = $baseDir.$class.'.php';
 
-        // get the relative class name
-        $relativeClass = substr($class, $len);
-
-        // replace the namespace prefix with the base directory, replace namespace
-        // separators with directory separators in the relative class name, append
-        // with .php
-        $file = $baseDir.str_replace('\\', '/', $relativeClass).'.php';
-
-        // if the file exists, require it
-        if (file_exists($file)) {
-            require $file;
+            // if the file exists, require it
+            if (file_exists($file)) {
+                require $file;
+            }
         }
     }
 );

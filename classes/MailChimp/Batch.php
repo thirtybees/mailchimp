@@ -68,6 +68,32 @@ class Batch
     }
 
     /**
+     * Add an operation to the internal queue.
+     *
+     * @param   string $httpVerb GET, POST, PUT, PATCH or DELETE
+     * @param   string $id       ID for the operation within the batch
+     * @param   string $method   URL of the API request method
+     * @param   array  $args     Assoc array of arguments (usually your data)
+     *
+     * @return  void
+     */
+    private function queueOperation($httpVerb, $id, $method, $args = null)
+    {
+        $operation = [
+            'operation_id' => $id,
+            'method'       => $httpVerb,
+            'path'         => $method,
+        ];
+
+        if ($args) {
+            $key = ($httpVerb == 'GET' ? 'params' : 'body');
+            $operation[$key] = json_encode($args);
+        }
+
+        $this->operations[] = $operation;
+    }
+
+    /**
      * Add an HTTP GET request operation to the batch - for retrieving data
      *
      * @param   string $id     ID for the operation within the batch
@@ -168,31 +194,5 @@ class Batch
     public function getOperations()
     {
         return $this->operations;
-    }
-
-    /**
-     * Add an operation to the internal queue.
-     *
-     * @param   string $httpVerb GET, POST, PUT, PATCH or DELETE
-     * @param   string $id       ID for the operation within the batch
-     * @param   string $method   URL of the API request method
-     * @param   array  $args     Assoc array of arguments (usually your data)
-     *
-     * @return  void
-     */
-    private function queueOperation($httpVerb, $id, $method, $args = null)
-    {
-        $operation = [
-            'operation_id' => $id,
-            'method' => $httpVerb,
-            'path' => $method,
-        ];
-
-        if ($args) {
-            $key = ($httpVerb == 'GET' ? 'params' : 'body');
-            $operation[$key] = json_encode($args);
-        }
-
-        $this->operations[] = $operation;
     }
 }
