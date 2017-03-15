@@ -53,11 +53,14 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
 
         if (in_array($action, [
             'ExportAllProducts',
-            'ExportAllCarts',
-            'ExportAllOrders',
             'ExportRemainingProducts',
+            'ResetProducts',
+            'ExportAllCarts',
             'ExportRemainingCarts',
+            'ResetCarts',
+            'ExportAllOrders',
             'ExportRemainingOrders',
+            'ResetOrders',
         ])) {
             $this->{'process'.$action}($idShop);
         }
@@ -83,40 +86,6 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
     }
 
     /**
-     * Process export all carts
-     *
-     * @param int $idShop
-     *
-     * @since 1.1.0
-     */
-    protected function processExportAllCarts($idShop)
-    {
-        $data = $this->module->cronExportCarts($idShop, false, 'start');
-        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-            $this->module->cronExportCarts($idShop, false, 'next');
-        }
-
-        die('ok');
-    }
-
-    /**
-     * Process export all orders
-     *
-     * @param int $idShop
-     *
-     * @since 1.1.0
-     */
-    protected function processExportAllOrders($idShop)
-    {
-        $data = $this->module->cronExportOrders($idShop, false, 'start');
-        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-            $this->module->cronExportOrders($idShop, false, 'next');
-        }
-
-        die('ok');
-    }
-
-    /**
      * Process export remaining products
      *
      * @param int $idShop
@@ -128,6 +97,39 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
         $data = $this->module->cronExportProducts($idShop, true, 'start');
         for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
             $this->module->cronExportProducts($idShop, true, 'next');
+        }
+
+        die('ok');
+    }
+
+    /**
+     * Reset product sync data
+     *
+     * @param int $idShop
+     *
+     * @since 1.0.0
+     */
+    protected function processResetProducts($idShop)
+    {
+        if ($this->module->processResetProducts($idShop, false)) {
+            die('ok');
+        }
+
+        die('fail');
+    }
+
+    /**
+     * Process export all carts
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
+    protected function processExportAllCarts($idShop)
+    {
+        $data = $this->module->cronExportCarts($idShop, false, 'start');
+        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            $this->module->cronExportCarts($idShop, false, 'next');
         }
 
         die('ok');
@@ -151,6 +153,39 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
     }
 
     /**
+     * Rest cart sync data
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
+    protected function processResetCarts($idShop)
+    {
+        if ($this->module->processResetCarts($idShop, false)) {
+            die('ok');
+        }
+
+        die('fail');
+    }
+
+    /**
+     * Process export all orders
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
+    protected function processExportAllOrders($idShop)
+    {
+        $data = $this->module->cronExportOrders($idShop, false, 'start');
+        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            $this->module->cronExportOrders($idShop, false, 'next');
+        }
+
+        die('ok');
+    }
+
+    /**
      * Process export remaining orders
      *
      * @param int $idShop
@@ -165,5 +200,21 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
         }
 
         die('ok');
+    }
+
+    /**
+     * Reset order sync data
+     *
+     * @param int $idShop
+     *
+     * @since 1.1.0
+     */
+    protected function processResetOrders($idShop)
+    {
+        if ($this->module->processResetOrders($idShop, false)) {
+            die('ok');
+        }
+
+        die('fail');
     }
 }

@@ -786,22 +786,47 @@ class MailChimp extends Module
     public function displayAjaxResetProducts()
     {
         if ($idShop = (int) Tools::getValue('shop')) {
-            if (Db::getInstance()->update(
-                bqSQL(MailChimpProduct::$definition['table']),
-                [
-                    'last_synced' => '1970-01-01 00:00:00',
-                ],
-                '`id_shop` = '.(int) $idShop
-            )) {
-                die(json_encode([
-                    'success' => true,
-                ]));
-            }
+            $this->processResetProducts($idShop, true);
         }
 
         die(json_encode([
             'success' => false,
         ]));
+    }
+
+    /**
+     * Reset product sync data
+     *
+     * @param int  $idShop
+     * @param bool $ajax
+     *
+     * @return bool
+     *
+     * @since 1.1.0
+     */
+    public function processResetProducts($idShop, $ajax = false)
+    {
+        if (Db::getInstance()->update(
+            bqSQL(MailChimpProduct::$definition['table']),
+            [
+                'last_synced' => '1970-01-01 00:00:00',
+            ],
+            '`id_shop` = '.(int) $idShop
+        )) {
+            if ($ajax) {
+                die(
+                json_encode(
+                    [
+                        'success' => true,
+                    ]
+                )
+                );
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -814,38 +839,71 @@ class MailChimp extends Module
     public function displayAjaxResetCarts()
     {
         if ($idShop = (int) Tools::getValue('shop')) {
-            $sql = new DbQuery();
-            $sql->select('`id_cart`');
-            $sql->from('cart');
-            $sql->where('`id_shop` = '.(int) $idShop);
-
-            $carts = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-            $idCarts = [];
-            foreach ($carts as &$cart) {
-                $idCarts[] = (int) $cart['id_cart'];
-            }
-            if (empty($idCarts)) {
-                die(json_encode([
-                    'success' => true,
-                ]));
-            }
-
-            if (Db::getInstance()->update(
-                bqSQL(MailChimpCart::$definition['table']),
-                [
-                    'last_synced' => '1970-01-01 00:00:00',
-                ],
-                '`id_cart` IN ('.implode(',', $idCarts).')'
-            )) {
-                die(json_encode([
-                    'success' => true,
-                ]));
-            }
+            $this->processResetCarts($idShop);
         }
 
         die(json_encode([
             'success' => false,
         ]));
+    }
+
+    /**
+     * Reset cart sync data
+     *
+     * @param int  $idShop
+     * @param bool $ajax
+     *
+     * @return bool
+     *
+     * @since 1.1.0
+     */
+    public function processResetCarts($idShop, $ajax = false)
+    {
+        $sql = new DbQuery();
+        $sql->select('`id_cart`');
+        $sql->from('cart');
+        $sql->where('`id_shop` = '.(int) $idShop);
+
+        $carts = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        $idCarts = [];
+        foreach ($carts as &$cart) {
+            $idCarts[] = (int) $cart['id_cart'];
+        }
+        if (empty($idCarts)) {
+            if ($ajax) {
+                die(
+                json_encode(
+                    [
+                        'success' => true,
+                    ]
+                )
+                );
+            } else {
+                return true;
+            }
+        }
+
+        if (Db::getInstance()->update(
+            bqSQL(MailChimpCart::$definition['table']),
+            [
+                'last_synced' => '1970-01-01 00:00:00',
+            ],
+            '`id_cart` IN ('.implode(',', $idCarts).')'
+        )) {
+            if ($ajax) {
+                die(
+                json_encode(
+                    [
+                        'success' => true,
+                    ]
+                )
+                );
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -858,38 +916,71 @@ class MailChimp extends Module
     public function displayAjaxResetOrders()
     {
         if ($idShop = (int) Tools::getValue('shop')) {
-            $sql = new DbQuery();
-            $sql->select('`id_order`');
-            $sql->from('orders');
-            $sql->where('`id_shop` = '.(int) $idShop);
-
-            $carts = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-            $idCarts = [];
-            foreach ($carts as &$cart) {
-                $idCarts[] = (int) $cart['id_cart'];
-            }
-            if (empty($idCarts)) {
-                die(json_encode([
-                    'success' => true,
-                ]));
-            }
-
-            if (Db::getInstance()->update(
-                bqSQL(MailChimpOrder::$definition['table']),
-                [
-                    'last_synced' => '1970-01-01 00:00:00',
-                ],
-                '`id_order` IN ('.implode(',', $idCarts).')'
-            )) {
-                die(json_encode([
-                    'success' => true,
-                ]));
-            }
+            $this->processResetOrders($idShop, true);
         }
 
         die(json_encode([
             'success' => false,
         ]));
+    }
+
+    /**
+     * Reset order sync data
+     *
+     * @param int  $idShop
+     * @param bool $ajax
+     *
+     * @return bool
+     *
+     * @since 1.1.0
+     */
+    public function processResetOrders($idShop, $ajax = false)
+    {
+        $sql = new DbQuery();
+        $sql->select('`id_order`');
+        $sql->from('orders');
+        $sql->where('`id_shop` = '.(int) $idShop);
+
+        $carts = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        $idCarts = [];
+        foreach ($carts as &$cart) {
+            $idCarts[] = (int) $cart['id_cart'];
+        }
+        if (empty($idCarts)) {
+            if ($ajax) {
+                die(
+                json_encode(
+                    [
+                        'success' => true,
+                    ]
+                )
+                );
+            }
+
+            return true;
+        }
+
+        if (Db::getInstance()->update(
+            bqSQL(MailChimpOrder::$definition['table']),
+            [
+                'last_synced' => '1970-01-01 00:00:00',
+            ],
+            '`id_order` IN ('.implode(',', $idCarts).')'
+        )) {
+            if ($ajax) {
+                die(
+                json_encode(
+                    [
+                        'success' => true,
+                    ]
+                )
+                );
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
