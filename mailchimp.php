@@ -53,7 +53,7 @@ class MailChimp extends Module
     const CARTS_LAST_SYNC = 'CARTS_LAST_SYNC';
     const ORDERS_LAST_SYNC = 'ORDERS_LAST_SYNC';
 
-    const EXPORT_CHUNK_SIZE = 100;
+    const EXPORT_CHUNK_SIZE = 1000;
 
     const MENU_IMPORT = 1;
     const MENU_SHOPS = 2;
@@ -806,11 +806,8 @@ class MailChimp extends Module
      */
     public function processResetProducts($idShop, $ajax = false)
     {
-        if (Db::getInstance()->update(
+        if (Db::getInstance()->delete(
             bqSQL(MailChimpProduct::$definition['table']),
-            [
-                'last_synced' => '1970-01-01 00:00:00',
-            ],
             '`id_shop` = '.(int) $idShop
         )) {
             if ($ajax) {
@@ -859,51 +856,20 @@ class MailChimp extends Module
      */
     public function processResetCarts($idShop, $ajax = false)
     {
-        $sql = new DbQuery();
-        $sql->select('`id_cart`');
-        $sql->from('cart');
-        $sql->where('`id_shop` = '.(int) $idShop);
+        $success = Db::getInstance()->execute(
+            'DELETE mc
+             FROM `'._DB_PREFIX_.bqSQL(MailChimpCart::$definition['table']).'` mc
+             INNER JOIN `'._DB_PREFIX_.'cart` c ON c.`id_cart` = mc.`id_cart`
+             WHERE c.`id_shop` = '.(int) $idShop
+        );
 
-        $carts = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-        $idCarts = [];
-        foreach ($carts as &$cart) {
-            $idCarts[] = (int) $cart['id_cart'];
-        }
-        if (empty($idCarts)) {
-            if ($ajax) {
-                die(
-                json_encode(
-                    [
-                        'success' => true,
-                    ]
-                )
-                );
-            } else {
-                return true;
-            }
+        if ($ajax) {
+            die(json_encode([
+                'success' => $success,
+            ]));
         }
 
-        if (Db::getInstance()->update(
-            bqSQL(MailChimpCart::$definition['table']),
-            [
-                'last_synced' => '1970-01-01 00:00:00',
-            ],
-            '`id_cart` IN ('.implode(',', $idCarts).')'
-        )) {
-            if ($ajax) {
-                die(
-                json_encode(
-                    [
-                        'success' => true,
-                    ]
-                )
-                );
-            }
-
-            return true;
-        }
-
-        return false;
+        return $success;
     }
 
     /**
@@ -936,51 +902,20 @@ class MailChimp extends Module
      */
     public function processResetOrders($idShop, $ajax = false)
     {
-        $sql = new DbQuery();
-        $sql->select('`id_order`');
-        $sql->from('orders');
-        $sql->where('`id_shop` = '.(int) $idShop);
+        $success = Db::getInstance()->execute(
+            'DELETE mo
+             FROM `'._DB_PREFIX_.bqSQL(MailChimpOrder::$definition['table']).'` mo
+             INNER JOIN `'._DB_PREFIX_.'orders` o ON o.`id_order` = mo.`id_order`
+             WHERE o.`id_shop` = '.(int) $idShop
+        );
 
-        $carts = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-        $idCarts = [];
-        foreach ($carts as &$cart) {
-            $idCarts[] = (int) $cart['id_cart'];
-        }
-        if (empty($idCarts)) {
-            if ($ajax) {
-                die(
-                json_encode(
-                    [
-                        'success' => true,
-                    ]
-                )
-                );
-            }
-
-            return true;
+        if ($ajax) {
+            die(json_encode([
+                'success' => $success,
+            ]));
         }
 
-        if (Db::getInstance()->update(
-            bqSQL(MailChimpOrder::$definition['table']),
-            [
-                'last_synced' => '1970-01-01 00:00:00',
-            ],
-            '`id_order` IN ('.implode(',', $idCarts).')'
-        )) {
-            if ($ajax) {
-                die(
-                json_encode(
-                    [
-                        'success' => true,
-                    ]
-                )
-                );
-            }
-
-            return true;
-        }
-
-        return false;
+        return $success;
     }
 
     /**
@@ -1140,15 +1075,13 @@ class MailChimp extends Module
         } elseif (Tools::isSubmit('submitShops')) {
             $shopLists = Tools::getValue('shop_list_id');
             $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
-            $batch = $mailChimp->newBatch();
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
                     $shop = new Shop($idShop);
                     $defaultIdCurrency = (int) Configuration::get('PS_CURRENCY_DEFAULT', null, $shop->id_shop_group, $shop->id);
                     $currency = new Currency($defaultIdCurrency);
 
-                    $batch->put(
-                        'op'.(int) $idShop,
+                    $result = $mailChimp->post(
                         'ecommerce/stores',
                         [
                             'id'            => 'tbstore_'.(int) $idShop,
@@ -1160,16 +1093,30 @@ class MailChimp extends Module
                         ]
                     );
 
+                    if (!isset($result['id'])) {
+                        $mailChimp->patch(
+                            'ecommerce/stores/tbstore_'.(int) $idShop,
+                            [
+                                'id'            => 'tbstore_'.(int) $idShop,
+                                'list_id'       => $idList,
+                                'name'          => $shop->name,
+                                'domain'        => $shop->domain_ssl,
+                                'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
+                                'currency_code' => Tools::strtoupper($currency->iso_code),
+                            ]
+                        );
+                    }
 
                     $mailChimpShop = MailChimpShop::getByShopId($idShop);
+                    if (!Validate::isLoadedObject($mailChimpShop)) {
+                        $mailChimpShop = new MailChimpShop();
+                    }
                     $mailChimpShop->list_id = $idList;
                     $mailChimpShop->id_shop = $idShop;
                     $mailChimpShop->synced = true;
 
                     $mailChimpShop->save();
                 }
-
-                $batch->execute(self::API_TIMEOUT);
             }
         } elseif (Tools::isSubmit('submitProducts')) {
             // Everything should have been processed by now
@@ -1558,7 +1505,7 @@ class MailChimp extends Module
                 'type'   => 'switch',
                 'label'  => $this->l('Confirmation Email'),
                 'name'   => self::CONFIRMATION_EMAIL,
-                'desc'   => $this->l('If you turn this on, Mailchimp will send an email to customers asking them to confirm their subscription.'),
+                'desc'   => $this->l('If you turn this on, MailChimp will send an email to customers asking them to confirm their subscription.'),
                 'values' => [
                     [
                         'id'    => 'confirmationSwitch_on',
@@ -2074,7 +2021,7 @@ class MailChimp extends Module
                     'email_address' => (string) $cart['email'],
                     'first_name'    => (string) $cart['firstname'],
                     'last_name'     => (string) $cart['lastname'],
-                    'opt_in_status' => (bool) $cart['newsletter'],
+                    'opt_in_status' => false,
                 ],
                 'currency_code' => (string) $cart['currency_code'],
                 'order_total'   => (string) $cart['order_total'],
@@ -2097,7 +2044,7 @@ class MailChimp extends Module
         }
 
         $result = $batch->execute(self::API_TIMEOUT);
-        if (!empty($result)) {
+        if ($result && isset($result['id'])) {
             if (MailChimpCart::setSynced(array_column($carts, 'id_cart'))) {
                 Configuration::updateValue(self::CARTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
             }
@@ -2122,45 +2069,45 @@ class MailChimp extends Module
     {
         $idShop = Context::getContext()->shop->id;
 
-        // We use the cart objects
-        $carts = MailChimpOrder::getOrders($idShop, $offset, self::EXPORT_CHUNK_SIZE, $exportRemaining);
-        if (empty($carts)) {
+        // We use the Order objects
+        $orders = MailChimpOrder::getOrders($idShop, $offset, self::EXPORT_CHUNK_SIZE, $exportRemaining);
+        if (empty($orders)) {
             return '';
         }
 
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
 
-        foreach ($carts as &$cart) {
-            if (empty($cart['lines'])) {
-                unset($cart);
+        foreach ($orders as &$order) {
+            if (empty($order['lines'])) {
+                unset($order);
                 continue;
             }
 
             $payload = [
-                'id'            => (string) $cart['id_cart'],
+                'id'            => (string) $order['id_order'],
                 'customer'      => [
-                    'id'            => (string) $cart['id_customer'],
-                    'email_address' => (string) $cart['email'],
-                    'first_name'    => (string) $cart['firstname'],
-                    'last_name'     => (string) $cart['lastname'],
-                    'opt_in_status' => (bool) $cart['newsletter'],
+                    'id'            => (string) $order['id_customer'],
+                    'email_address' => (string) $order['email'],
+                    'first_name'    => (string) $order['firstname'],
+                    'last_name'     => (string) $order['lastname'],
+                    'opt_in_status' => false,
                 ],
-                'currency_code' => (string) $cart['currency_code'],
-                'order_total'   => (string) $cart['order_total'],
-                'lines'         => $cart['lines'],
-                'tracking_code' => $cart['mc_tc'],
+                'currency_code' => (string) $order['currency_code'],
+                'order_total'   => (string) $order['order_total'],
+                'lines'         => $order['lines'],
+                'tracking_code' => $order['mc_tc'] ? (string) $order['mc_tc'] : '',
             ];
 
-            if ($cart['last_synced'] && $cart['last_synced'] !== '1970-01-01 00:00:00') {
+            if ($order['last_synced'] && $order['last_synced'] !== '1970-01-01 00:00:00') {
                 $batch->patch(
-                    'op'.(int) $cart['id_order'],
-                    "ecommerce/stores/tbstore_{$idShop}/orders/{$cart['id_order']}",
+                    'op'.(int) $order['id_order'],
+                    "ecommerce/stores/tbstore_{$idShop}/orders/{$order['id_order']}",
                     $payload
                 );
             } else {
                 $batch->post(
-                    'op'.(int) $cart['id_cart'],
+                    'op'.(int) $order['id_order'],
                     "ecommerce/stores/tbstore_{$idShop}/orders",
                     $payload
                 );
@@ -2168,8 +2115,8 @@ class MailChimp extends Module
         }
 
         $result = $batch->execute(self::API_TIMEOUT);
-        if (!empty($result)) {
-            if (MailChimpOrder::setSynced(array_column($carts, 'id_order'))) {
+        if ($result && isset($result['id'])) {
+            if (MailChimpOrder::setSynced(array_column($orders, 'id_order'))) {
                 Configuration::updateValue(self::ORDERS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
             }
 

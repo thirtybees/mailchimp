@@ -94,7 +94,7 @@ class MailChimpProduct extends MailChimpObjectModel
      *
      * @since 1.1.0
      */
-    public static function getProducts($idShop = null, $offset = 0, $limit = 0, $remaining = false)
+    public static function getProducts($idShop = null, $offset = 0, $limit = MailChimp::EXPORT_CHUNK_SIZE, $remaining = false)
     {
         if (!$idShop) {
             $idShop = \Context::getContext()->shop->id;

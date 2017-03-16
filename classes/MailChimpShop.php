@@ -77,7 +77,7 @@ class MailChimpShop extends MailChimpObjectModel
      *
      * @param int $idShop
      *
-     * @return MailChimpShop
+     * @return MailChimpShop|false
      */
     public static function getByShopId($idShop)
     {
@@ -88,6 +88,9 @@ class MailChimpShop extends MailChimpObjectModel
         $sql->where('s.`id_shop` = '.(int) $idShop);
 
         $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
+        if (!$result) {
+            return false;
+        }
 
         $mcs = new self();
         $mcs->hydrate($result);

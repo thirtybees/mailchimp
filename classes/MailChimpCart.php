@@ -63,12 +63,22 @@ class MailChimpCart extends MailChimpObjectModel
             $idShop = \Context::getContext()->shop->id;
         }
 
+        $fromDateTime = new DateTime();
+        $fromDateTime->modify('-1 day');
+
+        $selectOrdersSql = new \DbQuery();
+        $selectOrdersSql->select('`id_cart`');
+        $selectOrdersSql->from('orders');
+
         $sql = new \DbQuery();
         $sql->select('COUNT(c.`id_cart`)');
         $sql->from('cart', 'c');
         $sql->where('c.`id_shop` = '.(int) $idShop);
+        $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
+        $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
+        $sql->where('c.`date_add` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
+        $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
         if ($remaining) {
-            $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
             if ($cartsLastSynced) {
                 $sql->where('mc.`last_synced` IS NULL OR mc.`last_synced` < c.`date_upd`');
@@ -91,11 +101,18 @@ class MailChimpCart extends MailChimpObjectModel
      * @return array|false|\mysqli_result|null|\PDOStatement|resource
      * @since 1.1.0
      */
-    public static function getCarts($idShop = null, $offset = 0, $limit = 0, $remaining = false)
+    public static function getCarts($idShop = null, $offset = 0, $limit = MailChimp::EXPORT_CHUNK_SIZE, $remaining = false)
     {
         if (!$idShop) {
             $idShop = \Context::getContext()->shop->id;
         }
+
+        $fromDateTime = new DateTime();
+        $fromDateTime->modify('-1 day');
+
+        $selectOrdersSql = new \DbQuery();
+        $selectOrdersSql->select('`id_cart`');
+        $selectOrdersSql->from('orders');
 
         $sql = new \DbQuery();
         $sql->select('c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, mc.`last_synced`');
@@ -103,6 +120,8 @@ class MailChimpCart extends MailChimpObjectModel
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
         $sql->where('c.`id_shop` = '.(int) $idShop);
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
+        $sql->where('c.`date_add` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
+        $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
         if ($remaining) {
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
             if ($cartsLastSynced) {
@@ -124,24 +143,15 @@ class MailChimpCart extends MailChimpObjectModel
             $cart['currency_code'] = $defaultCurrencyCode;
             $cart['order_total'] = $cartObj->getOrderTotal(true);
 
+            $orderProducts = $cartObj->getProducts();
+
             $cart['lines'] = [];
-            $sql = new \DbQuery();
-            $sql->select('cp.*, ps.`price`');
-            $sql->from('cart_product', 'cp');
-            $sql->innerJoin('product_shop', 'ps', 'ps.`id_product` = cp.`id_product` AND ps.`id_shop` = '.(int) $idShop);
-            $sql->where('cp.`id_cart` = '.(int) $cart['id_cart']);
-
-            $cartProducts = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-            if (!$cartProducts) {
-                continue;
-            }
-
-            foreach ($cartProducts as &$cartProduct) {
+            foreach ($orderProducts as &$cartProduct) {
                 $cart['lines'][] = [
-                    'id'                 => $cartProduct['id_product'],
-                    'product_id'         => $cartProduct['id_product'],
-                    'product_variant_id' => $cartProduct['id_product'],
-                    'quantity'           => (int) $cartProduct['id_product'],
+                    'id'                 => (string) $cartProduct['id_product'],
+                    'product_id'         => (string) $cartProduct['id_product'],
+                    'product_variant_id' => (string) $cartProduct['id_product_attribute'] ?: $cartProduct['id_product'],
+                    'quantity'           => (int) $cartProduct['cart_quantity'],
                     'price'              => (float) $cartProduct['price'],
                 ];
             }

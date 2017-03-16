@@ -87,14 +87,14 @@ class MailChimpOrder extends MailChimpObjectModel
      * @return array|false|\mysqli_result|null|\PDOStatement|resource
      * @since 1.1.0
      */
-    public static function getOrders($idShop = null, $offset = 0, $limit = 0, $remaining = false)
+    public static function getOrders($idShop = null, $offset = 0, $limit = MailChimp::EXPORT_CHUNK_SIZE, $remaining = false)
     {
         if (!$idShop) {
             $idShop = \Context::getContext()->shop->id;
         }
 
         $sql = new \DbQuery();
-        $sql->select('o.`id_order`, c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, mo.`last_synced`');
+        $sql->select('o.`id_order`, c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
         $sql->from('orders', 'o');
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = o.`id_customer`');
         $sql->innerJoin('cart', 'c', 'c.`id_cart` = o.`id_cart`');
@@ -116,31 +116,27 @@ class MailChimpOrder extends MailChimpObjectModel
 
         $defaultCurrency = \Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
-        foreach ($results as &$cart) {
-            $cartObj = new \Cart($cart['id_cart']);
+        foreach ($results as &$order) {
+            $orderObj = new \Order($order['id_order']);
 
-            $cart['currency_code'] = $defaultCurrencyCode;
-            $cart['order_total'] = $cartObj->getOrderTotal(true);
+            $order = [];
+            $order['currency_code'] = $defaultCurrencyCode;
+            $order['order_total'] = $orderObj->getTotalPaid();
+            $order['shipping_total'] = $orderObj->total_shipping_tax_incl;
 
-            $cart['lines'] = [];
-            $sql = new \DbQuery();
-            $sql->select('cp.*, ps.`price`, mt.`mc_tc`');
-            $sql->from('cart_product', 'cp');
-            $sql->innerJoin('product_shop', 'ps', 'ps.`id_product` = cp.`id_product` AND ps.`id_shop` = '.(int) $idShop);
-            $sql->where('cp.`id_cart` = '.(int) $cart['id_cart']);
-
-            $orderProducts = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            $orderProducts = $orderObj->getOrderDetailList();
             if (!$orderProducts) {
                 continue;
             }
 
+            $order['lines'] = [];
             foreach ($orderProducts as &$cartProduct) {
-                $cart['lines'][] = [
-                    'id'                 => $cartProduct['id_product'],
-                    'product_id'         => $cartProduct['id_product'],
-                    'product_variant_id' => $cartProduct['id_product'],
-                    'quantity'           => (int) $cartProduct['id_product'],
-                    'price'              => (float) $cartProduct['price'],
+                $order['lines'][] = [
+                    'id'                 => (string) $cartProduct['product_id'],
+                    'product_id'         => (string) $cartProduct['product_id'],
+                    'product_variant_id' => (string) $cartProduct['product_attribute_id'] ?: $cartProduct['product_id'],
+                    'quantity'           => (int) $cartProduct['product_quantity'],
+                    'price'              => (float) $cartProduct['total_price_tax_incl'],
                 ];
             }
         }
@@ -151,7 +147,7 @@ class MailChimpOrder extends MailChimpObjectModel
     /**
      * Set synced
      *
-     * @param array    $range
+     * @param array $range
      *
      * @return bool
      * @since 1.1.0

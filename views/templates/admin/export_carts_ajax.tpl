@@ -88,9 +88,7 @@
         });
       }
 
-      console.log(availableShops);
       $.each(availableShops, function (index, idShop) {
-        console.log(idShop);
         $('#sync-all-carts-btn-' + idShop).click(function () {
           $('#exportCartsProgress').modal({
             backdrop: 'static',
