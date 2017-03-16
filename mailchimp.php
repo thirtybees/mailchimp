@@ -2096,8 +2096,11 @@ class MailChimp extends Module
                 'currency_code' => (string) $order['currency_code'],
                 'order_total'   => (string) $order['order_total'],
                 'lines'         => $order['lines'],
-                'tracking_code' => $order['mc_tc'] ? (string) $order['mc_tc'] : '',
             ];
+
+            if ($order['mc_tc'] && ctype_xdigit($order['mc_tc']) && strlen($order['mc_tc']) === 10) {
+                $payload['tracking_code'] = $order['mc_tc'];
+            }
 
             if ($order['last_synced'] && $order['last_synced'] !== '1970-01-01 00:00:00') {
                 $batch->patch(

@@ -94,7 +94,7 @@ class MailChimpOrder extends MailChimpObjectModel
         }
 
         $sql = new \DbQuery();
-        $sql->select('o.`id_order`, c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
+        $sql->select('o.`id_order`, c.*, cu.`id_customer`, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
         $sql->from('orders', 'o');
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = o.`id_customer`');
         $sql->innerJoin('cart', 'c', 'c.`id_cart` = o.`id_cart`');
@@ -119,7 +119,6 @@ class MailChimpOrder extends MailChimpObjectModel
         foreach ($results as &$order) {
             $orderObj = new \Order($order['id_order']);
 
-            $order = [];
             $order['currency_code'] = $defaultCurrencyCode;
             $order['order_total'] = $orderObj->getTotalPaid();
             $order['shipping_total'] = $orderObj->total_shipping_tax_incl;
