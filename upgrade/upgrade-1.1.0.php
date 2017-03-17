@@ -93,7 +93,9 @@ function upgrade_module_1_1_0($module)
     $sql[] = 'ALTER TABLE `'._DB_PREFIX_.'mailchimp_tracking` ADD INDEX `mc_tracking_order` (`id_order`)';
 
     foreach ($sql as $query) {
-        Db::getInstance()->execute($query);
+        if (!Db::getInstance()->execute($query)) {
+            return false;
+        }
     }
 
     return true;
