@@ -2085,18 +2085,25 @@ class MailChimp extends Module
             }
 
             $payload = [
-                'id'            => (string) $order['id_order'],
-                'customer'      => [
+                'id'                   => (string) $order['id_order'],
+                'customer'             => [
                     'id'            => (string) $order['id_customer'],
                     'email_address' => (string) $order['email'],
                     'first_name'    => (string) $order['firstname'],
                     'last_name'     => (string) $order['lastname'],
                     'opt_in_status' => false,
                 ],
-                'currency_code' => (string) $order['currency_code'],
-                'order_total'   => (string) $order['order_total'],
-                'lines'         => $order['lines'],
+                'currency_code'        => (string) $order['currency_code'],
+                'order_total'          => (string) $order['order_total'],
+                'lines'                => $order['lines'],
             ];
+
+            if (self::validateDate($order['date_add'], 'Y-m-d H:i:s')) {
+                $payload['processed_at_foreign'] = (string) $order['date_add'];
+            }
+            if (self::validateDate($order['date_upd'], 'Y-m-d H:i:s')) {
+                $payload['updated_at_foreign'] = (string) $order['date_upd'];
+            }
 
             if ($order['mc_tc'] && ctype_xdigit($order['mc_tc']) && strlen($order['mc_tc']) === 10) {
                 $payload['tracking_code'] = $order['mc_tc'];
@@ -2127,5 +2134,20 @@ class MailChimp extends Module
         }
 
         return '';
+    }
+
+    /**
+     * @param string $date
+     * @param string $format
+     *
+     * @return bool
+     *
+     * @since 1.1.0
+     */
+    protected static function validateDate($date, $format = 'Y-m-d H:i:s')
+    {
+        $d = DateTime::createFromFormat($format, $date);
+
+        return $d && $d->format($format) == $date;
     }
 }
