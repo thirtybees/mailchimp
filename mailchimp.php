@@ -2121,6 +2121,10 @@ class MailChimp extends Module
                     "ecommerce/stores/tbstore_{$idShop}/orders",
                     $payload
                 );
+                $batch->delete(
+                    'opcart'.(int) $order['id_cart'],
+                    "ecommerce/stores/tbstore_{$idShop}/carts/{$order['id_cart']}"
+                );
             }
         }
 
