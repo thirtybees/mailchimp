@@ -24,8 +24,7 @@ module.exports = function(grunt) {
                     {src: 'config.xml', dest: 'mailchimp/'},
                     {src: 'index.php', dest: 'mailchimp/'},
                     {src: 'mailchimp.php', dest: 'mailchimp/'},
-                    {src: 'mailchimp.ajax.php', dest: 'mailchimp/'},
-                    {src: 'mailchimp.config.php', dest: 'mailchimp/'},
+                    {src: 'cli.php', dest: 'mailchimp/'},
                     {src: 'logo.png', dest: 'mailchimp/'},
                     {src: 'logo.gif', dest: 'mailchimp/'}
                 ]
