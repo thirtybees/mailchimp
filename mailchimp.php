@@ -836,7 +836,7 @@ class MailChimp extends Module
     public function displayAjaxResetCarts()
     {
         if ($idShop = (int) Tools::getValue('shop')) {
-            $this->processResetCarts($idShop);
+            $this->processResetCarts($idShop, true);
         }
 
         die(json_encode([

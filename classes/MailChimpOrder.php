@@ -87,7 +87,7 @@ class MailChimpOrder extends MailChimpObjectModel
      * @return array|false|\mysqli_result|null|\PDOStatement|resource
      * @since 1.1.0
      */
-    public static function getOrders($idShop = null, $offset = 0, $limit = MailChimp::EXPORT_CHUNK_SIZE, $remaining = false)
+    public static function getOrders($idShop = null, $offset = 0, $limit = 0, $remaining = false)
     {
         if (!$idShop) {
             $idShop = \Context::getContext()->shop->id;
@@ -108,7 +108,7 @@ class MailChimpOrder extends MailChimpObjectModel
                 $sql->where('STR_TO_DATE(o.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
             }
         }
-        if ($offset || $limit) {
+        if ($limit) {
             $sql->limit($limit, $offset);
         }
 

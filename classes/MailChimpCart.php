@@ -44,7 +44,9 @@ class MailChimpCart extends MailChimpObjectModel
         ],
     ];
     // @codingStandardsIgnoreStart
+    /** @var int $id_cart */
     public $id_cart;
+    /** @var string $last_synced */
     public $last_synced;
     // @codingStandardsIgnoreEnd
 
@@ -76,7 +78,7 @@ class MailChimpCart extends MailChimpObjectModel
         $sql->where('c.`id_shop` = '.(int) $idShop);
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
-        $sql->where('c.`date_add` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
+        $sql->where('c.`date_upd` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
         $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
         if ($remaining) {
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
@@ -101,7 +103,7 @@ class MailChimpCart extends MailChimpObjectModel
      * @return array|false|\mysqli_result|null|\PDOStatement|resource
      * @since 1.1.0
      */
-    public static function getCarts($idShop = null, $offset = 0, $limit = MailChimp::EXPORT_CHUNK_SIZE, $remaining = false)
+    public static function getCarts($idShop = null, $offset = 0, $limit = 0, $remaining = false)
     {
         if (!$idShop) {
             $idShop = \Context::getContext()->shop->id;
@@ -117,10 +119,10 @@ class MailChimpCart extends MailChimpObjectModel
         $sql = new \DbQuery();
         $sql->select('c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, mc.`last_synced`');
         $sql->from('cart', 'c');
-        $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
+        $sql->leftJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
         $sql->where('c.`id_shop` = '.(int) $idShop);
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
-        $sql->where('c.`date_add` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
+        $sql->where('c.`date_upd` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
         $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
         if ($remaining) {
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
@@ -129,7 +131,7 @@ class MailChimpCart extends MailChimpObjectModel
                 $sql->where('STR_TO_DATE(c.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
             }
         }
-        if ($offset || $limit) {
+        if ($limit) {
             $sql->limit($limit, $offset);
         }
 
