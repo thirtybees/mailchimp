@@ -2099,10 +2099,10 @@ class MailChimp extends Module
             ];
 
             if (self::validateDate($order['date_add'], 'Y-m-d H:i:s')) {
-                $payload['processed_at_foreign'] = (string) $order['date_add'];
+                $payload['processed_at_foreign'] = date('c', strtotime($order['date_add']));
             }
             if (self::validateDate($order['date_upd'], 'Y-m-d H:i:s')) {
-                $payload['updated_at_foreign'] = (string) $order['date_upd'];
+                $payload['updated_at_foreign'] = date('c', strtotime($order['date_add']));
             }
 
             if ($order['mc_tc'] && ctype_xdigit($order['mc_tc']) && strlen($order['mc_tc']) === 10) {
