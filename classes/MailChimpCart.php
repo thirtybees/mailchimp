@@ -117,11 +117,11 @@ class MailChimpCart extends MailChimpObjectModel
         $selectOrdersSql->from('orders');
 
         $sql = new \DbQuery();
-        $sql->select('c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, mc.`last_synced`');
+        $sql->select('c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, cu.`id_lang`, mc.`last_synced`');
         $sql->from('cart', 'c');
-        $sql->leftJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
-        $sql->where('c.`id_shop` = '.(int) $idShop);
+        $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
+        $sql->where('c.`id_shop` = '.(int) $idShop);
         $sql->where('c.`date_upd` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
         $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
         if ($remaining) {
@@ -140,12 +140,18 @@ class MailChimpCart extends MailChimpObjectModel
         $defaultCurrency = \Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
         foreach ($results as &$cart) {
-            $cartObj = new \Cart($cart['id_cart']);
+            $cartObject = new \Cart($cart['id_cart']);
 
             $cart['currency_code'] = $defaultCurrencyCode;
-            $cart['order_total'] = $cartObj->getOrderTotal(true);
+            $cart['order_total'] = $cartObject->getOrderTotal(true);
+            $cart['checkout_url'] = Context::getContext()->link->getPageLink(
+                'order',
+                false,
+                (int) $cart['id_lang'],
+                'step=3&recover_cart='.$cart['id_cart'].'&token_cart='.md5(_COOKIE_KEY_.'recover_cart_'.$cart['id_cart'])
+            );
 
-            $orderProducts = $cartObj->getProducts();
+            $orderProducts = $cartObject->getProducts();
 
             $cart['lines'] = [];
             foreach ($orderProducts as &$cartProduct) {

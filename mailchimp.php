@@ -2025,6 +2025,7 @@ class MailChimp extends Module
                 ],
                 'currency_code' => (string) $cart['currency_code'],
                 'order_total'   => (string) $cart['order_total'],
+                'checkout_url'  => (string) $cart['checkout_url'],
                 'lines'         => $cart['lines'],
             ];
 
