@@ -1,4 +1,4 @@
-<div class="tabs">
+<div class="tabs clearfix">
 	<div class="sidebar navigation col-md-2">
 		{if isset($tab_contents.logo)}
 			<img class="tabs-logo" src="{$tab_contents.logo|escape:'htmlall':'UTF-8'}"/>
