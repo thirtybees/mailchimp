@@ -158,7 +158,7 @@ class MailChimpCart extends MailChimpObjectModel
                 $cart['lines'][] = [
                     'id'                 => (string) $cartProduct['id_product'],
                     'product_id'         => (string) $cartProduct['id_product'],
-                    'product_variant_id' => (string) $cartProduct['id_product_attribute'] ?: $cartProduct['id_product'],
+                    'product_variant_id' => (string) $cartProduct['id_product_attribute'] ? $cartProduct['id_product'].'-'.$cartProduct['id_product_attribute'] : $cartProduct['id_product'],
                     'quantity'           => (int) $cartProduct['cart_quantity'],
                     'price'              => (float) $cartProduct['price'],
                 ];

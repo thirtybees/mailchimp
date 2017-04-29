@@ -133,7 +133,7 @@ class MailChimpOrder extends MailChimpObjectModel
                 $order['lines'][] = [
                     'id'                 => (string) $cartProduct['product_id'],
                     'product_id'         => (string) $cartProduct['product_id'],
-                    'product_variant_id' => (string) $cartProduct['product_attribute_id'] ?: $cartProduct['product_id'],
+                    'product_variant_id' => (string) $cartProduct['product_attribute_id'] ? $cartProduct['product_id'].'-'.$cartProduct['product_attribute_id'] : $cartProduct['product_id'],
                     'quantity'           => (int) $cartProduct['product_quantity'],
                     'price'              => (float) $cartProduct['total_price_tax_incl'],
                 ];
