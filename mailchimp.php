@@ -17,7 +17,7 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
-if (!defined('_PS_VERSION_') && !defined('_TB_VERSION_')) {
+if (!defined('_TB_VERSION_')) {
     exit;
 }
 
@@ -42,6 +42,8 @@ class MailChimp extends Module
     const LAST_IMPORT_ID = 'MAILCHIMP_LAST_IMPORT_ID';
     const API_TIMEOUT = 10;
 
+    const SUBSCRIBERS_SYNC_COUNT = 'MAILCHIMP_SUBSCRIBERS_SYNC_COUNT';
+    const SUBSCRIBERS_SYNC_TOTAL = 'MAILCHIMP_SUBSCRIBERS_SYNC_TOTAL';
     const PRODUCTS_SYNC_COUNT = 'MAILCHIMP_PRODUCTS_SYNC_COUNT';
     const PRODUCTS_SYNC_TOTAL = 'MAILCHIMP_PRODUCTS_SYNC_TOTAL';
     const CARTS_SYNC_COUNT = 'MAILCHIMP_CARTS_SYNC_COUNT';
@@ -49,6 +51,7 @@ class MailChimp extends Module
     const ORDERS_SYNC_COUNT = 'MAILCHIMP_ORDERS_SYNC_COUNT';
     const ORDERS_SYNC_TOTAL = 'MAILCHIMP_ORDERS_SYNC_TOTAL';
 
+    const SUBSCRIBERS_LAST_SYNC = 'PRODUCTS_LAST_SYNC';
     const PRODUCTS_LAST_SYNC = 'PRODUCTS_LAST_SYNC';
     const CARTS_LAST_SYNC = 'CARTS_LAST_SYNC';
     const ORDERS_LAST_SYNC = 'ORDERS_LAST_SYNC';
@@ -68,7 +71,7 @@ class MailChimp extends Module
     /** @var \MailChimpModule\MailChimp\MailChimp $mailChimp */
     protected $mailChimp;
     /** @var array $mailChimpLanguages */
-    protected $mailChimpLanguages = [
+    public static $mailChimpLanguages = [
         'en' => 'en',
         'ar' => 'ar',
         'af' => 'af',
@@ -136,6 +139,8 @@ class MailChimp extends Module
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
+        $this->tb_versions_compliancy = '~1.0.0';
+        $this->ps_versions_compliancy = ['min' => '1.0.0', 'max' => '1.1.0'];
 
         parent::__construct();
 
@@ -221,6 +226,7 @@ class MailChimp extends Module
      */
     public function getContent()
     {
+        ddd(MailChimpSubscriber::getSubscribers(null, 0, 0, true));
         if (Tools::isSubmit('ajax')) {
             $this->displayAjax();
 
@@ -362,12 +368,11 @@ class MailChimp extends Module
      *
      * @since 1.0.0
      */
-    public function getMailChimpLanguageByIso($iso)
+    public static function getMailChimpLanguageByIso($iso)
     {
-        $lang = $this->mailChimpLanguages[$iso];
+        $lang = static::$mailChimpLanguages[$iso];
         if ($lang == '') {
             $lang = 'en';
-            Logger::addLog('MailChimp language code could not be found for language with ISO: '.$lang);
         }
 
         return $lang;
@@ -516,6 +521,12 @@ class MailChimp extends Module
     {
         $modals = [
             [
+                'modal_id'      => 'exportSubscribersProgress',
+                'modal_class'   => 'modal-md',
+                'modal_title'   => $this->l('Exporting...'),
+                'modal_content' => $this->display(__FILE__, 'views/templates/admin/export_subscribers_progress.tpl'),
+            ],
+            [
                 'modal_id'      => 'exportProductsProgress',
                 'modal_class'   => 'modal-md',
                 'modal_title'   => $this->l('Exporting...'),
@@ -621,6 +632,8 @@ class MailChimp extends Module
     {
         $action = ucfirst(Tools::getValue('action'));
         if (in_array($action, [
+            'ExportAllSubscribers',
+            'ResetSubscribers',
             'ExportAllProducts',
             'ResetProducts',
             'ExportAllCarts',
@@ -629,6 +642,48 @@ class MailChimp extends Module
             'ResetOrders',
         ])) {
             $this->{'displayAjax'.$action}();
+        }
+    }
+
+    /**
+     * Ajax process export all subscribers
+     *
+     * @return void
+     *
+     * @since 1.1.0
+     */
+    public function displayAjaxExportAllSubscribers()
+    {
+        $exportRemaining = (bool) Tools::isSubmit('remaining');
+        $idShop = (int) Tools::getValue('shop');
+        if (!$idShop) {
+            $idShop = Context::getContext()->shop->id;
+        }
+
+        if (Tools::isSubmit('start')) {
+            $totalSubscribers = MailChimpSubscriber::countSubscribers($idShop, $exportRemaining);
+            $totalChunks = ceil($totalSubscribers / self::EXPORT_CHUNK_SIZE);
+
+            Configuration::updateValue(self::SUBSCRIBERS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(self::SUBSCRIBERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+
+            die(json_encode([
+                'totalChunks'      => $totalChunks,
+                'totalSubscribers' => $totalSubscribers,
+            ]));
+        } elseif (Tools::isSubmit('next')) {
+            $count = (int) Configuration::get(self::SUBSCRIBERS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(self::SUBSCRIBERS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(self::SUBSCRIBERS_SYNC_COUNT, $count, null, 0, 0);
+            $remaining = $total - $count;
+
+            $idBatch = $this->exportSubscribers(($count - 1) * self::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
+
+            die(json_encode([
+                'success'   => true,
+                'remaining' => $remaining,
+                'batch_id'  => $idBatch,
+            ]));
         }
     }
 
@@ -1201,128 +1256,6 @@ class MailChimp extends Module
         );
 
         return (bool) $result;
-    }
-
-    /**
-     * @param bool $optedIn
-     *
-     * @return array
-     *
-     * @since 1.0.0
-     */
-    protected function getTotalSubscriberList($optedIn = false)
-    {
-        // Get subscriptions made through Newsletter Block
-        $list1 = $this->getNewsletterBlockSubscriptions($optedIn);
-        // Get subscriptions made through either registration form or during guest checkout
-        $list2 = $this->getCustomerSubscriptions($optedIn);
-
-        return array_merge($list1, $list2);
-    }
-
-    /**
-     * @param bool $optedIn
-     *
-     * @return array
-     *
-     * @since 1.0.0
-     */
-    protected function getNewsletterBlockSubscriptions($optedIn = false)
-    {
-        $list = [];
-        // Check if the module exists
-        $moduleNewsletter = \Module::getInstanceByName('blocknewsletter');
-        if ($moduleNewsletter) {
-            $sql = new DbQuery();
-            $sql->select('pn.`email`, pn.`newsletter_date_add`, pn.`ip_registration_newsletter`, pn.`active`');
-            $sql->from('newsletter', 'pn');
-            $sql->where('pn.`id_shop` = '.(int) $this->context->shop->id);
-            if ($optedIn) {
-                $sql->where('pn.`active` = 1');
-            }
-            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-
-            if ($result) {
-                // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
-                $subscription = (string) Configuration::get(self::CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
-                // Get default shop language since Newsletter Block registrations don't contain any language info
-                $lang = $this->mailChimpLanguages[$this->context->language->iso_code];
-                // Safety check
-                if ($lang == '') {
-                    Logger::addLog('MailChimp language code could not be found for language with ISO: '.$this->context->language->iso_code);
-                    $lang = 'en';
-                }
-                // Create and append subscribers
-                foreach ($result as $row) {
-                    $list[] = new MailChimpSubscriber(
-                        $row['email'],
-                        $subscription,
-                        null,
-                        null,
-                        $row['ip_registration_newsletter'],
-                        $lang,
-                        $row['newsletter_date_add']
-                    );
-                }
-            }
-        }
-
-        return $list;
-    }
-
-    /**
-     * @param bool $optedIn
-     *
-     * @return array
-     *
-     * @since 1.0.0
-     */
-    protected function getCustomerSubscriptions($optedIn = false)
-    {
-        $list = [];
-        $sql = new DbQuery();
-        $sql->select('pc.`email`, pc.`firstname`, pc.`lastname`, pc.`ip_registration_newsletter`, pc.`newsletter_date_add`, pl.`iso_code`');
-        $sql->from('customer', 'pc');
-        $sql->leftJoin('lang', 'pl', 'pl.`id_lang` = pc.`id_lang`');
-        $sql->where('pc.`id_shop` = '.(int) $this->context->shop->id);
-
-        $sql->where('pc.`newsletter` = 1');
-        $sql->where('pc.`deleted` = 0');
-        // Opt-in selection is only valid if not all users have been asked
-        if ($optedIn) {
-            $sql->where('pc.`optin` = 1');
-        }
-        $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-
-        if ($result) {
-            // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
-            $subscription = (string) Configuration::get(self::CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
-            // Create an array for non-exist language codes
-            $logLang = [];
-            // Create and append subscribers
-            foreach ($result as $row) {
-                $lang = $this->mailChimpLanguages[$row['iso_code']];
-                // Safety check
-                if ($lang == '') {
-                    $logLang[$lang] = true;
-                    $lang = 'en';
-                }
-                $list[] = new MailChimpSubscriber(
-                    $row['email'],
-                    $subscription,
-                    $row['firstname'],
-                    $row['lastname'],
-                    $row['ip_registration_newsletter'],
-                    $lang,
-                    $row['newsletter_date_add']
-                );
-            }
-            foreach ($logLang as $lang => $value) {
-                Logger::addLog('MailChimp language code could not be found for language with ISO: '.$lang);
-            }
-        }
-
-        return $list;
     }
 
     /**
@@ -1905,6 +1838,60 @@ class MailChimp extends Module
         }
 
         return $validKey;
+    }
+
+    /**
+     * Export subscribers
+     *
+     * @param int  $offset
+     * @param int  $idShop
+     * @param bool $remaining
+     *
+     * @return string MailChimp Batch ID
+     *
+     * @since 1.0.0
+     */
+    protected function exportSubscribers($offset, $idShop = null, $remaining = false)
+    {
+        if (!$idShop) {
+            $idShop = Context::getContext()->shop->id;
+        }
+
+        $mailChimpShop = MailChimpShop::getByShopId($idShop);
+
+        $subscribers = $this->getTotalSubscriberList(false);
+        if (empty($subscribers)) {
+            return '';
+        }
+
+        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
+        $batch = $mailChimp->newBatch();
+
+        $id = 1;
+        foreach ($subscribers as &$subscriber) {
+            $mergeFields = [];
+            if ($subscriber['birthday']) {
+                $mergeFields['BDAY'] = date('c', strtotime($subscriber['birthday']));
+            }
+
+            $subscriberHash = md5(Tools::strtolower($subscriber['email']));
+            $batch->put("ms{$id}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
+                'email_address' => Tools::strtolower($subscriber['email']),
+                'status'        => $subscriber['subscription'],
+                'merge_fields'  => $mergeFields,
+                'language'      => $this->getMailChimpLanguageByIso($subscriber['language_code']),
+                'ip_signup'     => $subscriber['ip_address'],
+            ]);
+
+            $id++;
+        }
+
+        $result = $batch->execute(self::API_TIMEOUT);
+        if (!empty($result)) {
+            return $result['id'];
+        }
+
+        return '';
     }
 
     /**

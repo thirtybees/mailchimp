@@ -239,4 +239,112 @@ class MailChimpSubscriber
         $this->timestampSignup = $timestampSignup;
     }
 
+    /**
+     * Count products
+     *
+     * @param int|null $idShop    Shop ID
+     * @param bool     $customers
+     * @param bool     $optedIn
+     *
+     * @return int
+     *
+     * @since 1.1.0
+     */
+    public static function countSubscribers($idShop = null, $customers = false, $optedIn = false)
+    {
+        if (!$idShop) {
+            $idShop = \Context::getContext()->shop->id;
+        }
+
+        $sql = new \DbQuery();
+        $sql->select('COUNT(ps.`id_product`)');
+        $sql->from('product_shop', 'ps');
+        $sql->where('ps.`id_shop` = '.(int) $idShop);
+
+        return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+    }
+
+    /**
+     * @param int|null $idShop
+     * @param int      $offset
+     * @param int      $limit
+     * @param bool     $customers
+     * @param bool     $optedIn
+     *
+     * @return array
+     *
+     * @since 1.0.0
+     */
+    public static function getSubscribers($idShop = null, $offset = 0, $limit = 0, $customers = false, $optedIn = false)
+    {
+        if (!$idShop) {
+            $idShop = (int) Context::getContext()->shop->id;
+        }
+
+        $list = [];
+        $result = false;
+        // Check if the module exists
+        if (Module::isEnabled('blocknewsletter')) {
+            $sql = new DbQuery();
+            if ($customers) {
+                $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`, c.`website`, c.`ip_registration_newsletter`, c.`newsletter_date_add`, l.`iso_code`');
+            } else {
+                $sql->select('n.`email`, n.`newsletter_date_add`, n.`ip_registration_newsletter`, n.`active`');
+            }
+            $sql->from('newsletter', 'n');
+            if ($customers) {
+                $sql->rightJoin('customer', 'c', 'c.`email` = n.`email`');
+                $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
+            }
+            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? '  OR c.`id_shop` = 1' : ''));
+            if ($optedIn) {
+                if ($customers) {
+                    $sql->where('n.`active` = 1 OR c.`newsletter` = 1');
+                } else {
+                    $sql->where('n.`active` = 1');
+                }
+            }
+            if ($limit) {
+                $sql->limit($limit, $offset);
+            }
+            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        } elseif ($customers) {
+            $sql = new DbQuery();
+            $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`, c.`website`, c.`ip_registration_newsletter`, c.`newsletter_date_add`, l.`iso_code`');
+            $sql->from('customer', 'c');
+            $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
+            $sql->where('c.`id_shop` = 1');
+            if ($optedIn) {
+                $sql->where('c.`newsletter` = 1');
+            }
+            if ($limit) {
+                $sql->limit($limit, $offset);
+            }
+            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        }
+
+        if ($result) {
+            // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
+            $subscription = (string) Configuration::get(MailChimp::CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
+            // Get default shop language since Newsletter Block registrations don't contain any language info
+            $lang = MailChimp::getMailChimpLanguageByIso(Context::getContext()->language->iso_code);
+            // Create and append subscribers
+            foreach ($result as $row) {
+                $list[] = [
+                    'email'               => $row['email'],
+                    'subscription'        => $subscription,
+                    'firstname'           => null,
+                    'lastname'            => null,
+                    'ip_address'          => $row['ip_registration_newsletter'],
+                    'language_code'       => $lang,
+                    'newsletter_date_add' => $row['newsletter_date_add'],
+                    'company'             => null,
+                    'website'             => null,
+                    'birthday'            => null,
+                ];
+            }
+        }
+
+        return $list;
+    }
 }
