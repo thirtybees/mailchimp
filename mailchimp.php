@@ -283,24 +283,6 @@ class MailChimp extends Module
     }
 
     /**
-     * Hook to back office header
-     *
-     * @return void
-     *
-     * @since 1.0.0
-     */
-    public function hookDisplayBackOfficeHeader()
-    {
-        if ($this->context->controller->controller_name) {
-            if (Tools::isSubmit('module_name') && Tools::getValue('module_name') == 'mailchimp') {
-                $this->context->controller->addJquery();
-                $this->context->controller->addJS($this->_path.'views/js/mailchimp.js');
-                $this->context->controller->addJS($this->_path.'views/js/jquery.the-modal.js');
-            }
-        }
-    }
-
-    /**
      * Hook to front office footer
      *
      * @return void
@@ -1404,6 +1386,14 @@ class MailChimp extends Module
         return $this->generateApiForm();
     }
 
+    /**
+     * Display form
+     */
+    protected function displayCronJobs()
+    {
+        return $this->generateCronForm();
+    }
+
     protected function displayShopsForm()
     {
         return $this->generateShopsForm();
@@ -1431,34 +1421,6 @@ class MailChimp extends Module
      */
     protected function generateApiForm()
     {
-        $context = Context::getContext();
-        $token = Tools::substr(Tools::encrypt($this->name.'/cron'), 0, 10);
-
-        $idShop = array_values(Shop::getShops(true, null, true));
-        if (is_array($idShop) && !empty($idShop)) {
-            $idShop = $idShop[0];
-        } else {
-            $idShop = $context->shop->id;
-        }
-
-        $idLang = array_values(Language::getLanguages(true, false, true));
-        if (is_array($idLang) && !empty($idLang)) {
-            $idLang = $idLang[0];
-        } else {
-            $idLang = $context->language->id;
-        }
-
-        $context->smarty->assign(
-            [
-                'cron_all_products'       => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllProducts',       'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_remaining_products' => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingProducts', 'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_all_carts'          => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllCarts',          'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_remaining_carts'    => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingCarts',    'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_all_orders'         => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllOrders',         'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_remaining_orders'   => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingOrders',   'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-            ]
-        );
-
         $fields = [];
 
         $inputs1 = [];
@@ -1485,18 +1447,7 @@ class MailChimp extends Module
             ],
         ];
 
-        $fieldsForm2 = [
-            'form' => [
-                'legend' => [
-                    'title' => $this->l('Cron Settings'),
-                    'icon'  => 'icon-cogs',
-                ],
-                'description' => $this->display(__FILE__, 'views/templates/admin/cron_settings.tpl'),
-            ],
-        ];
-
         $fields[] = $fieldsForm1;
-        $fields[] = $fieldsForm2;
 
         if ($this->checkApiKey()) {
             $inputs2 = [];
@@ -1557,6 +1508,65 @@ class MailChimp extends Module
 
             $fields[] = $fieldsForm2;
         }
+
+        $helper = new HelperForm();
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.self::MENU_IMPORT;
+        $helper->token = '';
+        $helper->tpl_vars = [
+            'fields_value' => $this->getConfigFieldsValues(),
+        ];
+
+        return $helper->generateForm($fields);
+    }
+
+    /**
+     * @return string
+     *
+     * @since 1.0.0
+     */
+    protected function generateCronForm()
+    {
+        $context = Context::getContext();
+        $token = Tools::substr(Tools::encrypt($this->name.'/cron'), 0, 10);
+
+        $idShop = array_values(Shop::getShops(true, null, true));
+        if (is_array($idShop) && !empty($idShop)) {
+            $idShop = $idShop[0];
+        } else {
+            $idShop = $context->shop->id;
+        }
+
+        $idLang = array_values(Language::getLanguages(true, false, true));
+        if (is_array($idLang) && !empty($idLang)) {
+            $idLang = $idLang[0];
+        } else {
+            $idLang = $context->language->id;
+        }
+
+        $context->smarty->assign(
+            [
+                'cron_all_products'       => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllProducts',       'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_remaining_products' => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingProducts', 'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_all_carts'          => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllCarts',          'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_remaining_carts'    => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingCarts',    'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_all_orders'         => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllOrders',         'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_remaining_orders'   => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingOrders',   'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+            ]
+        );
+
+        $fields = [];
+
+        $fieldsForm2 = [
+            'form' => [
+                'legend' => [
+                    'title' => $this->l('Cron Settings'),
+                    'icon'  => 'icon-cogs',
+                ],
+                'description' => $this->display(__FILE__, 'views/templates/admin/cron_settings.tpl'),
+            ],
+        ];
+
+        $fields[] = $fieldsForm2;
 
         $helper = new HelperForm();
         $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.self::MENU_IMPORT;
@@ -1845,6 +1855,13 @@ class MailChimp extends Module
                 'badge' => false,
             ];
         }
+
+        $contents[] = [
+            'name'  => $this->l('Cron jobs'),
+            'icon'  => 'icon-cogs',
+            'value' => $this->displayCronJobs(),
+            'badge' => false,
+        ];
 
         $tabContents = [
             'title'    => $this->l('MailChimp'),
