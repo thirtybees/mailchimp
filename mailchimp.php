@@ -226,7 +226,6 @@ class MailChimp extends Module
      */
     public function getContent()
     {
-        ddd(MailChimpSubscriber::getSubscribers(null, 0, 0, true));
         if (Tools::isSubmit('ajax')) {
             $this->displayAjax();
 
