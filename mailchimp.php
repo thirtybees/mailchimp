@@ -305,7 +305,7 @@ class MailChimp extends Module
                     null,
                     null,
                     Tools::getRemoteAddr(),
-                    $this->getMailChimpLanguageByIso($iso),
+                    static::getMailChimpLanguageByIso($iso),
                     date('Y-m-d H:i:s')
                 );
                 if (!$this->addOrUpdateSubscription($customer)) {
@@ -406,7 +406,7 @@ class MailChimp extends Module
                 $params['newCustomer']->firstname,
                 $params['newCustomer']->lastname,
                 $params['newCustomer']->ip_registration_newsletter,
-                $this->getMailChimpLanguageByIso($iso),
+                static::getMailChimpLanguageByIso($iso),
                 $params['newCustomer']->newsletter_date_add
             );
             if (!$this->addOrUpdateSubscription($customer)) {
@@ -436,7 +436,7 @@ class MailChimp extends Module
             $customer->firstname,
             $customer->lastname,
             Tools::getRemoteAddr(),
-            $this->getMailChimpLanguageByIso($iso),
+            static::getMailChimpLanguageByIso($iso),
             date('Y-m-d H:i:s')
         );
         if (!$this->addOrUpdateSubscription($customerMC)) {
@@ -467,7 +467,7 @@ class MailChimp extends Module
             $customer->firstname,
             $customer->lastname,
             Tools::getRemoteAddr(),
-            $this->getMailChimpLanguageByIso($iso),
+            static::getMailChimpLanguageByIso($iso),
             date('Y-m-d H:i:s')
         );
         if (!$this->addOrUpdateSubscription($customerMC)) {
@@ -1111,6 +1111,8 @@ class MailChimp extends Module
             $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
+                    $this->checkMergeFields($idShop, $idList);
+
                     $shop = new Shop($idShop);
                     $defaultIdCurrency = (int) Configuration::get('PS_CURRENCY_DEFAULT', null, $shop->id_shop_group, $shop->id);
                     $currency = new Currency($defaultIdCurrency);
@@ -1866,7 +1868,10 @@ class MailChimp extends Module
 
         $id = 1;
         foreach ($subscribers as &$subscriber) {
-            $mergeFields = [];
+            $mergeFields = [
+                'FNAME' => $subscriber['firstname'],
+                'LNAME' => $subscriber['lastname'],
+            ];
             if ($subscriber['birthday']) {
                 $mergeFields['BDAY'] = date('c', strtotime($subscriber['birthday']));
             }
@@ -1874,9 +1879,9 @@ class MailChimp extends Module
             $subscriberHash = md5(Tools::strtolower($subscriber['email']));
             $batch->put("ms{$id}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
                 'email_address' => Tools::strtolower($subscriber['email']),
-                'status'        => $subscriber['subscription'],
-                'merge_fields'  => $mergeFields,
-                'language'      => $this->getMailChimpLanguageByIso($subscriber['language_code']),
+                'status_if_new' => $subscriber['subscription'],
+                'merge_fields'  => (object) $mergeFields,
+                'language'      => static::getMailChimpLanguageByIso($subscriber['language_code']),
                 'ip_signup'     => $subscriber['ip_address'],
             ]);
 
@@ -2010,11 +2015,31 @@ class MailChimp extends Module
         if (empty($carts)) {
             return '';
         }
+        $mailChimpShop = MailChimpShop::getByShopId($idShop);
+        if (!Validate::isLoadedObject($mailChimpShop)) {
+            return '';
+        }
 
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
 
         foreach ($carts as &$cart) {
+            $subscriberHash = md5(Tools::strtolower($cart['email']));
+            $mergeFields = [
+                'FNAME' => $cart['firstname'],
+                'LNAME' => $cart['lastname'],
+            ];
+            if ($cart['birthday']) {
+                $mergeFields['BDAY'] = date('c', strtotime($cart['birthday']));
+            }
+
+            $batch->put("ms{$cart['id_customer']}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
+                'email_address' => Tools::strtolower($cart['email']),
+                'status_if_new' => false,
+                'merge_fields'  => (object) $mergeFields,
+                'language'      => static::getMailChimpLanguageByIso($cart['language_code']),
+            ]);
+
             $payload = [
                 'id'            => (string) $cart['id_cart'],
                 'customer'      => [
@@ -2076,11 +2101,31 @@ class MailChimp extends Module
         if (empty($orders)) {
             return '';
         }
+        $mailChimpShop = MailChimpShop::getByShopId($idShop);
+        if (!Validate::isLoadedObject($mailChimpShop)) {
+            return '';
+        }
 
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
 
         foreach ($orders as &$order) {
+            $subscriberHash = md5(Tools::strtolower($order['email']));
+            $mergeFields = [
+                'FNAME' => $order['firstname'],
+                'LNAME' => $order['lastname'],
+            ];
+            if ($order['birthday']) {
+                $mergeFields['BDAY'] = date('c', strtotime($order['birthday']));
+            }
+
+            $batch->put("ms{$order['id_customer']}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
+                'email_address' => Tools::strtolower($order['email']),
+                'status_if_new' => false,
+                'merge_fields'  => (object) $mergeFields,
+                'language'      => static::getMailChimpLanguageByIso($order['language_code']),
+            ]);
+
             if (empty($order['lines'])) {
                 unset($order);
                 continue;
@@ -2155,5 +2200,49 @@ class MailChimp extends Module
         $d = DateTime::createFromFormat($format, $date);
 
         return $d && $d->format($format) == $date;
+    }
+
+    /**
+     * Check if the merge fields have been remotely registered
+     *
+     * @param int    $idShop
+     * @param string $idList
+     *
+     * @return bool
+     *
+     * @since 1.1.0
+     */
+    protected function checkMergeFields($idShop, $idList)
+    {
+        $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
+        $result = $mailChimp->get("/lists/{$idList}/merge-fields");
+
+        $missingFields = [
+            'FNAME' => 'text',
+            'LNAME' => 'text',
+            'BDAY' => 'date',
+        ];
+        foreach ($result['merge_fields'] as $mergeField) {
+            if (isset($missingFields[$mergeField['tag']]) && $missingFields[$mergeField['tag']] === $mergeField['type']) {
+                unset($missingFields[$mergeField['tag']]);
+            }
+        }
+
+        $batch = $mailChimp->newBatch();
+        foreach ($missingFields as $fieldName => $fieldType) {
+            $batch->delete("del{$fieldName}", "/lists/{$idList}/merge-fields/{$fieldName}");
+            $batch->post("add{$fieldName}", "/lists/{$idList}/merge-fields", [
+                'tag'  => $fieldName,
+                'name' => $fieldName,
+                'type' => $fieldType,
+            ]);
+        }
+
+        $result = $batch->execute(10);
+        if (isset($result['id'])) {
+            return true;
+        }
+
+        return false;
     }
 }

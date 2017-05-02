@@ -360,14 +360,14 @@ class MailChimpSubscriber
                 $list[] = [
                     'email'               => $row['email'],
                     'subscription'        => $subscription,
-                    'firstname'           => null,
-                    'lastname'            => null,
+                    'firstname'           => isset($row['firstname']) ? $row['firstname'] : '',
+                    'lastname'            => isset($row['lastname']) ? $row['lastname'] : '',
                     'ip_address'          => $row['ip_registration_newsletter'],
                     'language_code'       => $lang,
                     'newsletter_date_add' => $row['newsletter_date_add'],
-                    'company'             => null,
-                    'website'             => null,
-                    'birthday'            => null,
+                    'company'             => isset($row['company']) ? $row['company'] : '',
+                    'website'             => isset($row['website']) ? $row['website'] : '',
+                    'birthday'            => isset($row['birthday']) ? $row['birthday'] : '',
                 ];
             }
         }

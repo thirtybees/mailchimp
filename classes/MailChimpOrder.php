@@ -94,10 +94,11 @@ class MailChimpOrder extends MailChimpObjectModel
         }
 
         $sql = new \DbQuery();
-        $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, cu.`id_customer`, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`newsletter`, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
+        $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, cu.`id_customer`, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`birthday`, cu.`newsletter`, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
         $sql->from('orders', 'o');
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = o.`id_customer`');
         $sql->innerJoin('cart', 'c', 'c.`id_cart` = o.`id_cart`');
+        $sql->innerJoin('lang', 'l', 'l.`id_lang` = cu.`id_lang`');
         $sql->leftJoin('mailchimp_tracking', 'mt', 'mt.`id_order` = o.`id_order`');
         $sql->where('o.`id_shop` = '.(int) $idShop);
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
