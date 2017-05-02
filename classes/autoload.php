@@ -42,7 +42,7 @@ spl_autoload_register(
             $len = strlen($prefix);
             if (strncmp($prefix, $class, $len) !== 0) {
                 // no, move to the next registered autoloader
-                return;
+                return false;
             }
 
             // get the relative class name
@@ -54,9 +54,11 @@ spl_autoload_register(
             $file = $baseDir.str_replace('\\', '/', $relativeClass).'.php';
 
             // if the file exists, require it
-            if (file_exists($file)) {
-                require $file;
-            }
+            require $file;
+
+            return true;
         }
+
+        return false;
     }
 );
