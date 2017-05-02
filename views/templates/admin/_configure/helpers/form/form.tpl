@@ -38,6 +38,9 @@
 									<span class="title_box">{l s='List' mod='mailchimp'}</span>
 								</th>
 								<th>
+									<span class="title_box">{l s='Tax rule' mod='mailchimp'}</span>
+								</th>
+								<th>
 									<span class="title_box">{l s='Synced' mod='mailchimp'}</span>
 								</th>
 								<th>
@@ -56,6 +59,9 @@
 									</td>
 									<td>
 										{html_options name="shop_list_id[{$shop['id_shop']}]" options=$input['lists'] selected=$shop['list_id']}
+									</td>
+									<td>
+                                        {html_options name="shop_tax[{$shop['id_shop']}]" options=$input['taxes'] selected=$shop['id_tax']}
 									</td>
 									<td>
 										{if $shop['synced']}YES{else}NO{/if}

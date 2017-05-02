@@ -41,12 +41,14 @@ class MailChimpShop extends MailChimpObjectModel
         'fields'  => [
             'id_shop' => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                   'db_type' => 'INT(11) UNSIGNED'   ],
             'list_id' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true,                   'db_type' => 'VARCHAR(32)'        ],
+            'id_tax'  => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                   'db_type' => 'INT(11) UNSIGNED'   ],
             'synced'  => ['type' => self::TYPE_BOOL,   'validate' => 'isBool',   'required' => true, 'default' => '0', 'db_type' => 'TINYINT(1) UNSIGNED'],
         ],
     ];
     // @codingStandardsIgnoreStart
     public $id_shop;
     public $list_id;
+    public $id_tax;
     public $synced;
     // @codingStandardsIgnoreEnd
 
@@ -62,7 +64,7 @@ class MailChimpShop extends MailChimpObjectModel
     public static function getShops($active = false)
     {
         $sql = new \DbQuery();
-        $sql->select('s.`'.bqSQL(\Shop::$definition['primary']).'`, s.`name`, ms.`list_id`, ms.`synced`');
+        $sql->select('s.`'.bqSQL(\Shop::$definition['primary']).'`, s.`name`, ms.`list_id`, ms.`id_tax`, ms.`synced`');
         $sql->from('shop', 's');
         $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(\Shop::$definition['primary']).'` = ms.`'.bqSQL(\Shop::$definition['primary']).'`');
         if ($active) {

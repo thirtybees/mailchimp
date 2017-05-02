@@ -1110,6 +1110,7 @@ class MailChimp extends Module
             }
         } elseif (Tools::isSubmit('submitShops')) {
             $shopLists = Tools::getValue('shop_list_id');
+            $shopTaxes = Tools::getValue('shop_tax');
             $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
@@ -1151,6 +1152,7 @@ class MailChimp extends Module
                     }
                     $mailChimpShop->list_id = $idList;
                     $mailChimpShop->id_shop = $idShop;
+                    $mailChimpShop->id_tax = (int) $shopTaxes[$idShop];
                     $mailChimpShop->synced = true;
 
                     $mailChimpShop->save();
@@ -1566,6 +1568,13 @@ class MailChimp extends Module
         if (is_array($thisLists)) {
             $lists = array_merge($lists, $thisLists);
         }
+        $rawTaxes = Tax::getTaxes($this->context->language->id, true);
+        $taxes = [
+            0 => $this->l('None'),
+        ];
+        foreach ($rawTaxes as $tax) {
+            $taxes[(int) $tax['id_tax']] = $tax['name'];
+        }
 
         return [
             'form' => [
@@ -1580,6 +1589,7 @@ class MailChimp extends Module
                         'name'  => 'mailchimp_shops',
                         'lists' => $lists,
                         'shops' => MailChimpShop::getShops(true),
+                        'taxes' => $taxes,
                     ],
                 ],
                 'submit' => [
