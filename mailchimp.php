@@ -2260,7 +2260,6 @@ class MailChimp extends Module
         $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_order` ADD INDEX `mc_order_order` (`id_order`)');
         $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_shop` ADD INDEX `mc_shop_shop` (`id_shop`)');
         $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_tracking` ADD INDEX `mc_tracking_order` (`id_order`)');
-
     }
 
     /**
