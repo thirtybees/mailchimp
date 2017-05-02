@@ -115,6 +115,16 @@ class MailChimpOrder extends MailChimpObjectModel
 
         $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
 
+        $mailChimpShop = MailChimpShop::getByShopId($idShop);
+        if (!Validate::isLoadedObject($mailChimpShop)) {
+            return false;
+        }
+        $rate = 1;
+        $tax = new Tax($mailChimpShop->id_tax);
+        if (Validate::isLoadedObject($tax) && $tax->active) {
+            $rate = 1 + ($tax->rate / 100);
+        }
+
         $defaultCurrency = \Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
         foreach ($results as &$order) {
@@ -122,7 +132,7 @@ class MailChimpOrder extends MailChimpObjectModel
 
             $order['currency_code'] = $defaultCurrencyCode;
             $order['order_total'] = $orderObj->getTotalPaid();
-            $order['shipping_total'] = $orderObj->total_shipping_tax_incl;
+            $order['shipping_total'] = (float) ($orderObj->total_shipping_tax_incl * $rate);
 
             $orderProducts = $orderObj->getOrderDetailList();
             if (!$orderProducts) {
@@ -136,7 +146,7 @@ class MailChimpOrder extends MailChimpObjectModel
                     'product_id'         => (string) $cartProduct['product_id'],
                     'product_variant_id' => (string) $cartProduct['product_attribute_id'] ? $cartProduct['product_id'].'-'.$cartProduct['product_attribute_id'] : $cartProduct['product_id'],
                     'quantity'           => (int) $cartProduct['product_quantity'],
-                    'price'              => (float) $cartProduct['total_price_tax_incl'],
+                    'price'              => (float) ($cartProduct['total_price_tax_incl'] * $rate),
                 ];
             }
         }

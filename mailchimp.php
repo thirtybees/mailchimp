@@ -1932,6 +1932,16 @@ class MailChimp extends Module
             return '';
         }
 
+        $mailChimpShop = MailChimpShop::getByShopId($idShop);
+        if (!Validate::isLoadedObject($mailChimpShop)) {
+            return false;
+        }
+        $rate = 1;
+        $tax = new Tax($mailChimpShop->id_tax);
+        if (Validate::isLoadedObject($tax) && $tax->active) {
+            $rate = 1 + ($tax->rate / 100);
+        }
+
         $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
         $batch = $mailChimp->newBatch();
 
@@ -1952,7 +1962,7 @@ class MailChimp extends Module
                         'id'                 => (string) $product['id_product'].'-'.(string) $combination['id_product_attribute'],
                         'title'              => (string) $product['name'],
                         'sku'                => (string) $combination['reference'],
-                        'price'              => (float) $product['price'] + (float) $combination['price'],
+                        'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
                         'inventory_quantity' => (int) $combination['quantity'],
                     ];
                     if (isset($allCombinationImages[$combination['id_product_attribute']])) {
@@ -1966,7 +1976,7 @@ class MailChimp extends Module
                         'id'                 => (string) $product['id_product'],
                         'title'              => (string) $product['name'],
                         'sku'                => (string) $product['reference'],
-                        'price'              => (float) $product['price'],
+                        'price'              => (float) ($product['price'] * $rate),
                         'inventory_quantity' => (int) $product['quantity'],
                     ],
                 ];
