@@ -139,7 +139,7 @@ class MailChimp extends Module
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
-        $this->tb_versions_compliancy = '~1.0.0';
+        $this->tb_versions_compliancy = '>= 1.0.1';
         $this->ps_versions_compliancy = ['min' => '1.0.0', 'max' => '1.1.0'];
 
         parent::__construct();
