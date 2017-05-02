@@ -186,6 +186,8 @@ class MailChimp extends Module
             return false;
         }
 
+        $this->installDbIndices();
+
         return true;
     }
 
@@ -2244,5 +2246,33 @@ class MailChimp extends Module
         }
 
         return false;
+    }
+
+    /**
+     * Install Db Indices
+     *
+     * @since 1.1.0
+     */
+    protected function installDbIndices()
+    {
+        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_product` ADD INDEX `mc_product_product` (`id_product`)');
+        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_cart` ADD INDEX `mc_cart_cart` (`id_cart`)');
+        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_order` ADD INDEX `mc_order_order` (`id_order`)');
+        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_shop` ADD INDEX `mc_shop_shop` (`id_shop`)');
+        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_tracking` ADD INDEX `mc_tracking_order` (`id_order`)');
+
+    }
+
+    /**
+     * Install Db Index
+     *
+     * @since 1.1.0
+     */
+    protected function installDbIndex($sql)
+    {
+        try {
+            Db::getInstance()->execute($sql);
+        } catch (Exception $e) {
+        }
     }
 }
