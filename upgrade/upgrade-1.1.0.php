@@ -37,7 +37,6 @@ function upgrade_module_1_1_0($module)
 ';
 
     $sql[] = 'ALTER TABLE `'._DB_PREFIX_.'mailchimp_product` ADD INDEX `mc_product_product` (`id_product`)';
-    $sql[] = 'ALTER TABLE `'._DB_PREFIX_.'mailchimp_product` ADD INDEX `mc_product_shop` (`id_shop`)';
 
     $sql[] = 'CREATE TABLE `'._DB_PREFIX_.'mailchimp_cart` (
   `id_mailchimp_cart`    INT(11) UNSIGNED    NOT NULL AUTO_INCREMENT,
