@@ -31,7 +31,7 @@
 
 namespace MailChimpModule\MailChimp;
 
-if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
+if (!defined('_TB_VERSION_')) {
     exit;
 }
 

@@ -17,7 +17,9 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
-if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
+namespace MailChimpModule;
+
+if (!defined('_TB_VERSION_')) {
     exit;
 }
 
@@ -28,7 +30,7 @@ if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
  *
  * @since 1.1.0
  */
-class MailChimpCart extends MailChimpObjectModel
+class MailChimpCart extends \ObjectModel
 {
     /**
      * @see ObjectModel::$definition
@@ -65,7 +67,7 @@ class MailChimpCart extends MailChimpObjectModel
             $idShop = \Context::getContext()->shop->id;
         }
 
-        $fromDateTime = new DateTime();
+        $fromDateTime = new \DateTime();
         $fromDateTime->modify('-1 day');
 
         $selectOrdersSql = new \DbQuery();
@@ -109,7 +111,7 @@ class MailChimpCart extends MailChimpObjectModel
             $idShop = \Context::getContext()->shop->id;
         }
 
-        $fromDateTime = new DateTime();
+        $fromDateTime = new \DateTime();
         $fromDateTime->modify('-1 day');
 
         $selectOrdersSql = new \DbQuery();
@@ -141,12 +143,12 @@ class MailChimpCart extends MailChimpObjectModel
         $defaultCurrency = \Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
         $mailChimpShop = MailChimpShop::getByShopId($idShop);
-        if (!Validate::isLoadedObject($mailChimpShop)) {
+        if (!\Validate::isLoadedObject($mailChimpShop)) {
             return false;
         }
         $rate = 1;
-        $tax = new Tax($mailChimpShop->id_tax);
-        if (Validate::isLoadedObject($tax) && $tax->active) {
+        $tax = new \Tax($mailChimpShop->id_tax);
+        if (\Validate::isLoadedObject($tax) && $tax->active) {
             $rate = 1 + ($tax->rate / 100);
         }
         foreach ($results as &$cart) {
@@ -154,7 +156,7 @@ class MailChimpCart extends MailChimpObjectModel
 
             $cart['currency_code'] = $defaultCurrencyCode;
             $cart['order_total'] = (float) ($cartObject->getOrderTotal(false) * $rate);
-            $cart['checkout_url'] = Context::getContext()->link->getPageLink(
+            $cart['checkout_url'] = \Context::getContext()->link->getPageLink(
                 'order',
                 false,
                 (int) $cart['id_lang'],

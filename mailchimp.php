@@ -17,6 +17,14 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
+use MailChimpModule\MailChimpCart;
+use MailChimpModule\MailChimpOrder;
+use MailChimpModule\MailChimpProduct;
+use MailChimpModule\MailChimpRegisteredWebhook;
+use MailChimpModule\MailChimpShop;
+use MailChimpModule\MailChimpSubscriber;
+use MailChimpModule\MailChimpTracking;
+
 if (!defined('_TB_VERSION_')) {
     exit;
 }

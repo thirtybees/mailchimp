@@ -17,6 +17,8 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
+namespace MailChimpModule;
+
 if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
     exit;
 }
@@ -28,7 +30,7 @@ if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
  *
  * @since 1.1.0
  */
-class MailChimpOrder extends MailChimpObjectModel
+class MailChimpOrder extends \ObjectModel
 {
     /**
      * @see ObjectModel::$definition
@@ -116,12 +118,12 @@ class MailChimpOrder extends MailChimpObjectModel
         $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
 
         $mailChimpShop = MailChimpShop::getByShopId($idShop);
-        if (!Validate::isLoadedObject($mailChimpShop)) {
+        if (!\Validate::isLoadedObject($mailChimpShop)) {
             return false;
         }
         $rate = 1;
-        $tax = new Tax($mailChimpShop->id_tax);
-        if (Validate::isLoadedObject($tax) && $tax->active) {
+        $tax = new \Tax($mailChimpShop->id_tax);
+        if (\Validate::isLoadedObject($tax) && $tax->active) {
             $rate = 1 + ($tax->rate / 100);
         }
 

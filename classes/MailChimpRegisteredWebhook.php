@@ -17,6 +17,8 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
+namespace MailChimpModule;
+
 if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
     exit;
 }
@@ -26,7 +28,7 @@ require_once __DIR__.'/autoload.php';
 /**
  * Class StripeTransaction
  */
-class MailChimpRegisteredWebhook extends MailChimpObjectModel
+class MailChimpRegisteredWebhook extends \ObjectModel
 {
     /**
      * @see ObjectModel::$definition

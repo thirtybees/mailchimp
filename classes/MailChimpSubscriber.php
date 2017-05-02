@@ -17,7 +17,9 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
-if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
+namespace MailChimpModule;
+
+if (!defined('_TB_VERSION_')) {
     exit;
 }
 
@@ -257,8 +259,8 @@ class MailChimpSubscriber
         }
 
         // Check if the module exists
-        if (Module::isEnabled('blocknewsletter')) {
-            $sql = new DbQuery();
+        if (\Module::isEnabled('blocknewsletter')) {
+            $sql = new \DbQuery();
             $sql->select('count(*)');
             $sql->from('newsletter', 'n');
             if ($customers) {
@@ -276,7 +278,7 @@ class MailChimpSubscriber
 
             return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
         } elseif ($customers) {
-            $sql = new DbQuery();
+            $sql = new \DbQuery();
             $sql->select('count(*)');
             $sql->from('customer', 'c');
             $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
@@ -305,14 +307,14 @@ class MailChimpSubscriber
     public static function getSubscribers($idShop = null, $offset = 0, $limit = 0, $customers = true, $optedIn = false)
     {
         if (!$idShop) {
-            $idShop = (int) Context::getContext()->shop->id;
+            $idShop = (int) \Context::getContext()->shop->id;
         }
 
         $list = [];
         $result = false;
         // Check if the module exists
-        if (Module::isEnabled('blocknewsletter')) {
-            $sql = new DbQuery();
+        if (\Module::isEnabled('blocknewsletter')) {
+            $sql = new \DbQuery();
             if ($customers) {
                 $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`, c.`website`, c.`ip_registration_newsletter`, c.`newsletter_date_add`, l.`iso_code`');
             } else {
@@ -336,7 +338,7 @@ class MailChimpSubscriber
             }
             $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         } elseif ($customers) {
-            $sql = new DbQuery();
+            $sql = new \DbQuery();
             $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`, c.`website`, c.`ip_registration_newsletter`, c.`newsletter_date_add`, l.`iso_code`');
             $sql->from('customer', 'c');
             $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
@@ -352,9 +354,9 @@ class MailChimpSubscriber
 
         if ($result) {
             // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
-            $subscription = (string) Configuration::get(MailChimp::CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
+            $subscription = (string) \Configuration::get(\MailChimp::CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
             // Get default shop language since Newsletter Block registrations don't contain any language info
-            $lang = MailChimp::getMailChimpLanguageByIso(Context::getContext()->language->iso_code);
+            $lang = \MailChimp::getMailChimpLanguageByIso(\Context::getContext()->language->iso_code);
             // Create and append subscribers
             foreach ($result as $row) {
                 $list[] = [

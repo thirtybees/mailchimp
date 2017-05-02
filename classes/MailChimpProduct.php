@@ -17,6 +17,8 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
+namespace MailChimpModule;
+
 if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
     exit;
 }
@@ -28,7 +30,7 @@ if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
  *
  * @since 1.1.0
  */
-class MailChimpProduct extends MailChimpObjectModel
+class MailChimpProduct extends \ObjectModel
 {
     /**
      * @see ObjectModel::$definition

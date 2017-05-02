@@ -23,6 +23,14 @@ spl_autoload_register(
             'MailChimpModule\\MailChimp\\Batch',
             'MailChimpModule\\MailChimp\\MailChimp',
             'MailChimpModule\\MailChimp\\Webhook',
+            'MailChimpModule\\MailChimpRegisteredWebhook',
+            'MailChimpModule\\MailChimpSubscriber',
+            'MailChimpModule\\MailChimpShop',
+            'MailChimpModule\\MailChimpProduct',
+            'MailChimpModule\\MailChimpCart',
+            'MailChimpModule\\MailChimpObjectModel',
+            'MailChimpModule\\MailChimpOrder',
+            'MailChimpModule\\MailChimpTracking',
         ])) {
             // project-specific namespace prefix
             $prefix = 'MailChimpModule\\';
@@ -44,32 +52,6 @@ spl_autoload_register(
             // separators with directory separators in the relative class name, append
             // with .php
             $file = $baseDir.str_replace('\\', '/', $relativeClass).'.php';
-
-            // if the file exists, require it
-            if (file_exists($file)) {
-                require $file;
-            }
-        }
-
-        if (in_array($class, [
-            'MailChimpRegisteredWebhook',
-            'MailChimpSubscriber',
-            'MailChimpShop',
-            'MailChimpProduct',
-            'MailChimpCart',
-            'MailChimpObjectModel',
-            'MailChimpOrder',
-            'MailChimpTracking',
-        ])) {
-            // project-specific namespace prefix
-
-            // base directory for the namespace prefix
-            $baseDir = __DIR__.'/';
-
-            // replace the namespace prefix with the base directory, replace namespace
-            // separators with directory separators in the relative class name, append
-            // with .php
-            $file = $baseDir.$class.'.php';
 
             // if the file exists, require it
             if (file_exists($file)) {
