@@ -50,6 +50,7 @@
 </div>
 <script type="text/javascript" src="{$new_base_dir|escape:'htmlall':'UTF-8'}views/js/configtabs.js"></script>
 
+{include file='./export_subscribers_ajax.tpl'}
 {include file='./export_products_ajax.tpl'}
 {include file='./export_carts_ajax.tpl'}
 {include file='./export_orders_ajax.tpl'}

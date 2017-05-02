@@ -29,21 +29,21 @@
 
       function subscriberExportStatus(status) {
         switch (status) {
-          case PRODUCT_COMPLETED:
+          case SUBSCRIBER_COMPLETED:
             $('#export_subscribers_stop').hide();
             $('#export_subscribers_progressing').hide();
             $('#export_subscribers_finished').show();
             $('#export_subscribers_stop_button').hide();
             $('#export_subscribers_close_button').show();
             break;
-          case PRODUCT_STOP:
+          case SUBSCRIBER_STOP:
             $('#export_subscribers_stop').show();
             $('#export_subscribers_progressing').hide();
             $('#export_subscribers_finished').hide();
             $('#export_subscribers_stop_button').hide();
             $('#export_subscribers_close_button').show();
             break;
-          case PRODUCT_IN_PROGRESS:
+          case SUBSCRIBER_IN_PROGRESS:
             $('#export_subscribers_stop').hide();
             $('#export_subscribers_progressing').show();
             $('#export_subscribers_finished').hide();
@@ -101,7 +101,7 @@
           }
 
           // finish
-          subscriberExportStatus(PRODUCT_COMPLETED);
+          subscriberExportStatus(SUBSCRIBER_COMPLETED);
         });
       }
 
@@ -139,7 +139,7 @@
 
       $('#export_subscribers_stop_button').click(function () {
         inProgress = false;
-        subscriberExportStatus(PRODUCT_STOP);
+        subscriberExportStatus(SUBSCRIBER_STOP);
       });
     });
   })();

@@ -632,7 +632,6 @@ class MailChimp extends Module
         $action = ucfirst(Tools::getValue('action'));
         if (in_array($action, [
             'ExportAllSubscribers',
-            'ResetSubscribers',
             'ExportAllProducts',
             'ResetProducts',
             'ExportAllCarts',
@@ -653,14 +652,13 @@ class MailChimp extends Module
      */
     public function displayAjaxExportAllSubscribers()
     {
-        $exportRemaining = (bool) Tools::isSubmit('remaining');
         $idShop = (int) Tools::getValue('shop');
         if (!$idShop) {
             $idShop = Context::getContext()->shop->id;
         }
 
         if (Tools::isSubmit('start')) {
-            $totalSubscribers = MailChimpSubscriber::countSubscribers($idShop, $exportRemaining);
+            $totalSubscribers = MailChimpSubscriber::countSubscribers($idShop);
             $totalChunks = ceil($totalSubscribers / self::EXPORT_CHUNK_SIZE);
 
             Configuration::updateValue(self::SUBSCRIBERS_SYNC_COUNT, 0, false, 0, 0);
@@ -676,7 +674,7 @@ class MailChimp extends Module
             Configuration::updateValue(self::SUBSCRIBERS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportSubscribers(($count - 1) * self::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
+            $idBatch = $this->exportSubscribers(($count - 1) * self::EXPORT_CHUNK_SIZE, $idShop);
 
             die(json_encode([
                 'success'   => true,
@@ -1850,7 +1848,7 @@ class MailChimp extends Module
      *
      * @since 1.0.0
      */
-    protected function exportSubscribers($offset, $idShop = null, $remaining = false)
+    protected function exportSubscribers($offset, $idShop = null)
     {
         if (!$idShop) {
             $idShop = Context::getContext()->shop->id;
@@ -1858,7 +1856,7 @@ class MailChimp extends Module
 
         $mailChimpShop = MailChimpShop::getByShopId($idShop);
 
-        $subscribers = $this->getTotalSubscriberList(false);
+        $subscribers = MailChimpSubscriber::getSubscribers($idShop, $offset, static::EXPORT_CHUNK_SIZE);
         if (empty($subscribers)) {
             return '';
         }

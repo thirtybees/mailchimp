@@ -250,18 +250,45 @@ class MailChimpSubscriber
      *
      * @since 1.1.0
      */
-    public static function countSubscribers($idShop = null, $customers = false, $optedIn = false)
+    public static function countSubscribers($idShop = null, $customers = true, $optedIn = false)
     {
         if (!$idShop) {
             $idShop = \Context::getContext()->shop->id;
         }
 
-        $sql = new \DbQuery();
-        $sql->select('COUNT(ps.`id_product`)');
-        $sql->from('product_shop', 'ps');
-        $sql->where('ps.`id_shop` = '.(int) $idShop);
+        // Check if the module exists
+        if (Module::isEnabled('blocknewsletter')) {
+            $sql = new DbQuery();
+            $sql->select('count(*)');
+            $sql->from('newsletter', 'n');
+            if ($customers) {
+                $sql->rightJoin('customer', 'c', 'c.`email` = n.`email`');
+                $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
+            }
+            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? '  OR c.`id_shop` = 1' : ''));
+            if ($optedIn) {
+                if ($customers) {
+                    $sql->where('n.`active` = 1 OR c.`newsletter` = 1');
+                } else {
+                    $sql->where('n.`active` = 1');
+                }
+            }
 
-        return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+            return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+        } elseif ($customers) {
+            $sql = new DbQuery();
+            $sql->select('count(*)');
+            $sql->from('customer', 'c');
+            $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
+            $sql->where('c.`id_shop` = 1');
+            if ($optedIn) {
+                $sql->where('c.`newsletter` = 1');
+            }
+
+            return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+        }
+
+        return 0;
     }
 
     /**
@@ -275,7 +302,7 @@ class MailChimpSubscriber
      *
      * @since 1.0.0
      */
-    public static function getSubscribers($idShop = null, $offset = 0, $limit = 0, $customers = false, $optedIn = false)
+    public static function getSubscribers($idShop = null, $offset = 0, $limit = 0, $customers = true, $optedIn = false)
     {
         if (!$idShop) {
             $idShop = (int) Context::getContext()->shop->id;

@@ -40,6 +40,9 @@
 								<th>
 									<span class="title_box">{l s='Synced' mod='mailchimp'}</span>
 								</th>
+								<th>
+									<span class="title_box">{l s='Subscribers' mod='mailchimp'}</span>
+								</th>
 							</tr>
 							</thead>
 							<tbody>
@@ -56,6 +59,9 @@
 									</td>
 									<td>
 										{if $shop['synced']}YES{else}NO{/if}
+									</td>
+									<td>
+                                        {if $shop['list_id']}<div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-subscribers-btn-{$shop['id_shop']|intval}"><i class="icon icon-upload"></i> {l s='Sync all subscribers'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
 									</td>
 								</tr>
 							{/foreach}
