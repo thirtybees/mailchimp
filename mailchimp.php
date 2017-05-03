@@ -1128,7 +1128,7 @@ class MailChimp extends Module
                     $currency = new Currency($defaultIdCurrency);
 
                     $result = $mailChimp->post(
-                        'ecommerce/stores',
+                        '/ecommerce/stores',
                         [
                             'id'            => 'tbstore_'.(int) $idShop,
                             'list_id'       => $idList,
@@ -1141,7 +1141,7 @@ class MailChimp extends Module
 
                     if (!isset($result['id'])) {
                         $mailChimp->patch(
-                            'ecommerce/stores/tbstore_'.(int) $idShop,
+                            '/ecommerce/stores/tbstore_'.(int) $idShop,
                             [
                                 'id'            => 'tbstore_'.(int) $idShop,
                                 'list_id'       => $idList,
@@ -1241,7 +1241,7 @@ class MailChimp extends Module
             $url = $this->urlForWebhook();
         }
 
-        $urlWebhooks = sprintf('lists/%s/webhooks', $idList);
+        $urlWebhooks = "/lists/{$idList}/webhooks";
         $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
         $this->mailChimp->verifySsl = false;
         $result = $this->mailChimp->post(
@@ -2001,13 +2001,13 @@ class MailChimp extends Module
             if ($product['last_synced'] && $product['last_synced'] !== '1970-01-01 00:00:00') {
                 $batch->patch(
                     'op'.(int) $product['id_product'],
-                    "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
+                    "/ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
                     $payload
                 );
             } else {
                 $batch->post(
                     'op'.(int) $product['id_product'],
-                    "ecommerce/stores/tbstore_{$idShop}/products",
+                    "/ecommerce/stores/tbstore_{$idShop}/products",
                     $payload
                 );
             }
@@ -2053,6 +2053,9 @@ class MailChimp extends Module
         $batch = $mailChimp->newBatch();
 
         foreach ($carts as &$cart) {
+            if (empty($cart['lines'])) {
+                continue;
+            }
             $subscriberHash = md5(Tools::strtolower($cart['email']));
             $mergeFields = [
                 'FNAME' => $cart['firstname'],
@@ -2087,13 +2090,13 @@ class MailChimp extends Module
             if ($cart['last_synced'] && $cart['last_synced'] !== '1970-01-01 00:00:00') {
                 $batch->patch(
                     'op'.(int) $cart['id_cart'],
-                    "ecommerce/stores/tbstore_{$idShop}/carts/{$cart['id_cart']}",
+                    "/ecommerce/stores/tbstore_{$idShop}/carts/{$cart['id_cart']}",
                     $payload
                 );
             } else {
                 $batch->post(
                     'op'.(int) $cart['id_cart'],
-                    "ecommerce/stores/tbstore_{$idShop}/carts",
+                    "/ecommerce/stores/tbstore_{$idShop}/carts",
                     $payload
                 );
             }
@@ -2139,6 +2142,9 @@ class MailChimp extends Module
         $batch = $mailChimp->newBatch();
 
         foreach ($orders as &$order) {
+            if (empty($order['lines'])) {
+                continue;
+            }
             $subscriberHash = md5(Tools::strtolower($order['email']));
             $mergeFields = [
                 'FNAME' => $order['firstname'],
@@ -2188,18 +2194,18 @@ class MailChimp extends Module
             if ($order['last_synced'] && $order['last_synced'] !== '1970-01-01 00:00:00') {
                 $batch->patch(
                     'op'.(int) $order['id_order'],
-                    "ecommerce/stores/tbstore_{$idShop}/orders/{$order['id_order']}",
+                    "/ecommerce/stores/tbstore_{$idShop}/orders/{$order['id_order']}",
                     $payload
                 );
             } else {
                 $batch->post(
                     'op'.(int) $order['id_order'],
-                    "ecommerce/stores/tbstore_{$idShop}/orders",
+                    "/ecommerce/stores/tbstore_{$idShop}/orders",
                     $payload
                 );
                 $batch->delete(
                     'opcart'.(int) $order['id_cart'],
-                    "ecommerce/stores/tbstore_{$idShop}/carts/{$order['id_cart']}"
+                    "/ecommerce/stores/tbstore_{$idShop}/carts/{$order['id_cart']}"
                 );
             }
         }
