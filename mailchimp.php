@@ -2144,8 +2144,8 @@ class MailChimp extends Module
                 'FNAME' => $order['firstname'],
                 'LNAME' => $order['lastname'],
             ];
-            if ($cart['birthday'] && date('Y-m-d', strtotime($cart['birthday'])) > '1900-01-01') {
-                $mergeFields['BDAY'] = date('c', strtotime($cart['birthday']));
+            if ($order['birthday'] && date('Y-m-d', strtotime($order['birthday'])) > '1900-01-01') {
+                $mergeFields['BDAY'] = date('c', strtotime($order['birthday']));
             }
 
             $batch->put("ms{$order['id_customer']}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
