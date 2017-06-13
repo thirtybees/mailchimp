@@ -142,7 +142,7 @@ class MailChimp extends Module
     {
         $this->name = 'mailchimp';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.1';
+        $this->version = '1.1.2';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -208,11 +208,11 @@ class MailChimp extends Module
     public function uninstall()
     {
         if (!parent::uninstall()
-            || !Configuration::deleteByName(self::API_KEY)
-            || !Configuration::deleteByName(self::CONFIRMATION_EMAIL)
-            || !Configuration::deleteByName(self::IMPORT_OPTED_IN)
-            || !Configuration::deleteByName(self::LAST_IMPORT)
-            || !Configuration::deleteByName(self::LAST_IMPORT_ID)
+            || !Configuration::deleteByName(static::API_KEY)
+            || !Configuration::deleteByName(static::CONFIRMATION_EMAIL)
+            || !Configuration::deleteByName(static::IMPORT_OPTED_IN)
+            || !Configuration::deleteByName(static::LAST_IMPORT)
+            || !Configuration::deleteByName(static::LAST_IMPORT_ID)
             || !MailChimpRegisteredWebhook::dropDatabase()
             || !MailChimpShop::dropDatabase()
             || !MailChimpProduct::dropDatabase()
@@ -255,7 +255,7 @@ class MailChimp extends Module
     public function getLists($prepare = false)
     {
         try {
-            $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
+            $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
             $mailChimp->verifySsl = false;
             $lists = $mailChimp->get('lists');
 
@@ -290,7 +290,7 @@ class MailChimp extends Module
             $cookie = new Cookie('tb_mailchimp');
             $cookie->mc_tc = Tools::getValue('mc_tc');
             $cookie->mc_cid = Tools::getValue('mc_cid');
-            $cookie->setExpire(self::COOKIE_LIFETIME);
+            $cookie->setExpire(static::COOKIE_LIFETIME);
             $cookie->write();
         }
     }
@@ -667,22 +667,22 @@ class MailChimp extends Module
 
         if (Tools::isSubmit('start')) {
             $totalSubscribers = MailChimpSubscriber::countSubscribers($idShop);
-            $totalChunks = ceil($totalSubscribers / self::EXPORT_CHUNK_SIZE);
+            $totalChunks = ceil($totalSubscribers / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(self::SUBSCRIBERS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::SUBSCRIBERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+            Configuration::updateValue(static::SUBSCRIBERS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(static::SUBSCRIBERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
 
             die(json_encode([
                 'totalChunks'      => $totalChunks,
                 'totalSubscribers' => $totalSubscribers,
             ]));
         } elseif (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(self::SUBSCRIBERS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::SUBSCRIBERS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::SUBSCRIBERS_SYNC_COUNT, $count, null, 0, 0);
+            $count = (int) Configuration::get(static::SUBSCRIBERS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(static::SUBSCRIBERS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(static::SUBSCRIBERS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportSubscribers(($count - 1) * self::EXPORT_CHUNK_SIZE, $idShop);
+            $idBatch = $this->exportSubscribers(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop);
 
             die(json_encode([
                 'success'   => true,
@@ -709,22 +709,22 @@ class MailChimp extends Module
 
         if (Tools::isSubmit('start')) {
             $totalProducts = MailChimpProduct::countProducts($idShop, $exportRemaining);
-            $totalChunks = ceil($totalProducts / self::EXPORT_CHUNK_SIZE);
+            $totalChunks = ceil($totalProducts / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::PRODUCTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+            Configuration::updateValue(static::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(static::PRODUCTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
 
             die(json_encode([
                 'totalChunks'   => $totalChunks,
                 'totalProducts' => $totalProducts,
             ]));
         } elseif (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(self::PRODUCTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::PRODUCTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
+            $count = (int) Configuration::get(static::PRODUCTS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(static::PRODUCTS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(static::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportProducts(($count - 1) * self::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
+            $idBatch = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
 
             die(json_encode([
                 'success'   => true,
@@ -751,22 +751,22 @@ class MailChimp extends Module
 
         if (Tools::isSubmit('start')) {
             $totalCarts = MailChimpCart::countCarts($idShop, $exportRemaining);
-            $totalChunks = ceil($totalCarts / self::EXPORT_CHUNK_SIZE);
+            $totalChunks = ceil($totalCarts / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(self::CARTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::CARTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+            Configuration::updateValue(static::CARTS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(static::CARTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
 
             die(json_encode([
                 'totalChunks' => $totalChunks,
                 'totalCarts'  => $totalCarts,
             ]));
         } elseif (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(self::CARTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::CARTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::CARTS_SYNC_COUNT, $count, null, 0, 0);
+            $count = (int) Configuration::get(static::CARTS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(static::CARTS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(static::CARTS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportCarts(($count - 1) * self::EXPORT_CHUNK_SIZE, $exportRemaining);
+            $idBatch = $this->exportCarts(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
 
             die(json_encode([
                 'success'   => true,
@@ -793,22 +793,22 @@ class MailChimp extends Module
 
         if (Tools::isSubmit('start')) {
             $totalOrders = MailChimpOrder::countOrders($idShop, $exportRemaining);
-            $totalChunks = ceil($totalOrders / self::EXPORT_CHUNK_SIZE);
+            $totalChunks = ceil($totalOrders / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(self::ORDERS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::ORDERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+            Configuration::updateValue(static::ORDERS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(static::ORDERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
 
             die(json_encode([
                 'totalChunks' => $totalChunks,
                 'totalOrders' => $totalOrders,
             ]));
         } elseif (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(self::ORDERS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::ORDERS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::ORDERS_SYNC_COUNT, $count, null, 0, 0);
+            $count = (int) Configuration::get(static::ORDERS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(static::ORDERS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(static::ORDERS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportOrders(($count - 1) * self::EXPORT_CHUNK_SIZE, $exportRemaining);
+            $idBatch = $this->exportOrders(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
 
             die(json_encode([
                 'success'   => true,
@@ -974,22 +974,22 @@ class MailChimp extends Module
     {
         if ($submit === 'start') {
             $totalProducts = MailChimpProduct::countProducts($idShop, $exportRemaining);
-            $totalChunks = ceil($totalProducts / self::EXPORT_CHUNK_SIZE);
+            $totalChunks = ceil($totalProducts / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::PRODUCTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+            Configuration::updateValue(static::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(static::PRODUCTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
 
             return [
                 'totalChunks'   => $totalChunks,
                 'totalProducts' => $totalProducts,
             ];
         } elseif ($submit === 'next') {
-            $count = (int) Configuration::get(self::PRODUCTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::PRODUCTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
+            $count = (int) Configuration::get(static::PRODUCTS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(static::PRODUCTS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(static::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportProducts(($count - 1) * self::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
+            $idBatch = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
 
             return [
                 'success'   => true,
@@ -1015,22 +1015,22 @@ class MailChimp extends Module
     {
         if ($submit === 'start') {
             $totalCarts = MailChimpCart::countCarts($idShop, $exportRemaining);
-            $totalChunks = ceil($totalCarts / self::EXPORT_CHUNK_SIZE);
+            $totalChunks = ceil($totalCarts / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(self::CARTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::CARTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+            Configuration::updateValue(static::CARTS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(static::CARTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
 
             return [
                 'totalChunks' => $totalChunks,
                 'totalCarts'  => $totalCarts,
             ];
         } elseif ($submit === 'next') {
-            $count = (int) Configuration::get(self::CARTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::CARTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::CARTS_SYNC_COUNT, $count, null, 0, 0);
+            $count = (int) Configuration::get(static::CARTS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(static::CARTS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(static::CARTS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportCarts(($count - 1) * self::EXPORT_CHUNK_SIZE, $exportRemaining);
+            $idBatch = $this->exportCarts(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
 
             return [
                 'success'   => true,
@@ -1057,22 +1057,22 @@ class MailChimp extends Module
     {
         if ($submit === 'start') {
             $totalOrders = MailChimpOrder::countOrders($idShop, $exportRemaining);
-            $totalChunks = ceil($totalOrders / self::EXPORT_CHUNK_SIZE);
+            $totalChunks = ceil($totalOrders / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(self::ORDERS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(self::ORDERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+            Configuration::updateValue(static::ORDERS_SYNC_COUNT, 0, false, 0, 0);
+            Configuration::updateValue(static::ORDERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
 
             return [
                 'totalChunks' => $totalChunks,
                 'totalOrders' => $totalOrders,
             ];
         } elseif ($submit === 'next') {
-            $count = (int) Configuration::get(self::ORDERS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(self::ORDERS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(self::ORDERS_SYNC_COUNT, $count, null, 0, 0);
+            $count = (int) Configuration::get(static::ORDERS_SYNC_COUNT, null, 0, 0) + 1;
+            $total = (int) Configuration::get(static::ORDERS_SYNC_TOTAL, null, 0, 0);
+            Configuration::updateValue(static::ORDERS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportOrders(($count - 1) * self::EXPORT_CHUNK_SIZE, $exportRemaining);
+            $idBatch = $this->exportOrders(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
 
             return [
                 'success'   => true,
@@ -1091,17 +1091,17 @@ class MailChimp extends Module
     {
         if (Tools::isSubmit('submitApiKey')) {
             // Check if MailChimp API key is valid
-            Configuration::updateValue(self::API_KEY, Tools::getValue(self::API_KEY), false, null, 1);
-            Configuration::updateValue(self::API_KEY_VALID, false, false, null, 1);
+            Configuration::updateValue(static::API_KEY, Tools::getValue(static::API_KEY), false, null, 1);
+            Configuration::updateValue(static::API_KEY_VALID, false, false, null, 1);
             $this->checkApiKey();
         } elseif (Tools::isSubmit('submitSettings')) {
             // Update all the configuration
             // And check if updates were successful
-            $confirmationEmail = (bool) Tools::getvalue(self::CONFIRMATION_EMAIL);
-            $importOptedIn = (bool) Configuration::get(self::IMPORT_OPTED_IN);
+            $confirmationEmail = (bool) Tools::getvalue(static::CONFIRMATION_EMAIL);
+            $importOptedIn = (bool) Configuration::get(static::IMPORT_OPTED_IN);
 
-            if (Configuration::updateValue(self::CONFIRMATION_EMAIL, $confirmationEmail)
-                && Configuration::updateValue(self::IMPORT_OPTED_IN, $importOptedIn)
+            if (Configuration::updateValue(static::CONFIRMATION_EMAIL, $confirmationEmail)
+                && Configuration::updateValue(static::IMPORT_OPTED_IN, $importOptedIn)
             ) {
                 $this->addConfirmation($this->l('Settings updated.'));
             } else {
@@ -1110,7 +1110,7 @@ class MailChimp extends Module
         } elseif (Tools::isSubmit('submitShops')) {
             $shopLists = Tools::getValue('shop_list_id');
             $shopTaxes = Tools::getValue('shop_tax');
-            $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
+            $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
                     $this->checkMergeFields($idShop, $idList);
@@ -1240,7 +1240,7 @@ class MailChimp extends Module
         }
 
         $urlWebhooks = "/lists/{$idList}/webhooks";
-        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
+        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
         $this->mailChimp->verifySsl = false;
         $result = $this->mailChimp->post(
             $urlWebhooks,
@@ -1277,7 +1277,7 @@ class MailChimp extends Module
     {
         // Prepare the request
         try {
-            $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
+            $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
         } catch (Exception $e) {
             return false;
         }
@@ -1302,7 +1302,7 @@ class MailChimp extends Module
         } else {
             $batchId = $result['id'];
             Logger::addLog('MailChimp batch operation started with ID: '.$batchId);
-            Configuration::updateValue(self::LAST_IMPORT_ID, $batchId);
+            Configuration::updateValue(static::LAST_IMPORT_ID, $batchId);
 
             return true;
         }
@@ -1370,7 +1370,7 @@ class MailChimp extends Module
         $inputs1[] = [
             'type'  => 'text',
             'label' => $this->l('API Key'),
-            'name'  => self::API_KEY,
+            'name'  => static::API_KEY,
             'desc'  => $this->l('Please enter your MailChimp API key. This can be found in your MailChimp Dashboard -> Account -> Extras -> API keys.'),
         ];
 
@@ -1397,7 +1397,7 @@ class MailChimp extends Module
             $inputs2[] = [
                 'type'   => 'switch',
                 'label'  => $this->l('Confirmation Email'),
-                'name'   => self::CONFIRMATION_EMAIL,
+                'name'   => static::CONFIRMATION_EMAIL,
                 'desc'   => $this->l('If you turn this on, MailChimp will send an email to customers asking them to confirm their subscription.'),
                 'values' => [
                     [
@@ -1416,7 +1416,7 @@ class MailChimp extends Module
             $inputs2[] = [
                 'type'   => 'switch',
                 'label'  => $this->l('Opted-In Only'),
-                'name'   => self::IMPORT_OPTED_IN,
+                'name'   => static::IMPORT_OPTED_IN,
                 'desc'   => $this->l('This will only import customers that has opted-in to the newsletter.'),
                 'id'     => 'importOptedIn',
                 'values' => [
@@ -1452,7 +1452,7 @@ class MailChimp extends Module
         }
 
         $helper = new HelperForm();
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.self::MENU_IMPORT;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_IMPORT;
         $helper->token = '';
         $helper->tpl_vars = [
             'fields_value' => $this->getConfigFieldsValues(),
@@ -1511,7 +1511,7 @@ class MailChimp extends Module
         $fields[] = $fieldsForm2;
 
         $helper = new HelperForm();
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.self::MENU_IMPORT;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_IMPORT;
         $helper->token = '';
         $helper->tpl_vars = [
             'fields_value' => $this->getConfigFieldsValues(),
@@ -1528,9 +1528,9 @@ class MailChimp extends Module
     protected function getConfigFieldsValues()
     {
         return [
-            self::API_KEY            => Configuration::get(self::API_KEY, null, null, 1),
-            self::CONFIRMATION_EMAIL => Configuration::get(self::CONFIRMATION_EMAIL),
-            self::IMPORT_OPTED_IN    => Configuration::get(self::IMPORT_OPTED_IN),
+            static::API_KEY            => Configuration::get(static::API_KEY, null, null, 1),
+            static::CONFIRMATION_EMAIL => Configuration::get(static::CONFIRMATION_EMAIL),
+            static::IMPORT_OPTED_IN    => Configuration::get(static::IMPORT_OPTED_IN),
         ];
     }
 
@@ -1551,7 +1551,7 @@ class MailChimp extends Module
 
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitShops';
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.self::MENU_SHOPS;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_SHOPS;
 
         $helper->token = '';
 
@@ -1623,7 +1623,7 @@ class MailChimp extends Module
 
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitProducts';
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.self::MENU_PRODUCTS;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_PRODUCTS;
 
         $helper->token = '';
 
@@ -1675,7 +1675,7 @@ class MailChimp extends Module
 
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitProducts';
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.self::MENU_CARTS;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_CARTS;
 
         $helper->token = '';
 
@@ -1727,7 +1727,7 @@ class MailChimp extends Module
 
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitProducts';
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.self::MENU_ORDERS;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_ORDERS;
 
         $helper->token = '';
 
@@ -1831,22 +1831,22 @@ class MailChimp extends Module
      */
     protected function checkApiKey()
     {
-        if (Configuration::get(self::API_KEY) && Configuration::get(self::API_KEY_VALID)) {
+        if (Configuration::get(static::API_KEY) && Configuration::get(static::API_KEY_VALID)) {
             return true;
         }
 
         // Show settings form only if API key is set and working
-        $apiKey = Configuration::get(self::API_KEY);
+        $apiKey = Configuration::get(static::API_KEY);
         $validKey = false;
         if (isset($apiKey) && $apiKey) {
             // Check if API key is valid
             try {
-                $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
+                $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
                 $mailchimp->verifySsl = false;
                 $getLists = $mailchimp->get('lists');
                 if ($getLists) {
                     $validKey = true;
-                    Configuration::updateValue(self::API_KEY_VALID, true);
+                    Configuration::updateValue(static::API_KEY_VALID, true);
                 }
             } catch (Exception $e) {
                 $this->addError($e->getMessage());
@@ -1880,7 +1880,7 @@ class MailChimp extends Module
             return '';
         }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
+        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY));
         $batch = $mailChimp->newBatch();
 
         $id = 1;
@@ -1905,7 +1905,7 @@ class MailChimp extends Module
             $id++;
         }
 
-        $result = $batch->execute(self::API_TIMEOUT);
+        $result = $batch->execute(static::API_TIMEOUT);
         if (!empty($result)) {
             return $result['id'];
         }
@@ -1932,7 +1932,7 @@ class MailChimp extends Module
 
         $idLang = (int) Configuration::get('PS_LANG_DEFAULT');
 
-        $products = MailChimpProduct::getProducts($idShop, $offset, self::EXPORT_CHUNK_SIZE, $remaining);
+        $products = MailChimpProduct::getProducts($idShop, $offset, static::EXPORT_CHUNK_SIZE, $remaining);
         if (empty($products)) {
             return '';
         }
@@ -1947,7 +1947,7 @@ class MailChimp extends Module
             $rate = 1 + ($tax->rate / 100);
         }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
+        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY));
         $batch = $mailChimp->newBatch();
 
         $link = \Context::getContext()->link;
@@ -2011,10 +2011,10 @@ class MailChimp extends Module
             }
         }
 
-        $result = $batch->execute(self::API_TIMEOUT);
+        $result = $batch->execute(static::API_TIMEOUT);
         if (!empty($result)) {
             if (MailChimpProduct::setSynced(array_column($products, 'id_product'), $idShop)) {
-                Configuration::updateValue(self::PRODUCTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
+                Configuration::updateValue(static::PRODUCTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
             }
 
             return $result['id'];
@@ -2038,7 +2038,7 @@ class MailChimp extends Module
     {
         $idShop = Context::getContext()->shop->id;
 
-        $carts = MailChimpCart::getCarts($idShop, $offset, self::EXPORT_CHUNK_SIZE, $remaining);
+        $carts = MailChimpCart::getCarts($idShop, $offset, static::EXPORT_CHUNK_SIZE, $remaining);
         if (empty($carts)) {
             return '';
         }
@@ -2047,7 +2047,7 @@ class MailChimp extends Module
             return '';
         }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
+        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY));
         $batch = $mailChimp->newBatch();
 
         foreach ($carts as &$cart) {
@@ -2100,10 +2100,10 @@ class MailChimp extends Module
             }
         }
 
-        $result = $batch->execute(self::API_TIMEOUT);
+        $result = $batch->execute(static::API_TIMEOUT);
         if ($result && isset($result['id'])) {
             if (MailChimpCart::setSynced(array_column($carts, 'id_cart'))) {
-                Configuration::updateValue(self::CARTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
+                Configuration::updateValue(static::CARTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
             }
 
             return $result['id'];
@@ -2127,7 +2127,7 @@ class MailChimp extends Module
         $idShop = Context::getContext()->shop->id;
 
         // We use the Order objects
-        $orders = MailChimpOrder::getOrders($idShop, $offset, self::EXPORT_CHUNK_SIZE, $exportRemaining);
+        $orders = MailChimpOrder::getOrders($idShop, $offset, static::EXPORT_CHUNK_SIZE, $exportRemaining);
         if (empty($orders)) {
             return '';
         }
@@ -2136,7 +2136,7 @@ class MailChimp extends Module
             return '';
         }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY));
+        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY));
         $batch = $mailChimp->newBatch();
 
         foreach ($orders as &$order) {
@@ -2178,10 +2178,10 @@ class MailChimp extends Module
                 'lines'                => $order['lines'],
             ];
 
-            if (self::validateDate($order['date_add'], 'Y-m-d H:i:s')) {
+            if (static::validateDate($order['date_add'], 'Y-m-d H:i:s')) {
                 $payload['processed_at_foreign'] = date('c', strtotime($order['date_add']));
             }
-            if (self::validateDate($order['date_upd'], 'Y-m-d H:i:s')) {
+            if (static::validateDate($order['date_upd'], 'Y-m-d H:i:s')) {
                 $payload['updated_at_foreign'] = date('c', strtotime($order['date_add']));
             }
 
@@ -2208,10 +2208,10 @@ class MailChimp extends Module
             }
         }
 
-        $result = $batch->execute(self::API_TIMEOUT);
+        $result = $batch->execute(static::API_TIMEOUT);
         if ($result && isset($result['id'])) {
             if (MailChimpOrder::setSynced(array_column($orders, 'id_order'))) {
-                Configuration::updateValue(self::ORDERS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
+                Configuration::updateValue(static::ORDERS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
             }
 
             return $result['id'];
@@ -2247,7 +2247,7 @@ class MailChimp extends Module
      */
     protected function checkMergeFields($idShop, $idList)
     {
-        $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(self::API_KEY, null, null, 1));
+        $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
         $result = $mailChimp->get("/lists/{$idList}/merge-fields");
 
         $missingFields = [
