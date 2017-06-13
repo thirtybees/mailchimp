@@ -41,7 +41,6 @@ class MailChimp extends Module
     // Always store this key for the first store and the first shop group
     const API_KEY = 'MAILCHIMP_API_KEY';
     const API_KEY_VALID = 'MAILCHIMP_API_KEY_VALID';
-    const IMPORT_LIST = 'MAILCHIMP_IMPORT_LIST';
     const CONFIRMATION_EMAIL = 'MAILCHIMP_CONFIRMATION_EMAIL';
     const UPDATE_EXISTING = 'MAILCHIMP_UPDATE_EXISTING';
     const IMPORT_ALL = 'MAILCHIMP_IMPORT_ALL';
@@ -175,14 +174,6 @@ class MailChimp extends Module
     public function install()
     {
         if (!parent::install()
-            || !$this->registerHook('displayHeader')
-            || !$this->registerHook('displayBackOfficeHeader')
-            || !$this->registerHook('footer') // to catch guest newsletter subscription
-            || !$this->registerHook('actionCustomerAccountAdd') // front office account creation
-            || !$this->registerHook('actionObjectCustomerAddAfter') // front office account creation
-            || !$this->registerHook('actionObjectCustomerUpdateAfter') // front office account creation
-            || !$this->registerHook('actionAdminCustomersControllerSaveAfter') // back office update customer
-            || !$this->registerHook('actionValidateOrder') // validate order
             || !MailChimpRegisteredWebhook::createDatabase()
             || !MailChimpShop::createDatabase()
             || !MailChimpProduct::createDatabase()
@@ -194,6 +185,15 @@ class MailChimp extends Module
         }
 
         $this->installDbIndices();
+
+        $this->registerHook('displayHeader');
+        $this->registerHook('displayBackOfficeHeader');
+        $this->registerHook('footer'); // to catch guest newsletter subscription
+        $this->registerHook('actionCustomerAccountAdd'); // front office account creation
+        $this->registerHook('actionObjectCustomerAddAfter'); // front office account creation
+        $this->registerHook('actionObjectCustomerUpdateAfter'); // front office account creation
+        $this->registerHook('actionAdminCustomersControllerSaveAfter'); // back office update customer
+        $this->registerHook('actionValidateOrder'); // validate order
 
         return true;
     }
@@ -209,7 +209,6 @@ class MailChimp extends Module
     {
         if (!parent::uninstall()
             || !Configuration::deleteByName(self::API_KEY)
-            || !Configuration::deleteByName(self::IMPORT_LIST)
             || !Configuration::deleteByName(self::CONFIRMATION_EMAIL)
             || !Configuration::deleteByName(self::IMPORT_OPTED_IN)
             || !Configuration::deleteByName(self::LAST_IMPORT)
@@ -406,7 +405,7 @@ class MailChimp extends Module
     public function hookActionCustomerAccountAdd($params)
     {
         // Check if creation is successful
-        if (isset($params['newCustomer']) && $params['newCustomer']->id > 0) {
+        if (isset($params['newCustomer']) && $params['newCustomer']->email) {
             $subscription = (string) $params['newCustomer']->newsletter ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
             $iso = Language::getIsoById($params['newCustomer']->id_lang);
             $customer = new MailChimpSubscriber(
@@ -1098,20 +1097,13 @@ class MailChimp extends Module
         } elseif (Tools::isSubmit('submitSettings')) {
             // Update all the configuration
             // And check if updates were successful
-            $importList = Tools::getValue(self::IMPORT_LIST);
             $confirmationEmail = (bool) Tools::getvalue(self::CONFIRMATION_EMAIL);
             $importOptedIn = (bool) Configuration::get(self::IMPORT_OPTED_IN);
 
-            if (Configuration::updateValue(self::IMPORT_LIST, $importList)
-                && Configuration::updateValue(self::CONFIRMATION_EMAIL, $confirmationEmail)
+            if (Configuration::updateValue(self::CONFIRMATION_EMAIL, $confirmationEmail)
                 && Configuration::updateValue(self::IMPORT_OPTED_IN, $importOptedIn)
             ) {
                 $this->addConfirmation($this->l('Settings updated.'));
-                // Create MailChimp side webhooks
-                $register = $this->registerWebhookForList(Configuration::get(self::IMPORT_LIST));
-                if (!$register) {
-                    $this->addError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
-                }
             } else {
                 $this->addError($this->l('Some of the settings could not be saved.'));
             }
@@ -1163,6 +1155,12 @@ class MailChimp extends Module
                     $mailChimpShop->synced = true;
 
                     $mailChimpShop->save();
+
+                    // Create MailChimp side webhooks
+                    $register = $this->registerWebhookForList($mailChimpShop->list_id);
+                    if (!$register) {
+                        $this->addError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
+                    }
                 }
             }
         } elseif (Tools::isSubmit('submitProducts')) {
@@ -1291,7 +1289,8 @@ class MailChimp extends Module
         for ($i = 0; $i < count($list); $i++) {
             $subscriber = $list[$i];
             $hash = $this->mailChimp->subscriberHash($subscriber->getEmail());
-            $url = sprintf('lists/%s/members/%s', Configuration::get(self::IMPORT_LIST), $hash);
+            $mailChimpShop = MailChimpShop::getByShopId(Context::getContext()->shop->id);
+            $url = sprintf('lists/%s/members/%s', $mailChimpShop->list_id, $hash);
             $batch->put('op'.($i + 1), $url, $subscriber->getAsArray());
         }
 
@@ -1530,7 +1529,6 @@ class MailChimp extends Module
     {
         return [
             self::API_KEY            => Configuration::get(self::API_KEY, null, null, 1),
-            self::IMPORT_LIST        => Configuration::get(self::IMPORT_LIST),
             self::CONFIRMATION_EMAIL => Configuration::get(self::CONFIRMATION_EMAIL),
             self::IMPORT_OPTED_IN    => Configuration::get(self::IMPORT_OPTED_IN),
         ];
