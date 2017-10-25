@@ -2253,7 +2253,7 @@ class MailChimp extends Module
         $missingFields = [
             'FNAME' => 'text',
             'LNAME' => 'text',
-            'BDAY' => 'date',
+            'BDAY'  => 'date',
         ];
         foreach ($result['merge_fields'] as $mergeField) {
             if (isset($missingFields[$mergeField['tag']]) && $missingFields[$mergeField['tag']] === $mergeField['type']) {
@@ -2265,9 +2265,10 @@ class MailChimp extends Module
         foreach ($missingFields as $fieldName => $fieldType) {
             $batch->delete("del{$fieldName}", "/lists/{$idList}/merge-fields/{$fieldName}");
             $batch->post("add{$fieldName}", "/lists/{$idList}/merge-fields", [
-                'tag'  => $fieldName,
-                'name' => $fieldName,
-                'type' => $fieldType,
+                'tag'      => $fieldName,
+                'name'     => $fieldName,
+                'type'     => $fieldType,
+                'required' => false,
             ]);
         }
 
