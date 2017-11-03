@@ -1098,7 +1098,7 @@ class MailChimp extends Module
             // Update all the configuration
             // And check if updates were successful
             $confirmationEmail = (bool) Tools::getvalue(static::CONFIRMATION_EMAIL);
-            $importOptedIn = (bool) Configuration::get(static::IMPORT_OPTED_IN);
+            $importOptedIn = (bool) Tools::getvalue(static::IMPORT_OPTED_IN);
 
             if (Configuration::updateValue(static::CONFIRMATION_EMAIL, $confirmationEmail)
                 && Configuration::updateValue(static::IMPORT_OPTED_IN, $importOptedIn)
