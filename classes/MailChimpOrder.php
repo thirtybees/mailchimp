@@ -75,7 +75,13 @@ class MailChimpOrder extends \ObjectModel
             }
         }
 
-        return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+        try {
+            return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+        } catch (\PrestaShopException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count orders', 'mailchimp');
+
+            return 0;
+        }
     }
 
     /**
@@ -115,7 +121,13 @@ class MailChimpOrder extends \ObjectModel
             $sql->limit($limit, $offset);
         }
 
-        $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        try {
+            $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        } catch (\PrestaShopException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count orders', 'mailchimp');
+
+            return false;
+        }
 
         $mailChimpShop = MailChimpShop::getByShopId($idShop);
         if (!\Validate::isLoadedObject($mailChimpShop)) {
@@ -179,18 +191,30 @@ class MailChimpOrder extends \ObjectModel
             ];
         }
 
-        \Db::getInstance()->delete(
-            bqSQL(self::$definition['table']),
-            '`id_order` IN ('.implode(',', $range).')',
-            0,
-            false
-        );
+        try {
+            \Db::getInstance()->delete(
+                bqSQL(self::$definition['table']),
+                '`id_order` IN ('.implode(',', $range).')',
+                0,
+                false
+            );
+        } catch (\PrestaShopDatabaseException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
 
-        return \Db::getInstance()->insert(
-            bqSQL(self::$definition['table']),
-            $insert,
-            false,
-            false
-        );
+            return false;
+        }
+
+        try {
+            return \Db::getInstance()->insert(
+                bqSQL(self::$definition['table']),
+                $insert,
+                false,
+                false
+            );
+        } catch (\PrestaShopException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
+
+            return false;
+        }
     }
 }

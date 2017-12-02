@@ -47,8 +47,11 @@ class MailChimpTracking extends \ObjectModel
         ],
     ];
     // @codingStandardsIgnoreStart
+    /** @var int $id_order */
     public $id_order;
+    /** @var string $mc_tc */
     public $mc_tc;
+    /** @var string $mc_cid */
     public $mc_cid;
     // @codingStandardsIgnoreEnd
 }

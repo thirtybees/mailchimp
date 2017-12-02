@@ -81,7 +81,13 @@ class MailChimpCart extends \ObjectModel
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
         $sql->where('c.`date_upd` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
-        $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
+        try {
+            $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
+        } catch (\PrestaShopException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
+
+            return 0;
+        }
         if ($remaining) {
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
             if ($cartsLastSynced) {
@@ -90,7 +96,13 @@ class MailChimpCart extends \ObjectModel
             }
         }
 
-        return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+        try {
+            return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+        } catch (\PrestaShopException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
+
+            return 0;
+        }
     }
 
     /**
@@ -126,7 +138,13 @@ class MailChimpCart extends \ObjectModel
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
         $sql->where('c.`id_shop` = '.(int) $idShop);
         $sql->where('c.`date_upd` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
-        $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
+        try {
+            $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
+        } catch (\PrestaShopException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
+
+            return 0;
+        }
         if ($remaining) {
             $cartsLastSynced = \Configuration::get(\MailChimp::CARTS_LAST_SYNC, null, null, $idShop);
             if ($cartsLastSynced) {
@@ -138,7 +156,13 @@ class MailChimpCart extends \ObjectModel
             $sql->limit($limit, $offset);
         }
 
-        $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        try {
+            $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        } catch (\PrestaShopException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
+
+            return 0;
+        }
 
         $defaultCurrency = \Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
@@ -203,18 +227,30 @@ class MailChimpCart extends \ObjectModel
             ];
         }
 
-        \Db::getInstance()->delete(
-            bqSQL(self::$definition['table']),
-            '`id_cart` IN ('.implode(',', $range).')',
-            0,
-            false
-        );
+        try {
+            \Db::getInstance()->delete(
+                bqSQL(self::$definition['table']),
+                '`id_cart` IN ('.implode(',', $range).')',
+                0,
+                false
+            );
+        } catch (\PrestaShopDatabaseException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
 
-        return \Db::getInstance()->insert(
-            bqSQL(self::$definition['table']),
-            $insert,
-            false,
-            false
-        );
+            return false;
+        }
+
+        try {
+            return \Db::getInstance()->insert(
+                bqSQL(self::$definition['table']),
+                $insert,
+                false,
+                false
+            );
+        } catch (\PrestaShopException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
+
+            return false;
+        }
     }
 }

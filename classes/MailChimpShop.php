@@ -48,9 +48,13 @@ class MailChimpShop extends \ObjectModel
         ],
     ];
     // @codingStandardsIgnoreStart
+    /** @var int $id_shop */
     public $id_shop;
+    /** @var string $list_id */
     public $list_id;
+    /** @var int $id_tax */
     public $id_tax;
+    /** @var bool $synced */
     public $synced;
     // @codingStandardsIgnoreEnd
 
@@ -73,7 +77,11 @@ class MailChimpShop extends \ObjectModel
             $sql->where('s.`active` = 1');
         }
 
-        return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        try {
+            return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        } catch (\PrestaShopException $e) {
+            return false;
+        }
     }
 
     /**
@@ -91,7 +99,11 @@ class MailChimpShop extends \ObjectModel
         $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(\Shop::$definition['primary']).'` = ms.`'.bqSQL(\Shop::$definition['primary']).'`');
         $sql->where('s.`id_shop` = '.(int) $idShop);
 
-        $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
+        try {
+            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
+        } catch (\PrestaShopException $e) {
+            return false;
+        }
         if (!$result) {
             return false;
         }

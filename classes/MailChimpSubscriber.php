@@ -264,10 +264,10 @@ class MailChimpSubscriber
             $sql->select('count(*)');
             $sql->from('newsletter', 'n');
             if ($customers) {
-                $sql->rightJoin('customer', 'c', 'c.`email` = n.`email`');
+                $sql->innerJoin('customer', 'c', 'c.`email` = n.`email`');
                 $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
             }
-            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? '  OR c.`id_shop` = 1' : ''));
+            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? ' OR c.`id_shop` = 1' : ''));
             if ($optedIn) {
                 if ($customers) {
                     $sql->where('n.`active` = 1 OR c.`newsletter` = 1');
@@ -276,7 +276,11 @@ class MailChimpSubscriber
                 }
             }
 
-            return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+            try {
+                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+            } catch (\PrestaShopException $e) {
+                return 0;
+            }
         } elseif ($customers) {
             $sql = new \DbQuery();
             $sql->select('count(*)');
@@ -287,7 +291,11 @@ class MailChimpSubscriber
                 $sql->where('c.`newsletter` = 1');
             }
 
-            return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+            try {
+                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+            } catch (\PrestaShopException $e) {
+                return 0;
+            }
         }
 
         return 0;
@@ -300,7 +308,7 @@ class MailChimpSubscriber
      * @param bool     $customers
      * @param bool     $optedIn
      *
-     * @return array
+     * @return array|false
      *
      * @since 1.0.0
      */
@@ -322,7 +330,7 @@ class MailChimpSubscriber
             }
             $sql->from('newsletter', 'n');
             if ($customers) {
-                $sql->rightJoin('customer', 'c', 'c.`email` = n.`email`');
+                $sql->innerJoin('customer', 'c', 'c.`email` = n.`email`');
                 $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
             }
             $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? '  OR c.`id_shop` = 1' : ''));
@@ -336,7 +344,11 @@ class MailChimpSubscriber
             if ($limit) {
                 $sql->limit($limit, $offset);
             }
-            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            try {
+                $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            } catch (\PrestaShopException $e) {
+                return false;
+            }
         } elseif ($customers) {
             $sql = new \DbQuery();
             $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`, c.`website`, c.`ip_registration_newsletter`, c.`newsletter_date_add`, l.`iso_code`');
@@ -349,7 +361,11 @@ class MailChimpSubscriber
             if ($limit) {
                 $sql->limit($limit, $offset);
             }
-            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            try {
+                $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            } catch (\PrestaShopException $e) {
+                return false;
+            }
         }
 
         if ($result) {

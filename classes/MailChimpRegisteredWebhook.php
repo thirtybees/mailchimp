@@ -61,14 +61,18 @@ class MailChimpRegisteredWebhook extends \ObjectModel
      */
     public static function saveWebhook($url, $idList)
     {
-        return \Db::getInstance()->insert(
-            bqSQL(self::$definition['table']),
-            [
-                'url'       => $url,
-                'id_list'   => $idList,
-                'date_recv' => date('Y-m-d H:i:s'),
-            ]
-        );
+        try {
+            return \Db::getInstance()->insert(
+                bqSQL(self::$definition['table']),
+                [
+                    'url'       => $url,
+                    'id_list'   => $idList,
+                    'date_recv' => date('Y-m-d H:i:s'),
+                ]
+            );
+        } catch (\PrestaShopException $e) {
+            return false;
+        }
     }
 
     /**
@@ -89,7 +93,11 @@ class MailChimpRegisteredWebhook extends \ObjectModel
             $sql->where('mwh.`id_list` = \''.pSQL($idList).'\'');
         }
 
-        $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
+        try {
+            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
+        } catch (\PrestaShopException $e) {
+            return false;
+        }
 
         if ($result) {
             $webhook = new self();
@@ -120,11 +128,15 @@ class MailChimpRegisteredWebhook extends \ObjectModel
             $url = pSQL($url);
         }
 
-        if (!\Db::getInstance()->delete(
-            bqSQL(self::$definition['table']),
-            'url NOT IN ('.implode(',', $urls).') AND `id_list` = \''.pSQL($idList).'\''
-        )
-        ) {
+        try {
+            if (!\Db::getInstance()->delete(
+                bqSQL(self::$definition['table']),
+                'url NOT IN ('.implode(',', $urls).') AND `id_list` = \''.pSQL($idList).'\''
+            )
+            ) {
+                return false;
+            }
+        } catch (\PrestaShopDatabaseException $e) {
             return false;
         }
 
@@ -134,7 +146,11 @@ class MailChimpRegisteredWebhook extends \ObjectModel
                 $webhook->url = $item['url'];
                 $webhook->id_list = $idList;
 
-                $webhook->add();
+                try {
+                    $webhook->add();
+                } catch (\PrestaShopException $e) {
+                    return false;
+                }
             }
         }
 
@@ -157,6 +173,10 @@ class MailChimpRegisteredWebhook extends \ObjectModel
             $sql->where('`id_list` = \''.pSQL($idList).'\'');
         }
 
-        return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        try {
+            return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        } catch (\PrestaShopException $e) {
+            return false;
+        }
     }
 }

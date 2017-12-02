@@ -35,6 +35,12 @@ require_once __DIR__.'/classes/autoload.php';
  * Class MailChimp
  *
  * @since 1.0.0
+ *
+ * Translations:
+ * $this->l('Unable to count subscribers');
+ * $this->l('Unable to count carts');
+ * $this->l('Unable to count orders');
+ * $this->l('Unable to set sync status');
  */
 class MailChimp extends Module
 {
@@ -170,6 +176,7 @@ class MailChimp extends Module
      * @return bool Indicates whether the module was successfully installed
      *
      * @since 1.0.0
+     * @throws PrestaShopException
      */
     public function install()
     {
@@ -848,21 +855,25 @@ class MailChimp extends Module
      */
     public function processResetProducts($idShop, $ajax = false)
     {
-        if (Db::getInstance()->delete(
-            bqSQL(MailChimpProduct::$definition['table']),
-            '`id_shop` = '.(int) $idShop
-        )) {
-            if ($ajax) {
-                die(
-                json_encode(
-                    [
-                        'success' => true,
-                    ]
-                )
-                );
-            }
+        try {
+            if (Db::getInstance()->delete(
+                bqSQL(MailChimpProduct::$definition['table']),
+                '`id_shop` = '.(int) $idShop
+            )) {
+                if ($ajax) {
+                    die(
+                    json_encode(
+                        [
+                            'success' => true,
+                        ]
+                    )
+                    );
+                }
 
-            return true;
+                return true;
+            }
+        } catch (PrestaShopDatabaseException $e) {
+            return false;
         }
 
         return false;
@@ -898,12 +909,16 @@ class MailChimp extends Module
      */
     public function processResetCarts($idShop, $ajax = false)
     {
-        $success = Db::getInstance()->execute(
-            'DELETE mc
-             FROM `'._DB_PREFIX_.bqSQL(MailChimpCart::$definition['table']).'` mc
-             INNER JOIN `'._DB_PREFIX_.'cart` c ON c.`id_cart` = mc.`id_cart`
-             WHERE c.`id_shop` = '.(int) $idShop
-        );
+        try {
+            $success = Db::getInstance()->execute(
+                'DELETE mc
+                 FROM `'._DB_PREFIX_.bqSQL(MailChimpCart::$definition['table']).'` mc
+                 INNER JOIN `'._DB_PREFIX_.'cart` c ON c.`id_cart` = mc.`id_cart`
+                 WHERE c.`id_shop` = '.(int) $idShop
+            );
+        } catch (PrestaShopException $e) {
+            $success = false;
+        }
 
         if ($ajax) {
             die(json_encode([
@@ -944,12 +959,16 @@ class MailChimp extends Module
      */
     public function processResetOrders($idShop, $ajax = false)
     {
-        $success = Db::getInstance()->execute(
-            'DELETE mo
-             FROM `'._DB_PREFIX_.bqSQL(MailChimpOrder::$definition['table']).'` mo
-             INNER JOIN `'._DB_PREFIX_.'orders` o ON o.`id_order` = mo.`id_order`
-             WHERE o.`id_shop` = '.(int) $idShop
-        );
+        try {
+            $success = Db::getInstance()->execute(
+                'DELETE mo
+                 FROM `'._DB_PREFIX_.bqSQL(MailChimpOrder::$definition['table']).'` mo
+                 INNER JOIN `'._DB_PREFIX_.'orders` o ON o.`id_order` = mo.`id_order`
+                 WHERE o.`id_shop` = '.(int) $idShop
+            );
+        } catch (PrestaShopException $e) {
+            $success = false;
+        }
 
         if ($ajax) {
             die(json_encode([
@@ -1127,7 +1146,7 @@ class MailChimp extends Module
                             'name'          => $shop->name,
                             'domain'        => $shop->domain_ssl,
                             'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
-                            'currency_code' => Tools::strtoupper($currency->iso_code),
+                            'currency_code' => strtoupper($currency->iso_code),
                         ]
                     );
 
@@ -1140,7 +1159,7 @@ class MailChimp extends Module
                                 'name'          => $shop->name,
                                 'domain'        => $shop->domain_ssl,
                                 'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
-                                'currency_code' => Tools::strtoupper($currency->iso_code),
+                                'currency_code' => strtoupper($currency->iso_code),
                             ]
                         );
                     }
@@ -1154,7 +1173,11 @@ class MailChimp extends Module
                     $mailChimpShop->id_tax = (int) $shopTaxes[$idShop];
                     $mailChimpShop->synced = true;
 
-                    $mailChimpShop->save();
+                    try {
+                        $mailChimpShop->save();
+                    } catch (PrestaShopException $e) {
+                        $this->addError($this->l('Shop info could not be saved'));
+                    }
 
                     // Create MailChimp side webhooks
                     $register = $this->registerWebhookForList($mailChimpShop->list_id);
@@ -1163,8 +1186,6 @@ class MailChimp extends Module
                     }
                 }
             }
-        } elseif (Tools::isSubmit('submitProducts')) {
-            // Everything should have been processed by now
         }
     }
 
@@ -1893,9 +1914,9 @@ class MailChimp extends Module
                 $mergeFields['BDAY'] = date('c', strtotime($subscriber['birthday']));
             }
 
-            $subscriberHash = md5(Tools::strtolower($subscriber['email']));
+            $subscriberHash = md5(mb_strtolower($subscriber['email']));
             $batch->put("ms{$id}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
-                'email_address' => Tools::strtolower($subscriber['email']),
+                'email_address' => mb_strtolower($subscriber['email']),
                 'status_if_new' => $subscriber['subscription'],
                 'merge_fields'  => (object) $mergeFields,
                 'language'      => static::getMailChimpLanguageByIso($subscriber['language_code']),
@@ -1987,15 +2008,21 @@ class MailChimp extends Module
                 ];
             }
 
-            $payload = [
-                'id'          => (string) $product['id_product'],
-                'title'       => (string) $product['name'],
-                'url'         => (string) $link->getProductLink($product['id_product']),
-                'description' => (string) $product['description_short'],
-                'vendor'      => (string) $product['manufacturer'] ?: '',
-                'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
-                'variants'    => $variants,
-            ];
+            try {
+                $payload = [
+                    'id'          => (string) $product['id_product'],
+                    'title'       => (string) $product['name'],
+                    'url'         => (string) $link->getProductLink($product['id_product']),
+                    'description' => (string) $product['description_short'],
+                    'vendor'      => (string) $product['manufacturer'] ?: '',
+                    'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
+                    'variants'    => $variants,
+                ];
+            } catch (PrestaShopException $e) {
+                $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
+
+                continue;
+            }
             if ($product['last_synced'] && $product['last_synced'] !== '1970-01-01 00:00:00') {
                 $batch->patch(
                     'op'.(int) $product['id_product'],
@@ -2054,7 +2081,7 @@ class MailChimp extends Module
             if (empty($cart['lines'])) {
                 continue;
             }
-            $subscriberHash = md5(Tools::strtolower($cart['email']));
+            $subscriberHash = md5(mb_strtolower($cart['email']));
             $mergeFields = [
                 'FNAME' => $cart['firstname'],
                 'LNAME' => $cart['lastname'],
@@ -2064,7 +2091,7 @@ class MailChimp extends Module
             }
 
             $batch->put("ms{$cart['id_customer']}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
-                'email_address' => Tools::strtolower($cart['email']),
+                'email_address' => mb_strtolower($cart['email']),
                 'status_if_new' => false,
                 'merge_fields'  => (object) $mergeFields,
                 'language'      => static::getMailChimpLanguageByIso($cart['language_code']),
@@ -2143,7 +2170,7 @@ class MailChimp extends Module
             if (empty($order['lines'])) {
                 continue;
             }
-            $subscriberHash = md5(Tools::strtolower($order['email']));
+            $subscriberHash = md5(mb_strtolower($order['email']));
             $mergeFields = [
                 'FNAME' => $order['firstname'],
                 'LNAME' => $order['lastname'],
@@ -2153,7 +2180,7 @@ class MailChimp extends Module
             }
 
             $batch->put("ms{$order['id_customer']}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
-                'email_address' => Tools::strtolower($order['email']),
+                'email_address' => mb_strtolower($order['email']),
                 'status_if_new' => false,
                 'merge_fields'  => (object) $mergeFields,
                 'language'      => static::getMailChimpLanguageByIso($order['language_code']),
