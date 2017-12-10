@@ -1,0 +1,1 @@
+The Mailchimp module adds a connection to Mailchimp for your site. You can take advantage of all of the e-commerce flows with our module such as abandoned cart emails, follow up emails, and more.

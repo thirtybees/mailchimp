@@ -1,0 +1,13 @@
+module_name: Mailchimp Module
+compatible_versions: 1.0.0+
+author: thirty bees
+category: administration
+tags:
+  - mailing list
+  - mailchimp
+  - abandoned cart
+description_short: The Mailchimp module adds a connection to your Mailchimp mailing list to your website
+description: description.md
+images:
+  - image-1.png
+license: AFL
