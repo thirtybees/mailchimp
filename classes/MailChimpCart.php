@@ -13,7 +13,7 @@
  * to license@thirtybees.com so we can send you a copy immediately.
  *
  * @author    Thirty Bees <modules@thirtybees.com>
- * @copyright 2017 Thirty Bees
+ * @copyright 2017-2018 thirty bees
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
@@ -60,6 +60,7 @@ class MailChimpCart extends \ObjectModel
      *
      * @return int
      * @since 1.1.0
+     * @throws \PrestaShopException
      */
     public static function countCarts($idShop = null, $remaining = false)
     {
@@ -114,8 +115,9 @@ class MailChimpCart extends \ObjectModel
      *
      * @param bool     $remaining
      *
-     * @return array|false|\mysqli_result|null|\PDOStatement|resource
+     * @return array|false|int
      * @since 1.1.0
+     * @throws \PrestaShopException
      */
     public static function getCarts($idShop = null, $offset = 0, $limit = 0, $remaining = false)
     {
@@ -234,7 +236,7 @@ class MailChimpCart extends \ObjectModel
                 0,
                 false
             );
-        } catch (\PrestaShopDatabaseException $e) {
+        } catch (\PrestaShopException $e) {
             \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
 
             return false;

@@ -24,7 +24,7 @@
  *
  * @author    Thirty Bees <modules@thirtybees.com>
  * @author    Drew McLellan
- * @copyright 2017 Thirty Bees
+ * @copyright 2017-2018 thirty bees
  * @copyright 2013-2017 Drew McLellan
  * @license   https://opensource.org/licenses/MIT  Academic Free License (MIT)
  */
@@ -340,6 +340,7 @@ class MailChimp
      * @param   int    $timeout Timeout limit for request in seconds
      *
      * @return  array|false   Assoc array of API response, decoded from JSON
+     * @throws \Exception
      */
     public function get($method, $args = [], $timeout = 10)
     {
@@ -354,6 +355,7 @@ class MailChimp
      * @param   int    $timeout Timeout limit for request in seconds
      *
      * @return  array|false   Assoc array of API response, decoded from JSON
+     * @throws \Exception
      */
     public function patch($method, $args = [], $timeout = 10)
     {
@@ -368,6 +370,7 @@ class MailChimp
      * @param   int    $timeout Timeout limit for request in seconds
      *
      * @return  array|false   Assoc array of API response, decoded from JSON
+     * @throws \Exception
      */
     public function post($method, $args = [], $timeout = 10)
     {
@@ -382,6 +385,7 @@ class MailChimp
      * @param   int    $timeout Timeout limit for request in seconds
      *
      * @return  array|false   Assoc array of API response, decoded from JSON
+     * @throws \Exception
      */
     public function put($method, $args = [], $timeout = 10)
     {

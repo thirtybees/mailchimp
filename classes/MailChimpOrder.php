@@ -13,7 +13,7 @@
  * to license@thirtybees.com so we can send you a copy immediately.
  *
  * @author    Thirty Bees <modules@thirtybees.com>
- * @copyright 2017 Thirty Bees
+ * @copyright 2017-2018 thirty bees
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
@@ -55,6 +55,7 @@ class MailChimpOrder extends \ObjectModel
      * @param bool     $remaining Remaining orders only
      *
      * @return int
+     * @throws \PrestaShopException
      */
     public static function countOrders($idShop = null, $remaining = false)
     {
@@ -93,6 +94,8 @@ class MailChimpOrder extends \ObjectModel
      * @param bool     $remaining Remaining Orders only
      *
      * @return array|false|\mysqli_result|null|\PDOStatement|resource
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
      * @since 1.1.0
      */
     public static function getOrders($idShop = null, $offset = 0, $limit = 0, $remaining = false)
@@ -102,7 +105,8 @@ class MailChimpOrder extends \ObjectModel
         }
 
         $sql = new \DbQuery();
-        $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, cu.`id_customer`, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`birthday`, cu.`newsletter`, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
+        $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
+        $sql->select('cu.`id_customer`, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`birthday`, cu.`newsletter`');
         $sql->from('orders', 'o');
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = o.`id_customer`');
         $sql->innerJoin('cart', 'c', 'c.`id_cart` = o.`id_cart`');
@@ -175,6 +179,7 @@ class MailChimpOrder extends \ObjectModel
      *
      * @return bool
      * @since 1.1.0
+     * @throws \PrestaShopException
      */
     public static function setSynced($range)
     {

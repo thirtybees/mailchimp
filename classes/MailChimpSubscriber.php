@@ -13,7 +13,7 @@
  * to license@thirtybees.com so we can send you a copy immediately.
  *
  * @author    Thirty Bees <modules@thirtybees.com>
- * @copyright 2017 Thirty Bees
+ * @copyright 2017-2018 thirty bees
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
@@ -244,13 +244,14 @@ class MailChimpSubscriber
     /**
      * Count products
      *
-     * @param int|null $idShop    Shop ID
+     * @param int|null $idShop Shop ID
      * @param bool     $customers
      * @param bool     $optedIn
      *
      * @return int
      *
      * @since 1.1.0
+     * @throws \PrestaShopException
      */
     public static function countSubscribers($idShop = null, $customers = true, $optedIn = false)
     {
@@ -311,6 +312,7 @@ class MailChimpSubscriber
      * @return array|false
      *
      * @since 1.0.0
+     * @throws \PrestaShopException
      */
     public static function getSubscribers($idShop = null, $offset = 0, $limit = 0, $customers = true, $optedIn = false)
     {

@@ -13,7 +13,7 @@
  * to license@thirtybees.com so we can send you a copy immediately.
  *
  *  @author    Thirty Bees <modules@thirtybees.com>
- *  @copyright 2017 Thirty Bees
+ *  @copyright 2017-2018 thirty bees
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
@@ -74,6 +74,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      * @param int $idShop
      *
      * @since 1.1.0
+     * @throws PrestaShopException
      */
     protected function processExportAllProducts($idShop)
     {
@@ -91,6 +92,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      * @param int $idShop
      *
      * @since 1.1.0
+     * @throws PrestaShopException
      */
     protected function processExportRemainingProducts($idShop)
     {
@@ -108,6 +110,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      * @param int $idShop
      *
      * @since 1.0.0
+     * @throws PrestaShopException
      */
     protected function processResetProducts($idShop)
     {
@@ -124,6 +127,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      * @param int $idShop
      *
      * @since 1.1.0
+     * @throws PrestaShopException
      */
     protected function processExportAllCarts($idShop)
     {
@@ -141,6 +145,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      * @param int $idShop
      *
      * @since 1.1.0
+     * @throws PrestaShopException
      */
     protected function processExportRemainingCarts($idShop)
     {
@@ -174,6 +179,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      * @param int $idShop
      *
      * @since 1.1.0
+     * @throws PrestaShopException
      */
     protected function processExportAllOrders($idShop)
     {
@@ -191,6 +197,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      * @param int $idShop
      *
      * @since 1.1.0
+     * @throws PrestaShopException
      */
     protected function processExportRemainingOrders($idShop)
     {

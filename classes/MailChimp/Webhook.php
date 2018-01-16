@@ -24,7 +24,7 @@
  *
  *  @author    Thirty Bees <modules@thirtybees.com>
  *  @author    Drew McLellan
- *  @copyright 2017 Thirty Bees
+ *  @copyright 2017-2018 thirty bees
  *  @copyright 2013-2017 Drew McLellan
  *  @license   https://opensource.org/licenses/MIT  Academic Free License (MIT)
  */

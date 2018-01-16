@@ -13,7 +13,7 @@
  * to license@thirtybees.com so we can send you a copy immediately.
  *
  * @author    Thirty Bees <modules@thirtybees.com>
- * @copyright 2017 Thirty Bees
+ * @copyright 2017-2018 thirty bees
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
@@ -35,6 +35,8 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
 
     /**
      * StripeHookModuleFrontController constructor.
+     *
+     * @throws PrestaShopException
      */
     public function __construct()
     {
@@ -65,6 +67,8 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      * @param array $data
      *
      * @return bool Indicates whether the customer was successfully subscribed
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function processSubscribe($data)
     {
@@ -104,6 +108,8 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      * @param array $data
      *
      * @return bool Indicates whether the customer was successfully unsubscribed
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function processUnsubscribe($data)
     {
@@ -142,6 +148,8 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      * @param array $data
      *
      * @return bool Indicates whether the event was successfully processed
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function processEmailChanged($data)
     {

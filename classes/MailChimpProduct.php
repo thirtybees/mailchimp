@@ -13,7 +13,7 @@
  * to license@thirtybees.com so we can send you a copy immediately.
  *
  * @author    Thirty Bees <modules@thirtybees.com>
- * @copyright 2017 Thirty Bees
+ * @copyright 2017-2018 thirty bees
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
@@ -64,6 +64,7 @@ class MailChimpProduct extends \ObjectModel
      * @return int
      *
      * @since 1.1.0
+     * @throws \PrestaShopException
      */
     public static function countProducts($idShop = null, $remaining = false)
     {
@@ -101,9 +102,10 @@ class MailChimpProduct extends \ObjectModel
      * @param int      $limit
      * @param bool     $remaining
      *
-     * @return array|false|\mysqli_result|null|\PDOStatement|resource
+     * @return array|false|int
      *
      * @since 1.1.0
+     * @throws \PrestaShopException
      */
     public static function getProducts($idShop = null, $offset = 0, $limit = 0, $remaining = false)
     {
@@ -133,7 +135,7 @@ class MailChimpProduct extends \ObjectModel
         }
 
         try {
-            return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            return (array) \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         } catch (\PrestaShopException $e) {
             \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count products', 'mailchimp');
 
@@ -149,6 +151,7 @@ class MailChimpProduct extends \ObjectModel
      *
      * @return bool
      * @since 1.1.0
+     * @throws \PrestaShopException
      */
     public static function setSynced($range, $idShop = null)
     {

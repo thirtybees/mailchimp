@@ -13,7 +13,7 @@
  * to license@thirtybees.com so we can send you a copy immediately.
  *
  * @author    Thirty Bees <modules@thirtybees.com>
- * @copyright 2017 Thirty Bees
+ * @copyright 2017-2018 thirty bees
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
@@ -116,6 +116,7 @@ class MailChimpRegisteredWebhook extends \ObjectModel
      * @param string $idList
      *
      * @return bool Indicates whether the list was successfully refreshed
+     * @throws \PrestaShopException
      */
     public static function refresh($urls, $idList)
     {

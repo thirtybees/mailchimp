@@ -24,7 +24,7 @@
  *
  * @author    Thirty Bees <modules@thirtybees.com>
  * @author    Drew McLellan
- * @copyright 2017 Thirty Bees
+ * @copyright 2017-2018 thirty bees
  * @copyright 2013-2017 Drew McLellan
  * @license   https://opensource.org/licenses/MIT  Academic Free License (MIT)
  */
@@ -155,6 +155,7 @@ class Batch
      * @param int $timeout Request timeout in seconds (optional)
      *
      * @return  array|false   Assoc array of API response, decoded from JSON
+     * @throws \Exception
      */
     public function execute($timeout = 10)
     {
@@ -176,6 +177,7 @@ class Batch
      * @param string $batchId ID of the batch about which to enquire
      *
      * @return  array|false   Assoc array of API response, decoded from JSON
+     * @throws \Exception
      */
     public function checkStatus($batchId = null)
     {

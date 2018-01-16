@@ -13,7 +13,7 @@
  * to license@thirtybees.com so we can send you a copy immediately.
  *
  * @author    Thirty Bees <modules@thirtybees.com>
- * @copyright 2017 Thirty Bees
+ * @copyright 2017-2018 thirty bees
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
@@ -143,6 +143,7 @@ class MailChimp extends Module
      * MailChimp constructor.
      *
      * @since 1.0.0
+     * @throws PrestaShopException
      */
     public function __construct()
     {
@@ -210,6 +211,8 @@ class MailChimp extends Module
      *
      * @return bool Indicates whether this module has been successfully uninstalled
      *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     public function uninstall()
@@ -237,6 +240,9 @@ class MailChimp extends Module
      *
      * @return string
      *
+     * @throws Exception
+     * @throws PrestaShopException
+     * @throws SmartyException
      * @since 1.0.0
      */
     public function getContent()
@@ -397,6 +403,8 @@ class MailChimp extends Module
      *
      * @return bool
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     public function addOrUpdateSubscription(MailChimpSubscriber $subscription)
@@ -407,6 +415,8 @@ class MailChimp extends Module
     /**
      * @param array $params
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     public function hookActionCustomerAccountAdd($params)
@@ -438,6 +448,9 @@ class MailChimp extends Module
      * Action update customer after
      *
      * @param array $params
+     *
+     * @throws Exception
+     * @throws PrestaShopException
      */
     public function hookActionObjectCustomerUpdateAfter($params)
     {
@@ -468,6 +481,9 @@ class MailChimp extends Module
      * Action add customer after
      *
      * @param array $params
+     *
+     * @throws Exception
+     * @throws PrestaShopException
      */
     public function hookActionObjectCustomerAddAfter($params)
     {
@@ -497,6 +513,8 @@ class MailChimp extends Module
     /**
      * @param array $params
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     public function hookActionAdminCustomersControllerSaveAfter($params)
@@ -529,6 +547,9 @@ class MailChimp extends Module
      *
      * @return string
      *
+     * @throws Exception
+     * @throws PrestaShopException
+     * @throws SmartyException
      * @since 1.1.0
      */
     public function displayModals()
@@ -663,6 +684,8 @@ class MailChimp extends Module
      *
      * @return void
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     public function displayAjaxExportAllSubscribers()
@@ -704,6 +727,9 @@ class MailChimp extends Module
      *
      * @return void
      *
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     public function displayAjaxExportAllProducts()
@@ -746,6 +772,8 @@ class MailChimp extends Module
      *
      * @return void
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     public function displayAjaxExportAllCarts()
@@ -788,6 +816,9 @@ class MailChimp extends Module
      *
      * @return void
      *
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     public function displayAjaxExportAllOrders()
@@ -831,6 +862,7 @@ class MailChimp extends Module
      * @return void
      *
      * @since 1.1.0
+     * @throws PrestaShopException
      */
     public function displayAjaxResetProducts()
     {
@@ -852,6 +884,7 @@ class MailChimp extends Module
      * @return bool
      *
      * @since 1.1.0
+     * @throws PrestaShopException
      */
     public function processResetProducts($idShop, $ajax = false)
     {
@@ -987,6 +1020,9 @@ class MailChimp extends Module
      * @param string $submit
      *
      * @return false|array
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     public function cronExportProducts($idShop, $exportRemaining, $submit)
@@ -1028,6 +1064,8 @@ class MailChimp extends Module
      * @param string $submit
      *
      * @return array|false
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     public function cronExportCarts($idShop, $exportRemaining, $submit)
@@ -1070,6 +1108,9 @@ class MailChimp extends Module
      *
      * @return false|array
      *
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     public function cronExportOrders($idShop, $exportRemaining, $submit)
@@ -1105,6 +1146,8 @@ class MailChimp extends Module
 
     /**
      * Process configuration
+     *
+     * @throws Exception
      */
     protected function postProcess()
     {
@@ -1194,6 +1237,8 @@ class MailChimp extends Module
      *
      * @return bool
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     protected function registerWebhookForList($idList)
@@ -1233,6 +1278,7 @@ class MailChimp extends Module
      * @return string
      *
      * @since 1.0.0
+     * @throws PrestaShopException
      */
     protected function urlForWebhook()
     {
@@ -1252,6 +1298,8 @@ class MailChimp extends Module
      *
      * @return bool
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     protected function registerWebhook($idList, $url = null)
@@ -1292,6 +1340,8 @@ class MailChimp extends Module
      *
      * @return bool
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     protected function importList($list)
@@ -1357,21 +1407,49 @@ class MailChimp extends Module
         return $this->generateCronForm();
     }
 
+    /**
+     * @return string
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
+     */
     protected function displayShopsForm()
     {
         return $this->generateShopsForm();
     }
 
+    /**
+     * @return string
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
+     */
     protected function displayProductsForm()
     {
         return $this->generateProductsForm();
     }
 
+    /**
+     * @return string
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
+     */
     protected function displayCartsForm()
     {
         return $this->generateCartsForm();
     }
 
+    /**
+     * @return string
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
+     */
     protected function displayOrdersForm()
     {
         return $this->generateOrdersForm();
@@ -1380,6 +1458,10 @@ class MailChimp extends Module
     /**
      * @return string
      *
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      * @since 1.0.0
      */
     protected function generateApiForm()
@@ -1485,6 +1567,10 @@ class MailChimp extends Module
     /**
      * @return string
      *
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      * @since 1.0.0
      */
     protected function generateCronForm()
@@ -1545,6 +1631,7 @@ class MailChimp extends Module
      * @return array
      *
      * @since 1.0.0
+     * @throws PrestaShopException
      */
     protected function getConfigFieldsValues()
     {
@@ -1559,6 +1646,10 @@ class MailChimp extends Module
      * Render Customer export form
      *
      * @return string Form HTML
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
     protected function generateShopsForm()
     {
@@ -1586,6 +1677,8 @@ class MailChimp extends Module
 
     /**
      * @return array
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     protected function getShopsForm()
     {
@@ -1631,6 +1724,10 @@ class MailChimp extends Module
      * Render Customer export form
      *
      * @return string Form HTML
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
     protected function generateProductsForm()
     {
@@ -1683,6 +1780,10 @@ class MailChimp extends Module
      * Render Customer export form
      *
      * @return string Form HTML
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
     protected function generateCartsForm()
     {
@@ -1735,6 +1836,10 @@ class MailChimp extends Module
      * Render Customer export form
      *
      * @return string Form HTML
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
     protected function generateOrdersForm()
     {
@@ -1786,6 +1891,10 @@ class MailChimp extends Module
     /**
      * @return void
      *
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      * @since 1.0.0
      */
     protected function loadTabs()
@@ -1849,6 +1958,7 @@ class MailChimp extends Module
      * Check if API key is valid
      *
      * @return bool Indicates whether the API key is valid
+     * @throws PrestaShopException
      */
     protected function checkApiKey()
     {
@@ -1880,12 +1990,13 @@ class MailChimp extends Module
     /**
      * Export subscribers
      *
-     * @param int  $offset
-     * @param int  $idShop
-     * @param bool $remaining
+     * @param int $offset
+     * @param int $idShop
      *
      * @return string MailChimp Batch ID
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     protected function exportSubscribers($offset, $idShop = null)
@@ -1943,6 +2054,9 @@ class MailChimp extends Module
      *
      * @return string MailChimp Batch ID
      *
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     protected function exportProducts($offset, $idShop = null, $remaining = false)
@@ -2059,6 +2173,8 @@ class MailChimp extends Module
      *
      * @return string MailChimp Batch ID
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     protected function exportCarts($offset, $remaining = false)
@@ -2147,6 +2263,9 @@ class MailChimp extends Module
      *
      * @return string MailChimp Batch ID
      *
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     protected function exportOrders($offset, $exportRemaining = false)
@@ -2270,6 +2389,8 @@ class MailChimp extends Module
      *
      * @return bool
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     protected function checkMergeFields($idShop, $idList)
