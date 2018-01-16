@@ -313,6 +313,8 @@ class MailChimp extends Module
      *
      * @return void
      *
+     * @throws Exception
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     public function hookFooter()
@@ -1379,6 +1381,15 @@ class MailChimp extends Module
         }
     }
 
+    /**
+     * Display main page
+     *
+     * @return string
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
+     */
     protected function displayMainPage()
     {
         $this->loadTabs();
@@ -1392,7 +1403,13 @@ class MailChimp extends Module
     }
 
     /**
-     * Display form
+     * Display import form
+     *
+     * @return string
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
     protected function displayImportForm()
     {
@@ -1400,7 +1417,13 @@ class MailChimp extends Module
     }
 
     /**
-     * Display form
+     * Display cron job form
+     *
+     * @return string
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
      */
     protected function displayCronJobs()
     {
@@ -1555,7 +1578,9 @@ class MailChimp extends Module
         }
 
         $helper = new HelperForm();
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_IMPORT;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true)
+            .'&configure='.$this->name.'&tab_module='.$this->tab
+            .'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_IMPORT;
         $helper->token = '';
         $helper->tpl_vars = [
             'fields_value' => $this->getConfigFieldsValues(),
@@ -1594,12 +1619,84 @@ class MailChimp extends Module
 
         $context->smarty->assign(
             [
-                'cron_all_products'       => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllProducts',       'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_remaining_products' => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingProducts', 'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_all_carts'          => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllCarts',          'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_remaining_carts'    => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingCarts',    'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_all_orders'         => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportAllOrders',         'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
-                'cron_remaining_orders'   => $context->link->getModuleLink($this->name, 'cron', ['action' => 'ExportRemainingOrders',   'token' => $token, 'id_shop' => $idShop], true, $idLang, $idShop, false),
+                'cron_all_products'       => $context->link->getModuleLink(
+                    $this->name,
+                    'cron',
+                    [
+                        'action' => 'ExportAllProducts',
+                        'token' => $token,
+                        'id_shop' => $idShop
+                    ],
+                    true,
+                    $idLang,
+                    $idShop,
+                    false
+                ),
+                'cron_remaining_products' => $context->link->getModuleLink(
+                    $this->name,
+                    'cron',
+                    [
+                        'action' => 'ExportRemainingProducts',
+                        'token' => $token,
+                        'id_shop' => $idShop
+                    ],
+                    true,
+                    $idLang,
+                    $idShop,
+                    false
+                ),
+                'cron_all_carts'          => $context->link->getModuleLink(
+                    $this->name,
+                    'cron',
+                    [
+                        'action' => 'ExportAllCarts',
+                        'token' => $token,
+                        'id_shop' => $idShop
+                    ],
+                    true,
+                    $idLang,
+                    $idShop,
+                    false
+                ),
+                'cron_remaining_carts'    => $context->link->getModuleLink(
+                    $this->name,
+                    'cron',
+                    [
+                        'action' => 'ExportRemainingCarts',
+                        'token' => $token,
+                        'id_shop' => $idShop
+                    ],
+                    true,
+                    $idLang,
+                    $idShop,
+                    false
+                ),
+                'cron_all_orders'         => $context->link->getModuleLink(
+                    $this->name,
+                    'cron',
+                    [
+                        'action' => 'ExportAllOrders',
+                        'token' => $token,
+                        'id_shop' => $idShop
+                    ],
+                    true,
+                    $idLang,
+                    $idShop,
+                    false
+                ),
+                'cron_remaining_orders'   => $context->link->getModuleLink(
+                    $this->name,
+                    'cron',
+                    [
+                        'action' => 'ExportRemainingOrders',
+                        'token' => $token,
+                        'id_shop' => $idShop
+                    ],
+                    true,
+                    $idLang,
+                    $idShop,
+                    false
+                ),
             ]
         );
 
@@ -1618,7 +1715,9 @@ class MailChimp extends Module
         $fields[] = $fieldsForm2;
 
         $helper = new HelperForm();
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_IMPORT;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true)
+            .'&configure='.$this->name.'&tab_module='.$this->tab
+            .'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_IMPORT;
         $helper->token = '';
         $helper->tpl_vars = [
             'fields_value' => $this->getConfigFieldsValues(),
@@ -1663,7 +1762,9 @@ class MailChimp extends Module
 
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitShops';
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_SHOPS;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true)
+            .'&configure='.$this->name.'&tab_module='.$this->tab
+            .'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_SHOPS;
 
         $helper->token = '';
 
@@ -1741,7 +1842,9 @@ class MailChimp extends Module
 
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitProducts';
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_PRODUCTS;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true)
+            .'&configure='.$this->name.'&tab_module='.$this->tab
+            .'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_PRODUCTS;
 
         $helper->token = '';
 
@@ -1797,7 +1900,9 @@ class MailChimp extends Module
 
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitProducts';
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_CARTS;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true)
+            .'&configure='.$this->name.'&tab_module='.$this->tab
+            .'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_CARTS;
 
         $helper->token = '';
 
@@ -1853,7 +1958,9 @@ class MailChimp extends Module
 
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitProducts';
-        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_ORDERS;
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true)
+            .'&configure='.$this->name.'&tab_module='.$this->tab
+            .'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_ORDERS;
 
         $helper->token = '';
 
@@ -2446,6 +2553,8 @@ class MailChimp extends Module
      * Install Db Index
      *
      * @since 1.1.0
+     *
+     * @param string $sql
      */
     protected function installDbIndex($sql)
     {
