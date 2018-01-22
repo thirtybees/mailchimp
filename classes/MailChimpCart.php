@@ -133,7 +133,8 @@ class MailChimpCart extends \ObjectModel
         $selectOrdersSql->from('orders');
 
         $sql = new \DbQuery();
-        $sql->select('c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`birthday`, cu.`newsletter`, cu.`id_lang`, mc.`last_synced`');
+        $sql->select('c.*, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`birthday`, cu.`newsletter`');
+        $sql->select('cu.`id_lang`, mc.`last_synced`, l.`language_code`');
         $sql->from('cart', 'c');
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
         $sql->innerJoin('lang', 'l', 'l.`id_lang` = cu.`id_lang`');
