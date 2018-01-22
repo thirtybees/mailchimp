@@ -262,21 +262,20 @@ class MailChimpSubscriber
         // Check if the module exists
         if (\Module::isEnabled('blocknewsletter')) {
             $sql = new \DbQuery();
-            $sql->select('count(*)');
-            $sql->from('newsletter', 'n');
             if ($customers) {
-                $sql->innerJoin('customer', 'c', 'c.`email` = n.`email`');
+                $sql->select('COUNT(*)');
+            } else {
+                $sql->select('n.`email`, n.`newsletter_date_add`, n.`ip_registration_newsletter`, n.`active`');
+            }
+            $sql->from('customer', 'c');
+            if ($customers) {
+                $sql->leftJoin('newsletter', 'n', 'c.`email` = n.`email`'.($optedIn ? ' n.`active` = 1' : ''));
                 $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
             }
-            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? ' OR c.`id_shop` = 1' : ''));
+            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? ' OR c.`id_shop` = '.(int) $idShop : ''));
             if ($optedIn) {
-                if ($customers) {
-                    $sql->where('n.`active` = 1 OR c.`newsletter` = 1');
-                } else {
-                    $sql->where('n.`active` = 1');
-                }
+                $sql->where($customers ? 'c.`newsletter` = 1' : '');
             }
-
             try {
                 return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
             } catch (\PrestaShopException $e) {
@@ -287,7 +286,7 @@ class MailChimpSubscriber
             $sql->select('count(*)');
             $sql->from('customer', 'c');
             $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
-            $sql->where('c.`id_shop` = 1');
+            $sql->where('c.`id_shop` = '.(int) $idShop);
             if ($optedIn) {
                 $sql->where('c.`newsletter` = 1');
             }
@@ -337,13 +336,9 @@ class MailChimpSubscriber
                 $sql->innerJoin('customer', 'c', 'c.`email` = n.`email`');
                 $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
             }
-            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? '  OR c.`id_shop` = 1' : ''));
+            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? ' OR c.`id_shop` = '.(int) $idShop : ''));
             if ($optedIn) {
-                if ($customers) {
-                    $sql->where('n.`active` = 1 OR c.`newsletter` = 1');
-                } else {
-                    $sql->where('n.`active` = 1');
-                }
+                $sql->where('n.`active` = 1'.($customers ? 'OR c.`newsletter` = 1' : ''));
             }
             if ($limit) {
                 $sql->limit($limit, $offset);
@@ -355,7 +350,8 @@ class MailChimpSubscriber
             }
         } elseif ($customers) {
             $sql = new \DbQuery();
-            $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`, c.`website`, c.`ip_registration_newsletter`, c.`newsletter_date_add`, l.`iso_code`');
+            $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`');
+            $sql->select('c.`website`, c.`ip_registration_newsletter`, c.`newsletter_date_add`, l.`iso_code`');
             $sql->from('customer', 'c');
             $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
             $sql->where('c.`id_shop` = 1');
@@ -374,7 +370,9 @@ class MailChimpSubscriber
 
         if ($result) {
             // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
-            $subscription = (string) \Configuration::get(\MailChimp::CONFIRMATION_EMAIL) ? MailChimpSubscriber::SUBSCRIPTION_PENDING : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
+            $subscription = (string) \Configuration::get(\MailChimp::CONFIRMATION_EMAIL)
+                ? MailChimpSubscriber::SUBSCRIPTION_PENDING
+                : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
             // Get default shop language since Newsletter Block registrations don't contain any language info
             $lang = \MailChimp::getMailChimpLanguageByIso(\Context::getContext()->language->iso_code);
             // Create and append subscribers

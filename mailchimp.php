@@ -2070,7 +2070,8 @@ class MailChimp extends Module
      */
     protected function checkApiKey()
     {
-        if (Configuration::get(static::API_KEY) && Configuration::get(static::API_KEY_VALID)) {
+        if (Configuration::get(static::API_KEY, null, null, 1)
+            && Configuration::get(static::API_KEY_VALID, null, null, 1)) {
             return true;
         }
 
@@ -2120,7 +2121,7 @@ class MailChimp extends Module
             return '';
         }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY));
+        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
         $batch = $mailChimp->newBatch();
 
         $id = 1;
@@ -2190,7 +2191,7 @@ class MailChimp extends Module
             $rate = 1 + ($tax->rate / 100);
         }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY));
+        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
         $batch = $mailChimp->newBatch();
 
         $link = \Context::getContext()->link;
@@ -2301,7 +2302,7 @@ class MailChimp extends Module
             return '';
         }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY));
+        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
         $batch = $mailChimp->newBatch();
 
         foreach ($carts as &$cart) {
@@ -2393,7 +2394,7 @@ class MailChimp extends Module
             return '';
         }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY));
+        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
         $batch = $mailChimp->newBatch();
 
         foreach ($orders as &$order) {
