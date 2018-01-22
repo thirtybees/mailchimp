@@ -392,8 +392,9 @@ class MailChimp extends Module
      */
     public static function getMailChimpLanguageByIso($iso)
     {
-        $lang = static::$mailChimpLanguages[$iso];
-        if ($lang == '') {
+        if (isset(static::$mailChimpLanguages[$iso])) {
+            $lang = static::$mailChimpLanguages[$iso];
+        } else {
             $lang = 'en';
         }
 
