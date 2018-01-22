@@ -149,7 +149,7 @@ class MailChimp extends Module
     {
         $this->name = 'mailchimp';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.3';
+        $this->version = '1.1.4';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -2205,10 +2205,13 @@ class MailChimp extends Module
 
                 $variants = [];
                 foreach ($allCombinations as $combination) {
+                    if (!isset($combination['quantity']) || !isset($combination['reference'])) {
+                        continue;
+                    }
                     $variant = [
                         'id'                 => (string) $product['id_product'].'-'.(string) $combination['id_product_attribute'],
                         'title'              => (string) $product['name'],
-                        'sku'                => (string) $combination['reference'],
+                        'sku'                => $combination['reference'],
                         'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
                         'inventory_quantity' => (int) $combination['quantity'],
                     ];
