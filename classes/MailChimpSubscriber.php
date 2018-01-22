@@ -259,40 +259,44 @@ class MailChimpSubscriber
             $idShop = \Context::getContext()->shop->id;
         }
 
+        $existingMailQuery = new \DbQuery();
+        $existingMailQuery->select('`email`');
+        $existingMailQuery->from('customer', 'c');
+        $existingMailQuery->where('c.`newsletter` = 1');
+        $existingMailQuery->where('c.`active` = 1');
+
+        $nlQuery = new \DbQuery();
+        $nlQuery->select('n.`email`');
+        $nlQuery->from('newsletter', 'n');
+        $nlQuery->innerJoin('lang',  'l', 'l.`id_lang` = '.(int) \Configuration::get('PS_LANG_DEFAULT'));
+        if ($optedIn) {
+            $nlQuery->where('n.`active` = 1');
+        }
+        $nlQuery->where('n.`id_shop` = '.(int) $idShop);
+        if ($customers) {
+            $nlQuery->where('n.`email` NOT IN ('.$existingMailQuery->build().')');
+        }
+
+        $customerQuery = new \DbQuery();
+        $customerQuery->select('c.`email`');
+        $customerQuery->from('customer', 'c');
+        $customerQuery->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
+        $customerQuery->where('c.`active` = 1 '.\Shop::addSqlRestriction(\Shop::SHARE_CUSTOMER, 'c'));
+        if ($optedIn) {
+            $customerQuery->where('c.`newsletter` = 1');
+        }
+
         // Check if the module exists
         if (\Module::isEnabled('blocknewsletter')) {
-            $sql = new \DbQuery();
-            if ($customers) {
-                $sql->select('COUNT(*)');
-            } else {
-                $sql->select('n.`email`, n.`newsletter_date_add`, n.`ip_registration_newsletter`, n.`active`');
-            }
-            $sql->from('customer', 'c');
-            if ($customers) {
-                $sql->leftJoin('newsletter', 'n', 'c.`email` = n.`email`'.($optedIn ? ' n.`active` = 1' : ''));
-                $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
-            }
-            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? ' OR c.`id_shop` = '.(int) $idShop : ''));
-            if ($optedIn) {
-                $sql->where($customers ? 'c.`newsletter` = 1' : '');
-            }
+            $sql = "SELECT COUNT(*) FROM (({$nlQuery->build()}) UNION ({$customerQuery->build()})) AS `u`";
             try {
                 return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
             } catch (\PrestaShopException $e) {
                 return 0;
             }
         } elseif ($customers) {
-            $sql = new \DbQuery();
-            $sql->select('count(*)');
-            $sql->from('customer', 'c');
-            $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
-            $sql->where('c.`id_shop` = '.(int) $idShop);
-            if ($optedIn) {
-                $sql->where('c.`newsletter` = 1');
-            }
-
             try {
-                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue("SELECT COUNT(*) FROM ({$customerQuery->build()}) AS `u`");
             } catch (\PrestaShopException $e) {
                 return 0;
             }
@@ -322,49 +326,60 @@ class MailChimpSubscriber
         $list = [];
         $result = false;
         // Check if the module exists
+        $existingMailQuery = new \DbQuery();
+        $existingMailQuery->select('`email`');
+        $existingMailQuery->from('customer', 'c');
+        $existingMailQuery->where('c.`newsletter` = 1');
+        $existingMailQuery->where('c.`active` = 1');
+
+        $nlQuery = new \DbQuery();
+        $nlQuery->select('n.`email`, \'\' AS `firstname`, \'\' AS `lastname`');
+        $nlQuery->select('\'\' AS `ip_registration_newsletter`, l.`iso_code`');
+        $nlQuery->select('n.`newsletter_date_add`, \'\' AS `company`, \'\' AS `website`, \'\' AS `birthday`');
+        $nlQuery->from('newsletter', 'n');
+        $nlQuery->innerJoin('lang',  'l', 'l.`id_lang` = '.(int) \Configuration::get('PS_LANG_DEFAULT'));
+        if ($optedIn) {
+            $nlQuery->where('n.`active` = 1');
+        }
+        $nlQuery->where('n.`id_shop` = '.(int) $idShop);
+        if ($customers) {
+            $nlQuery->where('n.`email` NOT IN ('.$existingMailQuery->build().')');
+        }
+
+        $customerQuery = new \DbQuery();
+        $customerQuery->select('c.`email`, c.`firstname`, c.`lastname`, c.`ip_registration_newsletter`');
+        $customerQuery->select('l.`iso_code`, c.`newsletter_date_add`, c.`company`, c.`website`, c.`birthday`');
+        $customerQuery->from('customer', 'c');
+        $customerQuery->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
+        $customerQuery->where('c.`active` = 1 '.\Shop::addSqlRestriction(\Shop::SHARE_CUSTOMER, 'c'));
+        if ($optedIn) {
+            $customerQuery->where('c.`newsletter` = 1');
+        }
+
+        // Check if the module exists
         if (\Module::isEnabled('blocknewsletter')) {
-            $sql = new \DbQuery();
-            if ($customers) {
-                $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`, c.`website`');
-                $sql->select('c.`ip_registration_newsletter`, c.`newsletter_date_add`');
-                $sql->select('l.`iso_code`, l.`language_code`');
-            } else {
-                $sql->select('n.`email`, n.`newsletter_date_add`, n.`ip_registration_newsletter`, n.`active`');
-            }
-            $sql->from('newsletter', 'n');
-            if ($customers) {
-                $sql->innerJoin('customer', 'c', 'c.`email` = n.`email`');
-                $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
-            }
-            $sql->where('n.`id_shop` = '.(int) $idShop.($customers ? ' OR c.`id_shop` = '.(int) $idShop : ''));
-            if ($optedIn) {
-                $sql->where('n.`active` = 1'.($customers ? 'OR c.`newsletter` = 1' : ''));
-            }
+            $sql = "({$nlQuery->build()}) UNION ({$customerQuery->build()})";
             if ($limit) {
-                $sql->limit($limit, $offset);
+                $sql .= ' LIMIT '.(int) $limit;
+            }
+            if ($offset) {
+                $sql .= ', '.(int) $offset;
             }
             try {
                 $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
             } catch (\PrestaShopException $e) {
-                return false;
+                \Logger::addLog("MailChimp module error: {$e->getMessage()}");
+
+                $result = false;
             }
         } elseif ($customers) {
-            $sql = new \DbQuery();
-            $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`');
-            $sql->select('c.`website`, c.`ip_registration_newsletter`, c.`newsletter_date_add`, l.`iso_code`');
-            $sql->from('customer', 'c');
-            $sql->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
-            $sql->where('c.`id_shop` = 1');
-            if ($optedIn) {
-                $sql->where('c.`newsletter` = 1');
-            }
-            if ($limit) {
-                $sql->limit($limit, $offset);
-            }
             try {
-                $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+                $customerQuery->limit($limit, $offset);
+                $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($customerQuery);
             } catch (\PrestaShopException $e) {
-                return false;
+                \Logger::addLog("MailChimp module error: {$e->getMessage()}");
+
+                $result = false;
             }
         }
 
@@ -374,20 +389,19 @@ class MailChimpSubscriber
                 ? MailChimpSubscriber::SUBSCRIPTION_PENDING
                 : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
             // Get default shop language since Newsletter Block registrations don't contain any language info
-            $lang = \MailChimp::getMailChimpLanguageByIso(\Context::getContext()->language->iso_code);
             // Create and append subscribers
             foreach ($result as $row) {
                 $list[] = [
                     'email'               => $row['email'],
                     'subscription'        => $subscription,
-                    'firstname'           => isset($row['firstname']) ? $row['firstname'] : '',
-                    'lastname'            => isset($row['lastname']) ? $row['lastname'] : '',
+                    'firstname'           => $row['firstname'] ?: '',
+                    'lastname'            => $row['lastname'] ?: '',
                     'ip_address'          => $row['ip_registration_newsletter'],
-                    'language_code'       => $lang,
+                    'language_code'       => \MailChimp::getMailChimpLanguageByIso($row['iso_code'] ?: \Context::getContext()->language->iso_code),
                     'newsletter_date_add' => $row['newsletter_date_add'],
-                    'company'             => isset($row['company']) ? $row['company'] : '',
-                    'website'             => isset($row['website']) ? $row['website'] : '',
-                    'birthday'            => isset($row['birthday']) ? $row['birthday'] : '',
+                    'company'             => $row['company'] ?: '',
+                    'website'             => $row['website'] ?: '',
+                    'birthday'            => $row['birthday'] ?: '',
                 ];
             }
         }
