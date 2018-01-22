@@ -66,6 +66,7 @@ class MailChimpShop extends \ObjectModel
      * @return array|false|\mysqli_result|null|\PDOStatement|resource
      *
      * @since 1.1.0
+     * @throws \PrestaShopException
      */
     public static function getShops($active = false)
     {
@@ -75,6 +76,9 @@ class MailChimpShop extends \ObjectModel
         $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(\Shop::$definition['primary']).'` = ms.`'.bqSQL(\Shop::$definition['primary']).'`');
         if ($active) {
             $sql->where('s.`active` = 1');
+        }
+        if (!\Shop::isFeatureActive()) {
+            $sql->where('s.`id_shop` = '.(int) \Context::getContext()->shop->id);
         }
 
         try {
@@ -90,6 +94,9 @@ class MailChimpShop extends \ObjectModel
      * @param int $idShop
      *
      * @return MailChimpShop|false
+     * @throws \Adapter_Exception
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
      */
     public static function getByShopId($idShop)
     {

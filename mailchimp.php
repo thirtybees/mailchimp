@@ -1396,8 +1396,10 @@ class MailChimp extends Module
         $this->loadTabs();
 
         $this->context->smarty->assign([
-            'availableShops' => Shop::getShops(true, null, true),
-            'exportUrl' => $this->baseUrl,
+            'availableShops' => Shop::isFeatureActive()
+                ? Shop::getShops(true, null, true)
+                : [$this->context->shop->id => $this->context->shop->id],
+            'exportUrl'      => $this->baseUrl,
         ]);
 
         return $this->displayModals().$this->display(__FILE__, 'views/templates/admin/main.tpl');
