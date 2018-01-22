@@ -326,7 +326,9 @@ class MailChimpSubscriber
         if (\Module::isEnabled('blocknewsletter')) {
             $sql = new \DbQuery();
             if ($customers) {
-                $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`, c.`website`, c.`ip_registration_newsletter`, c.`newsletter_date_add`, l.`iso_code`');
+                $sql->select('c.`email`, c.`firstname`, c.`lastname`, c.`birthday`, c.`company`, c.`website`');
+                $sql->select('c.`ip_registration_newsletter`, c.`newsletter_date_add`');
+                $sql->select('l.`iso_code`, l.`language_code`');
             } else {
                 $sql->select('n.`email`, n.`newsletter_date_add`, n.`ip_registration_newsletter`, n.`active`');
             }
