@@ -2229,9 +2229,9 @@ class MailChimp extends Module
                     [
                         'id'                 => (string) $product['id_product'],
                         'title'              => (string) $product['name'],
-                        'sku'                => (string) $product['reference'],
+                        'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
                         'price'              => (float) ($product['price'] * $rate),
-                        'inventory_quantity' => (int) $product['quantity'],
+                        'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
                     ],
                 ];
             }
