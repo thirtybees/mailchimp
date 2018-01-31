@@ -2220,7 +2220,7 @@ class MailChimp extends Module
                         'inventory_quantity' => (int) $combination['quantity'],
                     ];
                     if (isset($allCombinationImages[$combination['id_product_attribute']])) {
-                        $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]}");
+                        $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
                     }
                     $variants[] = $variant;
                 }
