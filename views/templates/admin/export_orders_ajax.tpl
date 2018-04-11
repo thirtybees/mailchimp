@@ -126,9 +126,15 @@
         $('#reset-order-sync-data-btn-' + idShop).click(function () {
           $.get(exportUrl + '&ajax=true&action=resetOrders&shop=' + idShop, function (response) {
             if (response && JSON.parse(response).success) {
-              alert('{l s='Order sync data has been reset' mod='mailchimp' js=1}');
+              swal({
+                icon: 'success',
+                text: '{l s='Order sync data has been reset' mod='mailchimp' js=1}',
+              });
             } else {
-              alert('{l s='Unable to reset order sync data' mod='mailchimp' js=1}');
+              swal({
+                icon: 'error',
+                text: '{l s='Unable to reset order sync data' mod='mailchimp' js=1}',
+              });
             }
           });
         });

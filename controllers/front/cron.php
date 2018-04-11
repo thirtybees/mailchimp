@@ -51,6 +51,26 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
             $idShop = (int) Context::getContext()->shop->id;
         }
 
+        if (substr($action, -5)  === 'Carts') {
+            $entityType = 'carts';
+        } elseif (substr($action, -8) === 'Products') {
+            $entityType = 'products';
+        } elseif (substr($action, -6) === 'Orders') {
+            $entityType = 'orders';
+        } else {
+            die('KO');
+        }
+
+        if (strpos($action, 'ExportAll') === 0) {
+            $actionType = 'ExportAll';
+        } elseif (strpos($action, 'ExportRemaining') === 0) {
+            $actionType = 'ExportRemaining';
+        } elseif (strpos($action, 'Reset') === 0) {
+            $actionType = 'Reset';
+        } else {
+            die('KO');
+        }
+
         if (in_array($action, [
             'ExportAllProducts',
             'ExportRemainingProducts',
@@ -62,166 +82,45 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
             'ExportRemainingOrders',
             'ResetOrders',
         ])) {
-            $this->{'process'.$action}($idShop);
+            $this->{'process'.$action}($entityType, $actionType, $idShop);
         }
 
-        die('N/A');
+        die('KO');
     }
 
     /**
-     * Process export all products
+     * Handle cron functions
+     * 
+     * @param string $actionType
+     * @param string $entityType
+     * @param int    $idShop
      *
-     * @param int $idShop
-     *
-     * @since 1.1.0
      * @throws PrestaShopException
      */
-    protected function processExportAllProducts($idShop)
+    protected function processCron($actionType, $entityType, $idShop)
     {
-        $data = $this->module->cronExportProducts($idShop, false, 'start');
-        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-            $this->module->cronExportProducts($idShop, false, 'next');
+        if ($actionType === 'ExportAll') {
+            $data = $this->module->cronExport($entityType, $idShop, false, 'start');
+            for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+                $this->module->cronExport($entityType, $idShop, false, 'next');
+            }
+
+            die('OK');
+        } elseif ($actionType === 'ExportRemaining') {
+            $data = $this->module->cronExport($entityType, $idShop, true, 'start');
+            for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+                $this->module->cronExport($entityType, $idShop, true, 'next');
+            }
+
+            die('OK');
+        } elseif ($actionType === 'Reset') {
+            if ($this->module->processReset($entityType, $idShop, false)) {
+                die('ok');
+            }
+
+            die('OK');
         }
 
-        die('ok');
-    }
-
-    /**
-     * Process export remaining products
-     *
-     * @param int $idShop
-     *
-     * @since 1.1.0
-     * @throws PrestaShopException
-     */
-    protected function processExportRemainingProducts($idShop)
-    {
-        $data = $this->module->cronExportProducts($idShop, true, 'start');
-        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-            $this->module->cronExportProducts($idShop, true, 'next');
-        }
-
-        die('ok');
-    }
-
-    /**
-     * Reset product sync data
-     *
-     * @param int $idShop
-     *
-     * @since 1.0.0
-     * @throws PrestaShopException
-     */
-    protected function processResetProducts($idShop)
-    {
-        if ($this->module->processResetProducts($idShop, false)) {
-            die('ok');
-        }
-
-        die('fail');
-    }
-
-    /**
-     * Process export all carts
-     *
-     * @param int $idShop
-     *
-     * @since 1.1.0
-     * @throws PrestaShopException
-     */
-    protected function processExportAllCarts($idShop)
-    {
-        $data = $this->module->cronExportCarts($idShop, false, 'start');
-        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-            $this->module->cronExportCarts($idShop, false, 'next');
-        }
-
-        die('ok');
-    }
-
-    /**
-     * Process export remaining carts
-     *
-     * @param int $idShop
-     *
-     * @since 1.1.0
-     * @throws PrestaShopException
-     */
-    protected function processExportRemainingCarts($idShop)
-    {
-        $data = $this->module->cronExportCarts($idShop, true, 'start');
-        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-            $this->module->cronExportCarts($idShop, true, 'next');
-        }
-
-        die('ok');
-    }
-
-    /**
-     * Rest cart sync data
-     *
-     * @param int $idShop
-     *
-     * @since 1.1.0
-     */
-    protected function processResetCarts($idShop)
-    {
-        if ($this->module->processResetCarts($idShop, false)) {
-            die('ok');
-        }
-
-        die('fail');
-    }
-
-    /**
-     * Process export all orders
-     *
-     * @param int $idShop
-     *
-     * @since 1.1.0
-     * @throws PrestaShopException
-     */
-    protected function processExportAllOrders($idShop)
-    {
-        $data = $this->module->cronExportOrders($idShop, false, 'start');
-        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-            $this->module->cronExportOrders($idShop, false, 'next');
-        }
-
-        die('ok');
-    }
-
-    /**
-     * Process export remaining orders
-     *
-     * @param int $idShop
-     *
-     * @since 1.1.0
-     * @throws PrestaShopException
-     */
-    protected function processExportRemainingOrders($idShop)
-    {
-        $data = $this->module->cronExportOrders($idShop, true, 'start');
-        for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-            $this->module->cronExportOrders($idShop, true, 'next');
-        }
-
-        die('ok');
-    }
-
-    /**
-     * Reset order sync data
-     *
-     * @param int $idShop
-     *
-     * @since 1.1.0
-     */
-    protected function processResetOrders($idShop)
-    {
-        if ($this->module->processResetOrders($idShop, false)) {
-            die('ok');
-        }
-
-        die('fail');
+        die('KO');
     }
 }

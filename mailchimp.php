@@ -17,6 +17,8 @@
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise\EachPromise;
 use MailChimpModule\MailChimpCart;
 use MailChimpModule\MailChimpOrder;
 use MailChimpModule\MailChimpProduct;
@@ -53,7 +55,8 @@ class MailChimp extends Module
     const IMPORT_OPTED_IN = 'MAILCHIMP_IMPORT_OPTED_IN';
     const LAST_IMPORT = 'MAILCHIMP_LAST_IMPORT';
     const LAST_IMPORT_ID = 'MAILCHIMP_LAST_IMPORT_ID';
-    const API_TIMEOUT = 10;
+    const API_TIMEOUT = 20;
+    const API_CONCURRENCY = 10;
 
     const SUBSCRIBERS_SYNC_COUNT = 'MAILCHIMP_SUBSCRIBERS_SYNC_COUNT';
     const SUBSCRIBERS_SYNC_TOTAL = 'MAILCHIMP_SUBSCRIBERS_SYNC_TOTAL';
@@ -69,7 +72,7 @@ class MailChimp extends Module
     const CARTS_LAST_SYNC = 'CARTS_LAST_SYNC';
     const ORDERS_LAST_SYNC = 'ORDERS_LAST_SYNC';
 
-    const EXPORT_CHUNK_SIZE = 1000;
+    const EXPORT_CHUNK_SIZE = 10;
 
     const MENU_IMPORT = 1;
     const MENU_SHOPS = 2;
@@ -81,8 +84,6 @@ class MailChimp extends Module
 
     /** @var string $baseUrl */
     public $baseUrl;
-    /** @var \MailChimpModule\MailChimp\MailChimp $mailChimp */
-    protected $mailChimp;
     /** @var array $mailChimpLanguages */
     public static $mailChimpLanguages = [
         'en' => 'en',
@@ -138,6 +139,7 @@ class MailChimp extends Module
         'vi' => 'vi',
         'gb' => 'en',
     ];
+    protected static $apiKey;
 
     /**
      * MailChimp constructor.
@@ -153,7 +155,6 @@ class MailChimp extends Module
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
-        $this->tb_versions_compliancy = '~1.0.1';
 
         parent::__construct();
 
@@ -164,10 +165,10 @@ class MailChimp extends Module
 
         if (isset(Context::getContext()->employee->id) && Context::getContext()->employee->id) {
             $this->baseUrl = $this->context->link->getAdminLink('AdminModules', true).'&'.http_build_query([
-                'configure' => $this->name,
-                'tab_module' => $this->tab,
-                'module_name' => $this->name,
-            ]);
+                    'configure'   => $this->name,
+                    'tab_module'  => $this->tab,
+                    'module_name' => $this->name,
+                ]);
         }
     }
 
@@ -264,13 +265,26 @@ class MailChimp extends Module
      * @param bool $prepare Prepare for display in e.g. HelperForm
      *
      * @return array|bool
+     * @throws PrestaShopException
      */
     public function getLists($prepare = false)
     {
+        $apiKey = static::getApiKey();
+        $dc = substr($apiKey, -4);
+
         try {
-            $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
-            $mailChimp->verifySsl = false;
-            $lists = $mailChimp->get('lists');
+            $lists = json_decode((string) (new Client([
+                'http_errors' => false,
+                'verify' => _PS_TOOL_DIR_.'cacert.pem',
+                'timeout' => static::API_TIMEOUT,
+                'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
+            ]))->get('lists', [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                    'User-Agent'    => static::getUserAgent(),
+                ]
+            ])->getBody(), true);
 
             if ($prepare) {
                 $preparedList = [];
@@ -295,7 +309,9 @@ class MailChimp extends Module
      * @return void
      *
      * @since 1.1.0
-     **/
+     *
+     * @throws PrestaShopException
+     */
     public function hookDisplayHeader()
     {
         // Set MailChimp tracking code
@@ -332,11 +348,11 @@ class MailChimp extends Module
                     date('Y-m-d H:i:s')
                 );
                 if (!$this->addOrUpdateSubscription($customer)) {
-                    if (is_object($this->mailChimp)) {
-                        Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-                    } else {
-                        Logger::addLog('MailChimp customer subscription failed');
-                    }
+//                    if (is_object($this->mailChimp)) {
+//                        Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+//                    } else {
+//                        Logger::addLog('MailChimp customer subscription failed');
+//                    }
                 }
             }
         }
@@ -349,6 +365,8 @@ class MailChimp extends Module
      *
      * @return void
      *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     public function hookActionValidateOrder($params)
@@ -374,11 +392,11 @@ class MailChimp extends Module
             }
         } catch (Exception $e) {
             if (isset ($cookie->mc_tc) && isset($params['order']->id)) {
-                Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_tc for Order {$params['order']->id}", 3);
+                Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_tc for Order {$params['order']->id}", 2);
             } elseif (isset ($cookie->mc_cid) && isset($params['order']->id)) {
-                Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_cid for Order {$params['order']->id}", 3);
+                Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_cid for Order {$params['order']->id}", 2);
             } else {
-                Logger::addLog('Unable to set Mailchimp tracking code for Order', 3);
+                Logger::addLog('Unable to set Mailchimp tracking code for Order', 2);
             }
         }
     }
@@ -438,11 +456,11 @@ class MailChimp extends Module
                 $params['newCustomer']->newsletter_date_add
             );
             if (!$this->addOrUpdateSubscription($customer)) {
-                if (is_object($this->mailChimp)) {
-                    Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-                } else {
-                    Logger::addLog('MailChimp customer subscription failed');
-                }
+//                if (is_object($this->mailChimp)) {
+//                    Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+//                } else {
+//                    Logger::addLog('MailChimp customer subscription failed');
+//                }
             }
         }
     }
@@ -471,11 +489,11 @@ class MailChimp extends Module
             date('Y-m-d H:i:s')
         );
         if (!$this->addOrUpdateSubscription($customerMC)) {
-            if (is_object($this->mailChimp)) {
-                Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-            } else {
-                Logger::addLog('MailChimp customer subscription failed');
-            }
+//            if (is_object($this->mailChimp)) {
+//                Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+//            } else {
+//                Logger::addLog('MailChimp customer subscription failed');
+//            }
         }
 
     }
@@ -505,11 +523,11 @@ class MailChimp extends Module
             date('Y-m-d H:i:s')
         );
         if (!$this->addOrUpdateSubscription($customerMC)) {
-            if (is_object($this->mailChimp)) {
-                Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-            } else {
-                Logger::addLog('MailChimp customer subscription failed');
-            }
+//            if (is_object($this->mailChimp)) {
+//                Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+//            } else {
+//                Logger::addLog('MailChimp customer subscription failed');
+//            }
         }
     }
 
@@ -536,13 +554,45 @@ class MailChimp extends Module
                 date('Y-m-d H:i:s')
             );
             if (!$this->addOrUpdateSubscription($customer)) {
-                if (is_object($this->mailChimp)) {
-                    Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
-                } else {
-                    Logger::addLog('MailChimp customer subscription failed');
-                }
+//                if (is_object($this->mailChimp)) {
+//                    Logger::addLog('MailChimp customer subscription failed: '.$this->mailChimp->getLastError());
+//                } else {
+//                    Logger::addLog('MailChimp customer subscription failed');
+//                }
             }
         }
+    }
+
+    /**
+     * @return string
+     * @throws PrestaShopException
+     */
+    public static function getApiKey()
+    {
+        if (!static::$apiKey) {
+            $idShop = (int) Configuration::get('PS_SHOP_DEFAULT');
+            $idShopGroup = (int) Shop::getGroupFromShop($idShop, true);
+            static::$apiKey = Configuration::get(static::API_KEY, null ,$idShopGroup, $idShop);
+        }
+
+        return static::$apiKey;
+    }
+
+    /**
+     * @param string $apiKey
+     *
+     * @return bool
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public static function setApiKey($apiKey)
+    {
+        $idShop = (int) Configuration::get('PS_SHOP_DEFAULT');
+        $idShopGroup = (int) Shop::getGroupFromShop($idShop, true);
+
+        static::$apiKey = $apiKey;
+        return Configuration::updateValue(static::API_KEY, $apiKey, false, $idShopGroup, $idShop);
     }
 
     /**
@@ -715,12 +765,11 @@ class MailChimp extends Module
             Configuration::updateValue(static::SUBSCRIBERS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportSubscribers(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop);
+            $this->exportSubscribers(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop);
 
             die(json_encode([
                 'success'   => true,
                 'remaining' => $remaining,
-                'batch_id'  => $idBatch,
             ]));
         }
     }
@@ -760,12 +809,11 @@ class MailChimp extends Module
             Configuration::updateValue(static::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
+            $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
 
             die(json_encode([
                 'success'   => true,
                 'remaining' => $remaining,
-                'batch_id'  => $idBatch,
             ]));
         }
     }
@@ -804,12 +852,11 @@ class MailChimp extends Module
             Configuration::updateValue(static::CARTS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportCarts(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
+            $this->exportCarts(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
 
             die(json_encode([
                 'success'   => true,
                 'remaining' => $remaining,
-                'batch_id'  => $idBatch,
             ]));
         }
     }
@@ -849,12 +896,11 @@ class MailChimp extends Module
             Configuration::updateValue(static::ORDERS_SYNC_COUNT, $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportOrders(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
+            $this->exportOrders(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
 
             die(json_encode([
                 'success'   => true,
                 'remaining' => $remaining,
-                'batch_id'  => $idBatch,
             ]));
         }
     }
@@ -870,7 +916,7 @@ class MailChimp extends Module
     public function displayAjaxResetProducts()
     {
         if ($idShop = (int) Tools::getValue('shop')) {
-            $this->processResetProducts($idShop, true);
+            $this->processReset('products', $idShop, true);
         }
 
         die(json_encode([
@@ -879,90 +925,23 @@ class MailChimp extends Module
     }
 
     /**
-     * Reset product sync data
-     *
-     * @param int  $idShop
-     * @param bool $ajax
-     *
-     * @return bool
-     *
-     * @since 1.1.0
-     * @throws PrestaShopException
-     */
-    public function processResetProducts($idShop, $ajax = false)
-    {
-        try {
-            if (Db::getInstance()->delete(
-                bqSQL(MailChimpProduct::$definition['table']),
-                '`id_shop` = '.(int) $idShop
-            )) {
-                if ($ajax) {
-                    die(
-                    json_encode(
-                        [
-                            'success' => true,
-                        ]
-                    )
-                    );
-                }
-
-                return true;
-            }
-        } catch (PrestaShopDatabaseException $e) {
-            return false;
-        }
-
-        return false;
-    }
-
-    /**
      * Reset cart sync data
      *
      * @return void
      *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     public function displayAjaxResetCarts()
     {
         if ($idShop = (int) Tools::getValue('shop')) {
-            $this->processResetCarts($idShop, true);
+            $this->processReset('carts', $idShop, true);
         }
 
         die(json_encode([
             'success' => false,
         ]));
-    }
-
-    /**
-     * Reset cart sync data
-     *
-     * @param int  $idShop
-     * @param bool $ajax
-     *
-     * @return bool
-     *
-     * @since 1.1.0
-     */
-    public function processResetCarts($idShop, $ajax = false)
-    {
-        try {
-            $success = Db::getInstance()->execute(
-                'DELETE mc
-                 FROM `'._DB_PREFIX_.bqSQL(MailChimpCart::$definition['table']).'` mc
-                 INNER JOIN `'._DB_PREFIX_.'cart` c ON c.`id_cart` = mc.`id_cart`
-                 WHERE c.`id_shop` = '.(int) $idShop
-            );
-        } catch (PrestaShopException $e) {
-            $success = false;
-        }
-
-        if ($ajax) {
-            die(json_encode([
-                'success' => $success,
-            ]));
-        }
-
-        return $success;
     }
 
     /**
@@ -970,12 +949,14 @@ class MailChimp extends Module
      *
      * @return void
      *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     public function displayAjaxResetOrders()
     {
         if ($idShop = (int) Tools::getValue('shop')) {
-            $this->processResetOrders($idShop, true);
+            $this->processReset('orders', $idShop, true);
         }
 
         die(json_encode([
@@ -986,23 +967,48 @@ class MailChimp extends Module
     /**
      * Reset order sync data
      *
-     * @param int  $idShop
-     * @param bool $ajax
+     * @param string $entityType
+     * @param int    $idShop
+     * @param bool   $ajax
      *
      * @return bool
      *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.1.0
      */
-    public function processResetOrders($idShop, $ajax = false)
+    public function processReset($entityType = 'products', $idShop, $ajax = false)
     {
+        switch ($entityType) {
+            case 'products':
+                $table = 'product_shop';
+                $primary = 'id_product';
+                break;
+            case 'carts':
+                $table = 'cart';
+                $primary = 'id_cart';
+                break;
+            case 'orders':
+                $table = 'orders';
+                $primary = 'id_order';
+                break;
+        }
+        $entity = 'MailChimp'.ucfirst(substr($entityType, 0, strlen($entityType) - 1));
+
         try {
             $success = Db::getInstance()->execute(
                 'DELETE mo
-                 FROM `'._DB_PREFIX_.bqSQL(MailChimpOrder::$definition['table']).'` mo
-                 INNER JOIN `'._DB_PREFIX_.'orders` o ON o.`id_order` = mo.`id_order`
+                 FROM `'._DB_PREFIX_.bqSQL((new ReflectionProperty('\\MailChimpModule\\'.$entity, 'definition'))->getValue()['table']).'` mo
+                 INNER JOIN `'._DB_PREFIX_.bqSQL($table).'` o ON o.`'.bqSQL($primary).'` = mo.`'.bqSQL($primary).'`
                  WHERE o.`id_shop` = '.(int) $idShop
             );
+        } catch (PrestaShopDatabaseException $e) {
+            Logger::addLog("MailChimp module error: {$e->getMessage()}");
         } catch (PrestaShopException $e) {
+            Logger::addLog("MailChimp module error: {$e->getMessage()}");
+            $success = false;
+        } catch (ReflectionException $e) {
+            Logger::addLog("MailChimp module error: {$e->getMessage()}");
             $success = false;
         }
 
@@ -1016,131 +1022,38 @@ class MailChimp extends Module
     }
 
     /**
-     * Cron process export all products
-     *
+     * @param string $type            `products`, `carts` or `orders`
      * @param int    $idShop
-     * @param bool   $exportRemaining
-     * @param string $submit
-     *
-     * @return false|array
-     * @throws Exception
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     * @since 1.1.0
-     */
-    public function cronExportProducts($idShop, $exportRemaining, $submit)
-    {
-        if ($submit === 'start') {
-            $totalProducts = MailChimpProduct::countProducts($idShop, $exportRemaining);
-            $totalChunks = ceil($totalProducts / static::EXPORT_CHUNK_SIZE);
-
-            Configuration::updateValue(static::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(static::PRODUCTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
-
-            return [
-                'totalChunks'   => $totalChunks,
-                'totalProducts' => $totalProducts,
-            ];
-        } elseif ($submit === 'next') {
-            $count = (int) Configuration::get(static::PRODUCTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(static::PRODUCTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(static::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
-            $remaining = $total - $count;
-
-            $idBatch = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
-
-            return [
-                'success'   => true,
-                'remaining' => $remaining,
-                'batch_id'  => $idBatch,
-            ];
-        }
-
-        return false;
-    }
-
-    /**
-     * Cron process export all carts
-     *
-     * @param int    $idShop
-     * @param bool   $exportRemaining
+     * @param int    $exportRemaining
      * @param string $submit
      *
      * @return array|false
-     * @throws Exception
      * @throws PrestaShopException
-     * @since 1.1.0
      */
-    public function cronExportCarts($idShop, $exportRemaining, $submit)
+    public function cronExport($type = 'products', $idShop, $exportRemaining, $submit)
     {
         if ($submit === 'start') {
-            $totalCarts = MailChimpCart::countCarts($idShop, $exportRemaining);
-            $totalChunks = ceil($totalCarts / static::EXPORT_CHUNK_SIZE);
+            $totalItems = call_user_func('MailChimp'.ucfirst(substr($type, 0, strlen($type) - 1)).'::count'.ucfirst($type), $idShop, $exportRemaining);
+            $totalChunks = ceil($totalItems / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(static::CARTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(static::CARTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
+            Configuration::updateValue(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_COUNT'), 0, false, 0, 0);
+            Configuration::updateValue(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_TOTAL'), $totalChunks, false, 0, 0);
 
             return [
-                'totalChunks' => $totalChunks,
-                'totalCarts'  => $totalCarts,
+                'totalChunks'          => $totalChunks,
+                'total'.ucfirst($type) => $totalItems,
             ];
         } elseif ($submit === 'next') {
-            $count = (int) Configuration::get(static::CARTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(static::CARTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(static::CARTS_SYNC_COUNT, $count, null, 0, 0);
+            $count = (int) Configuration::get(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_COUNT'), null, 0, 0) + 1;
+            $total = (int) Configuration::get(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_TOTAL'), null, 0, 0);
+            Configuration::updateValue(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_COUNT'), $count, null, 0, 0);
             $remaining = $total - $count;
 
-            $idBatch = $this->exportCarts(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
+            $this->{'export'.ucfirst($type)}(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
 
             return [
                 'success'   => true,
                 'remaining' => $remaining,
-                'batch_id'  => $idBatch,
-            ];
-        }
-
-        return false;
-    }
-
-    /**
-     * Cron export all orders
-     *
-     * @param int    $idShop
-     * @param bool   $exportRemaining
-     * @param string $submit
-     *
-     * @return false|array
-     *
-     * @throws Exception
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     * @since 1.0.0
-     */
-    public function cronExportOrders($idShop, $exportRemaining, $submit)
-    {
-        if ($submit === 'start') {
-            $totalOrders = MailChimpOrder::countOrders($idShop, $exportRemaining);
-            $totalChunks = ceil($totalOrders / static::EXPORT_CHUNK_SIZE);
-
-            Configuration::updateValue(static::ORDERS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(static::ORDERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
-
-            return [
-                'totalChunks' => $totalChunks,
-                'totalOrders' => $totalOrders,
-            ];
-        } elseif ($submit === 'next') {
-            $count = (int) Configuration::get(static::ORDERS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(static::ORDERS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(static::ORDERS_SYNC_COUNT, $count, null, 0, 0);
-            $remaining = $total - $count;
-
-            $idBatch = $this->exportOrders(($count - 1) * static::EXPORT_CHUNK_SIZE, $exportRemaining);
-
-            return [
-                'success'   => true,
-                'remaining' => $remaining,
-                'batch_id'  => $idBatch,
             ];
         }
 
@@ -1154,10 +1067,11 @@ class MailChimp extends Module
      */
     protected function postProcess()
     {
+        $idShopDefault = (int) Configuration::get('PS_SHOP_DEFAULT');
         if (Tools::isSubmit('submitApiKey')) {
             // Check if MailChimp API key is valid
-            Configuration::updateValue(static::API_KEY, Tools::getValue(static::API_KEY), false, null, 1);
-            Configuration::updateValue(static::API_KEY_VALID, false, false, null, 1);
+            static::setApiKey(Tools::getValue(static::API_KEY));
+            Configuration::updateValue(static::API_KEY_VALID, false, false, null, $idShopDefault);
             $this->checkApiKey();
         } elseif (Tools::isSubmit('submitSettings')) {
             // Update all the configuration
@@ -1175,37 +1089,61 @@ class MailChimp extends Module
         } elseif (Tools::isSubmit('submitShops')) {
             $shopLists = Tools::getValue('shop_list_id');
             $shopTaxes = Tools::getValue('shop_tax');
-            $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
+            $apiKey = static::getApiKey();
+            $dc = substr($apiKey, -4);
+            $client = new \GuzzleHttp\Client([
+                'http_errors' => false,
+                'verify'      => _PS_TOOL_DIR_.'cacert.pem',
+                'base_uri'    => "https://$dc.api.mailchimp.com/3.0/",
+            ]);
+
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
-                    $this->checkMergeFields($idShop, $idList);
+                    $this->checkMergeFields($idList);
 
                     $shop = new Shop($idShop);
                     $defaultIdCurrency = (int) Configuration::get('PS_CURRENCY_DEFAULT', null, $shop->id_shop_group, $shop->id);
                     $currency = new Currency($defaultIdCurrency);
 
-                    $result = $mailChimp->post(
-                        '/ecommerce/stores',
-                        [
-                            'id'            => 'tbstore_'.(int) $idShop,
-                            'list_id'       => $idList,
-                            'name'          => $shop->name,
-                            'domain'        => $shop->domain_ssl,
-                            'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
-                            'currency_code' => strtoupper($currency->iso_code),
-                        ]
-                    );
-
-                    if (!isset($result['id'])) {
-                        $mailChimp->patch(
-                            '/ecommerce/stores/tbstore_'.(int) $idShop,
+                    $result = json_decode((string) $client
+                        ->post(
+                            'ecommerce/stores',
                             [
-                                'id'            => 'tbstore_'.(int) $idShop,
-                                'list_id'       => $idList,
-                                'name'          => $shop->name,
-                                'domain'        => $shop->domain_ssl,
-                                'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
-                                'currency_code' => strtoupper($currency->iso_code),
+                                'headers' => [
+                                    'Content-Type'  => 'application/json;charset=UTF-8',
+                                    'Accept'        => 'application/json',
+                                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                                    'User-Agent'    => static::getUserAgent(),
+                                ],
+                                'body'    => json_encode([
+                                    'id'            => 'tbstore_'.(int) $idShop,
+                                    'list_id'       => $idList,
+                                    'name'          => $shop->name,
+                                    'domain'        => $shop->domain_ssl,
+                                    'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
+                                    'currency_code' => strtoupper($currency->iso_code),
+                                ]),
+                            ]
+                        )->getBody(), true);
+
+                    if (empty($result['id'])) {
+                        $client->patch(
+                            'ecommerce/stores/tbstore_'.(int) $idShop,
+                            [
+                                'headers' => [
+                                    'Accept'        => 'application/json',
+                                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                                    'Content-Type'  => 'application/json;charset=UTF-8',
+                                    'User-Agent'    => static::getUserAgent(),
+                                ],
+                                'body' => json_encode([
+                                    'id'            => 'tbstore_'.(int) $idShop,
+                                    'list_id'       => $idList,
+                                    'name'          => $shop->name,
+                                    'domain'        => $shop->domain_ssl,
+                                    'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
+                                    'currency_code' => strtoupper($currency->iso_code),
+                                ])
                             ]
                         );
                     }
@@ -1266,11 +1204,11 @@ class MailChimp extends Module
                     Logger::addLog('Webhook saved to database, List ID: '.$idList.', URL: '.$callbackUrl);
                 }
             } else {
-                if (is_object($this->mailChimp)) {
-                    Logger::addLog('Could not register webhook for list ID: '.$idList.', Error: '.$this->mailChimp->getLastError());
-                } else {
-                    Logger::addLog('Could not register webhook for list');
-                }
+//                if (is_object($this->mailChimp)) {
+//                    Logger::addLog('Could not register webhook for list ID: '.$idList.', Error: '.$this->mailChimp->getLastError());
+//                } else {
+//                    Logger::addLog('Could not register webhook for list');
+//                }
             }
         }
 
@@ -1311,31 +1249,43 @@ class MailChimp extends Module
             $url = $this->urlForWebhook();
         }
 
-        $urlWebhooks = "/lists/{$idList}/webhooks";
-        $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
-        $this->mailChimp->verifySsl = false;
-        $result = $this->mailChimp->post(
-            $urlWebhooks,
-            [
-                'url'     => $url,
-                'events'  => [
-                    'subscribe'   => true,
-                    'unsubscribe' => true,
-                    'profile'     => false,
-                    'cleaned'     => true,
-                    'upemail'     => true,
-                    'campaign'    => false,
-                ],
-                'sources' => [
-                    'user'  => true,
-                    'admin' => true,
-                    'api'   => false,
-                ],
-                'list_id' => $idList,
-            ]
-        );
+        $apiKey = Configuration::get(static::API_KEY, null, null, (int) Configuration::get('PS_SHOP_DEFAULT'));
+        $dc = substr($apiKey, -4);
+        $client = new Client([
+            'timeout' => static::API_TIMEOUT,
+            'verify' => _PS_TOOL_DIR_.'cacert.pem',
+            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
+        ]);
 
-        return (bool) $result;
+        $result = json_decode((string) $client->post(
+            "lists/{$idList}/webhooks",
+            [
+                'headers' => [
+                    'Accept'        => 'application/json',
+                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                    'Content-Type'  => 'application/json;charset=UTF-8',
+                    'User-Agent'    => static::getUserAgent(),
+                ],
+                'body'   => json_encode([
+                    'url'     => $url,
+                    'events'  => [
+                        'subscribe'   => true,
+                        'unsubscribe' => true,
+                        'profile'     => false,
+                        'cleaned'     => true,
+                        'upemail'     => true,
+                        'campaign'    => false,
+                    ],
+                    'sources' => [
+                        'user'  => true,
+                        'admin' => true,
+                        'api'   => false,
+                    ],
+                ]),
+            ]
+        )->getBody(), true);
+
+        return !empty($result['id']);
     }
 
     /**
@@ -1349,37 +1299,53 @@ class MailChimp extends Module
      */
     protected function importList($list)
     {
-        // Prepare the request
-        try {
-            $this->mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
-        } catch (Exception $e) {
-            return false;
-        }
-        $this->mailChimp->verifySsl = false;
+        $apiKey = static::getApiKey();
+        $dc = substr($apiKey, -4);
+        $success = true;
 
-        $batch = $this->mailChimp->newBatch();
+        $client = new Client([
+            'http_errors' => false,
+            'verify'      => _PS_TOOL_DIR_.'cacert.pem',
+            'timeout'     => static::API_TIMEOUT,
+            'base_uri'    => "https://$dc.api.mailchimp.com/3.0/",
+        ]);
 
         // Append subscribers to batch operation request using PUT method (to enable update existing)
-        for ($i = 0; $i < count($list); $i++) {
-            $subscriber = $list[$i];
-            $hash = $this->mailChimp->subscriberHash($subscriber->getEmail());
-            $mailChimpShop = MailChimpShop::getByShopId(Context::getContext()->shop->id);
-            $url = sprintf('lists/%s/members/%s', $mailChimpShop->list_id, $hash);
-            $batch->put('op'.($i + 1), $url, $subscriber->getAsArray());
-        }
+        $promises = call_user_func(function () use ($list, $client, $apiKey) {
+            for ($i = 0; $i < count($list); $i++) {
+                /** @var MailChimpSubscriber $subscriber */
+                $subscriber = $list[$i];
+                $hash = md5(mb_strtolower($subscriber->getEmail()));
+                $mailChimpShop = MailChimpShop::getByShopId(Context::getContext()->shop->id);
+                yield $client->putAsync(
+                    "lists/{$mailChimpShop->list_id}/members/{$hash}",
+                    [
+                        'headers' => [
+                            'Accept'        => 'application/json',
+                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                            'Content-Type'  => 'application/json;charset=UTF-8',
+                            'User-Agent'    => static::getUserAgent(),
+                        ],
+                        'body'    => $subscriber->getAsJSON(),
+                    ]
+                );
+            }
+        });
 
-        // Execute the batch and check status
-        $result = $batch->execute();
+        (new EachPromise($promises, [
+            'concurrency' => static::API_CONCURRENCY,
+            'rejected'    => function ($reason) use (&$success) {
+                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                    $body = (string) $reason->getResponse()->getBody();
+                    Logger::addLog("MailChimp client error: {$body}", 2);
+                } else {
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
+                }
+                $success = false;
+            },
+        ]))->promise()->wait();
 
-        if (!$result) {
-            return false;
-        } else {
-            $batchId = $result['id'];
-            Logger::addLog('MailChimp batch operation started with ID: '.$batchId);
-            Configuration::updateValue(static::LAST_IMPORT_ID, $batchId);
-
-            return true;
-        }
+        return $success;
     }
 
     /**
@@ -1393,6 +1359,7 @@ class MailChimp extends Module
      */
     protected function displayMainPage()
     {
+        $this->context->controller->addJS($this->_path.'views/js/sweetalert.min.js');
         $this->loadTabs();
 
         $this->context->smarty->assign([
@@ -1406,82 +1373,6 @@ class MailChimp extends Module
     }
 
     /**
-     * Display import form
-     *
-     * @return string
-     * @throws Exception
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     * @throws SmartyException
-     */
-    protected function displayImportForm()
-    {
-        return $this->generateApiForm();
-    }
-
-    /**
-     * Display cron job form
-     *
-     * @return string
-     * @throws Exception
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     * @throws SmartyException
-     */
-    protected function displayCronJobs()
-    {
-        return $this->generateCronForm();
-    }
-
-    /**
-     * @return string
-     * @throws Exception
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     * @throws SmartyException
-     */
-    protected function displayShopsForm()
-    {
-        return $this->generateShopsForm();
-    }
-
-    /**
-     * @return string
-     * @throws Exception
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     * @throws SmartyException
-     */
-    protected function displayProductsForm()
-    {
-        return $this->generateProductsForm();
-    }
-
-    /**
-     * @return string
-     * @throws Exception
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     * @throws SmartyException
-     */
-    protected function displayCartsForm()
-    {
-        return $this->generateCartsForm();
-    }
-
-    /**
-     * @return string
-     * @throws Exception
-     * @throws PrestaShopDatabaseException
-     * @throws PrestaShopException
-     * @throws SmartyException
-     */
-    protected function displayOrdersForm()
-    {
-        return $this->generateOrdersForm();
-    }
-
-    /**
      * @return string
      *
      * @throws Exception
@@ -1490,7 +1381,7 @@ class MailChimp extends Module
      * @throws SmartyException
      * @since 1.0.0
      */
-    protected function generateApiForm()
+    protected function displayApiForm()
     {
         $fields = [];
 
@@ -1601,7 +1492,7 @@ class MailChimp extends Module
      * @throws SmartyException
      * @since 1.0.0
      */
-    protected function generateCronForm()
+    protected function displayCronForm()
     {
         $context = Context::getContext();
         $token = Tools::substr(Tools::encrypt($this->name.'/cron'), 0, 10);
@@ -1626,9 +1517,9 @@ class MailChimp extends Module
                     $this->name,
                     'cron',
                     [
-                        'action' => 'ExportAllProducts',
-                        'token' => $token,
-                        'id_shop' => $idShop
+                        'action'  => 'ExportAllProducts',
+                        'token'   => $token,
+                        'id_shop' => $idShop,
                     ],
                     true,
                     $idLang,
@@ -1639,9 +1530,9 @@ class MailChimp extends Module
                     $this->name,
                     'cron',
                     [
-                        'action' => 'ExportRemainingProducts',
-                        'token' => $token,
-                        'id_shop' => $idShop
+                        'action'  => 'ExportRemainingProducts',
+                        'token'   => $token,
+                        'id_shop' => $idShop,
                     ],
                     true,
                     $idLang,
@@ -1652,9 +1543,9 @@ class MailChimp extends Module
                     $this->name,
                     'cron',
                     [
-                        'action' => 'ExportAllCarts',
-                        'token' => $token,
-                        'id_shop' => $idShop
+                        'action'  => 'ExportAllCarts',
+                        'token'   => $token,
+                        'id_shop' => $idShop,
                     ],
                     true,
                     $idLang,
@@ -1665,9 +1556,9 @@ class MailChimp extends Module
                     $this->name,
                     'cron',
                     [
-                        'action' => 'ExportRemainingCarts',
-                        'token' => $token,
-                        'id_shop' => $idShop
+                        'action'  => 'ExportRemainingCarts',
+                        'token'   => $token,
+                        'id_shop' => $idShop,
                     ],
                     true,
                     $idLang,
@@ -1678,9 +1569,9 @@ class MailChimp extends Module
                     $this->name,
                     'cron',
                     [
-                        'action' => 'ExportAllOrders',
-                        'token' => $token,
-                        'id_shop' => $idShop
+                        'action'  => 'ExportAllOrders',
+                        'token'   => $token,
+                        'id_shop' => $idShop,
                     ],
                     true,
                     $idLang,
@@ -1691,9 +1582,9 @@ class MailChimp extends Module
                     $this->name,
                     'cron',
                     [
-                        'action' => 'ExportRemainingOrders',
-                        'token' => $token,
-                        'id_shop' => $idShop
+                        'action'  => 'ExportRemainingOrders',
+                        'token'   => $token,
+                        'id_shop' => $idShop,
                     ],
                     true,
                     $idLang,
@@ -1707,7 +1598,7 @@ class MailChimp extends Module
 
         $fieldsForm2 = [
             'form' => [
-                'legend' => [
+                'legend'      => [
                     'title' => $this->l('Cron Settings'),
                     'icon'  => 'icon-cogs',
                 ],
@@ -1738,7 +1629,7 @@ class MailChimp extends Module
     protected function getConfigFieldsValues()
     {
         return [
-            static::API_KEY            => Configuration::get(static::API_KEY, null, null, 1),
+            static::API_KEY            => static::getApiKey(),
             static::CONFIRMATION_EMAIL => Configuration::get(static::CONFIRMATION_EMAIL),
             static::IMPORT_OPTED_IN    => Configuration::get(static::IMPORT_OPTED_IN),
         ];
@@ -1753,7 +1644,7 @@ class MailChimp extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function generateShopsForm()
+    protected function displayShopsForm()
     {
         $helper = new HelperForm();
 
@@ -1772,7 +1663,7 @@ class MailChimp extends Module
         $helper->token = '';
 
         $helper->tpl_vars = [
-            'languages' => $this->context->controller->getLanguages(),
+            'languages'   => $this->context->controller->getLanguages(),
             'id_language' => $this->context->language->id,
         ];
 
@@ -1803,9 +1694,9 @@ class MailChimp extends Module
             'form' => [
                 'legend' => [
                     'title' => $this->l('Shop settings'),
-                    'icon' => 'icon-building',
+                    'icon'  => 'icon-building',
                 ],
-                'input' => [
+                'input'  => [
                     [
                         'type'  => 'mailchimp_shops',
                         'label' => $this->l('Shops to sync'),
@@ -1833,7 +1724,7 @@ class MailChimp extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function generateProductsForm()
+    protected function displayProductsForm()
     {
         $helper = new HelperForm();
 
@@ -1852,7 +1743,7 @@ class MailChimp extends Module
         $helper->token = '';
 
         $helper->tpl_vars = [
-            'languages' => $this->context->controller->getLanguages(),
+            'languages'   => $this->context->controller->getLanguages(),
             'id_language' => $this->context->language->id,
         ];
 
@@ -1861,6 +1752,7 @@ class MailChimp extends Module
 
     /**
      * @return array
+     * @throws PrestaShopException
      */
     protected function getProductsForm()
     {
@@ -1868,9 +1760,9 @@ class MailChimp extends Module
             'form' => [
                 'legend' => [
                     'title' => $this->l('Product settings'),
-                    'icon' => 'icon-archive',
+                    'icon'  => 'icon-archive',
                 ],
-                'input' => [
+                'input'  => [
                     [
                         'type'  => 'mailchimp_products',
                         'label' => $this->l('Products to sync'),
@@ -1891,7 +1783,7 @@ class MailChimp extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function generateCartsForm()
+    protected function displayCartsForm()
     {
         $helper = new HelperForm();
 
@@ -1910,7 +1802,7 @@ class MailChimp extends Module
         $helper->token = '';
 
         $helper->tpl_vars = [
-            'languages' => $this->context->controller->getLanguages(),
+            'languages'   => $this->context->controller->getLanguages(),
             'id_language' => $this->context->language->id,
         ];
 
@@ -1919,6 +1811,7 @@ class MailChimp extends Module
 
     /**
      * @return array
+     * @throws PrestaShopException
      */
     protected function getCartsForm()
     {
@@ -1926,9 +1819,9 @@ class MailChimp extends Module
             'form' => [
                 'legend' => [
                     'title' => $this->l('Cart settings'),
-                    'icon' => 'icon-shopping-cart',
+                    'icon'  => 'icon-shopping-cart',
                 ],
-                'input' => [
+                'input'  => [
                     [
                         'type'  => 'mailchimp_carts',
                         'label' => $this->l('Carts to sync'),
@@ -1949,7 +1842,7 @@ class MailChimp extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function generateOrdersForm()
+    protected function displayOrdersForm()
     {
         $helper = new HelperForm();
 
@@ -1968,7 +1861,7 @@ class MailChimp extends Module
         $helper->token = '';
 
         $helper->tpl_vars = [
-            'languages' => $this->context->controller->getLanguages(),
+            'languages'   => $this->context->controller->getLanguages(),
             'id_language' => $this->context->language->id,
         ];
 
@@ -1977,6 +1870,7 @@ class MailChimp extends Module
 
     /**
      * @return array
+     * @throws PrestaShopException
      */
     protected function getOrdersForm()
     {
@@ -2013,7 +1907,7 @@ class MailChimp extends Module
             [
                 'name'  => $this->l('Import Settings'),
                 'icon'  => 'icon-download',
-                'value' => $this->displayImportForm(),
+                'value' => $this->displayApiForm(),
                 'badge' => false,
             ],
         ];
@@ -2048,7 +1942,7 @@ class MailChimp extends Module
         $contents[] = [
             'name'  => $this->l('Cron jobs'),
             'icon'  => 'icon-cogs',
-            'value' => $this->displayCronJobs(),
+            'value' => $this->displayCronForm(),
             'badge' => false,
         ];
 
@@ -2072,26 +1966,39 @@ class MailChimp extends Module
      */
     protected function checkApiKey()
     {
-        if (Configuration::get(static::API_KEY, null, null, 1)
-            && Configuration::get(static::API_KEY_VALID, null, null, 1)) {
+        if (static::getApiKey() && Configuration::get(static::API_KEY_VALID)) {
             return true;
         }
 
         // Show settings form only if API key is set and working
-        $apiKey = Configuration::get(static::API_KEY);
+        $apiKey = static::getApiKey();
+        $dc = substr($apiKey, -4);
         $validKey = false;
         if (isset($apiKey) && $apiKey) {
             // Check if API key is valid
             try {
-                $mailchimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
-                $mailchimp->verifySsl = false;
-                $getLists = $mailchimp->get('lists');
+                $getLists = json_decode((string) (new Client([
+                    'verify'   => _PS_TOOL_DIR_.'cacert.pem',
+                    'timeout'  => static::API_TIMEOUT,
+                    'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
+                ]))->get('lists', [
+                    'headers' => [
+                        'Accept'        => 'application/json',
+                        'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                        'User-Agent'    => static::getUserAgent(),
+                    ],
+                ])->getBody(), true);
                 if ($getLists) {
                     $validKey = true;
                     Configuration::updateValue(static::API_KEY_VALID, true);
                 }
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+                $body = (string) $e->getResponse()->getBody();
+                $this->addError("MailChimp client error: {$body}");
+            } catch (\GuzzleHttp\Exception\TransferException $e) {
+                $this->addError("MailChimp connection error: {$e->getMessage()}");
             } catch (Exception $e) {
-                $this->addError($e->getMessage());
+                $this->addError("MailChimp generic error: {$e->getMessage()}");
             }
         }
 
@@ -2104,8 +2011,7 @@ class MailChimp extends Module
      * @param int $offset
      * @param int $idShop
      *
-     * @return string MailChimp Batch ID
-     *
+     * @return string
      * @throws Exception
      * @throws PrestaShopException
      * @since 1.0.0
@@ -2117,43 +2023,67 @@ class MailChimp extends Module
         }
 
         $mailChimpShop = MailChimpShop::getByShopId($idShop);
+        $apiKey = static::getApiKey();
+        $dc = substr($apiKey, -4);
 
         $subscribers = MailChimpSubscriber::getSubscribers($idShop, $offset, static::EXPORT_CHUNK_SIZE);
         if (empty($subscribers)) {
             return '';
         }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
-        $batch = $mailChimp->newBatch();
+        $client = new Client([
+            'timeout' => static::API_TIMEOUT,
+            'verify'  => _PS_TOOL_DIR_.'cacert.pem',
+            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
+        ]);
+        $promises = call_user_func(function () use (&$subscribers, $mailChimpShop, $client, $apiKey) {
+            foreach ($subscribers as &$subscriber) {
+                $mergeFields = [
+                    'FNAME' => $subscriber['firstname'],
+                    'LNAME' => $subscriber['lastname'],
+                ];
+                if ($subscriber['birthday']) {
+                    $mergeFields['BDAY'] = date('m/d', strtotime($subscriber['birthday']));
+                }
 
-        $id = 1;
-        foreach ($subscribers as &$subscriber) {
-            $mergeFields = [
-                'FNAME' => $subscriber['firstname'],
-                'LNAME' => $subscriber['lastname'],
-            ];
-            if ($subscriber['birthday']) {
-                $mergeFields['BDAY'] = date('c', strtotime($subscriber['birthday']));
+                $subscriberHash = md5(mb_strtolower($subscriber['email']));
+                yield $client->putAsync(
+                    "lists/{$mailChimpShop->list_id}/members/{$subscriberHash}",
+                    [
+                        'headers' => [
+                            'Accept'        => 'application/json',
+                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                            'Content-Type'  => 'application/json;charset=UTF-8',
+                            'User-Agent'    => static::getUserAgent(),
+                        ],
+                        'body'    => json_encode([
+                            'email_address' => mb_strtolower($subscriber['email']),
+                            'status_if_new' => $subscriber['subscription'],
+                            'merge_fields'  => $mergeFields,
+                            'language'      => static::getMailChimpLanguageByIso($subscriber['language_code']),
+                            'ip_signup'     => (string) ($subscriber['ip_address'] ?: ''),
+                        ]),
+                    ]
+                );
             }
+        });
 
-            $subscriberHash = md5(mb_strtolower($subscriber['email']));
-            $batch->put("ms{$id}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
-                'email_address' => mb_strtolower($subscriber['email']),
-                'status_if_new' => $subscriber['subscription'],
-                'merge_fields'  => (object) $mergeFields,
-                'language'      => static::getMailChimpLanguageByIso($subscriber['language_code']),
-                'ip_signup'     => $subscriber['ip_address'],
-            ]);
+        $result = true;
+        (new EachPromise($promises, [
+            'concurrency' => static::API_CONCURRENCY,
+            'rejected' => function ($reason) use (&$success) {
+                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                    $body = (string) $reason->getResponse()->getBody();
+                    Logger::addLog("MailChimp client error: {$body}", 2);
+                } elseif ($reason instanceof \GuzzleHttp\Exception\TransferException) {
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
+                }
 
-            $id++;
-        }
+                $success = false;
+            }
+        ]))->promise()->wait();
 
-        $result = $batch->execute(static::API_TIMEOUT);
-        if (!empty($result)) {
-            return $result['id'];
-        }
-
-        return '';
+        return $result;
     }
 
     /**
@@ -2162,8 +2092,6 @@ class MailChimp extends Module
      * @param int  $offset
      * @param int  $idShop
      * @param bool $remaining
-     *
-     * @return string MailChimp Batch ID
      *
      * @throws Exception
      * @throws PrestaShopDatabaseException
@@ -2177,113 +2105,140 @@ class MailChimp extends Module
         }
 
         $idLang = (int) Configuration::get('PS_LANG_DEFAULT');
-
         $products = MailChimpProduct::getProducts($idShop, $offset, static::EXPORT_CHUNK_SIZE, $remaining);
         if (empty($products)) {
-            return '';
+            return;
         }
-
         $mailChimpShop = MailChimpShop::getByShopId($idShop);
         if (!Validate::isLoadedObject($mailChimpShop)) {
-            return false;
+            return;
         }
         $rate = 1;
         $tax = new Tax($mailChimpShop->id_tax);
         if (Validate::isLoadedObject($tax) && $tax->active) {
             $rate = 1 + ($tax->rate / 100);
         }
-
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
-        $batch = $mailChimp->newBatch();
+        $apiKey = static::getApiKey();
+        $dc = substr($apiKey, -4);
+        $client = new Client([
+            'timeout'  => static::API_TIMEOUT,
+            'verify'   => _PS_TOOL_DIR_.'cacert.pem',
+            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
+        ]);
 
         $link = \Context::getContext()->link;
 
-        foreach ($products as &$product) {
-            $productObj = new Product();
-            $productObj->hydrate($product);
-            $allImages = $productObj->getImages($idLang);
+        $promises = call_user_func(function () use (&$products, $idLang, $client, $apiKey, $idShop, $rate, $link) {
+            foreach ($products as &$product) {
+                $productObj = new Product();
+                $productObj->hydrate($product);
+                $allImages = $productObj->getImages($idLang);
 
-            if ($productObj->hasAttributes()) {
-                $allCombinations = $productObj->getAttributeCombinations($idLang);
-                $allCombinationImages = $productObj->getCombinationImages($idLang);
+                if ($productObj->hasAttributes()) {
+                    $allCombinations = $productObj->getAttributeCombinations($idLang);
+                    $allCombinationImages = $productObj->getCombinationImages($idLang);
 
-                $variants = [];
-                foreach ($allCombinations as $combination) {
-                    if (!isset($combination['quantity']) || !isset($combination['reference'])) {
-                        continue;
+                    $variants = [];
+                    foreach ($allCombinations as $combination) {
+                        if (!isset($combination['quantity']) || !isset($combination['reference'])) {
+                            continue;
+                        }
+                        $variant = [
+                            'id'                 => (string) $product['id_product'].'-'.(string) $combination['id_product_attribute'],
+                            'title'              => (string) $product['name'],
+                            'sku'                => $combination['reference'],
+                            'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
+                            'inventory_quantity' => (int) $combination['quantity'],
+                        ];
+                        if (isset($allCombinationImages[$combination['id_product_attribute']])) {
+                            $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
+                        }
+                        $variants[] = $variant;
                     }
-                    $variant = [
-                        'id'                 => (string) $product['id_product'].'-'.(string) $combination['id_product_attribute'],
-                        'title'              => (string) $product['name'],
-                        'sku'                => $combination['reference'],
-                        'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
-                        'inventory_quantity' => (int) $combination['quantity'],
+                } else {
+                    $variants = [
+                        [
+                            'id'                 => (string) $product['id_product'],
+                            'title'              => (string) $product['name'],
+                            'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
+                            'price'              => (float) ($product['price'] * $rate),
+                            'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
+                        ],
                     ];
-                    if (isset($allCombinationImages[$combination['id_product_attribute']])) {
-                        $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
-                    }
-                    $variants[] = $variant;
                 }
-            } else {
-                $variants = [
-                    [
-                        'id'                 => (string) $product['id_product'],
-                        'title'              => (string) $product['name'],
-                        'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
-                        'price'              => (float) ($product['price'] * $rate),
-                        'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
-                    ],
-                ];
-            }
 
-            try {
-                $payload = [
-                    'id'          => (string) $product['id_product'],
-                    'title'       => (string) $product['name'],
-                    'url'         => (string) $link->getProductLink($product['id_product']),
-                    'description' => (string) $product['description_short'],
-                    'vendor'      => (string) $product['manufacturer'] ?: '',
-                    'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
-                    'variants'    => $variants,
-                ];
-            } catch (PrestaShopException $e) {
-                $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
+                try {
+                    $payload = [
+                        'id'          => (string) $product['id_product'],
+                        'title'       => (string) $product['name'],
+                        'url'         => (string) $link->getProductLink($product['id_product']),
+                        'description' => (string) $product['description_short'],
+                        'vendor'      => (string) $product['manufacturer'] ?: '',
+                        'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
+                        'variants'    => $variants,
+                    ];
+                } catch (PrestaShopException $e) {
+                    $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
 
-                continue;
+                    continue;
+                }
+                if ($product['last_synced'] && $product['last_synced'] !== '1970-01-01 00:00:00') {
+                    yield $client->patchAsync(
+                        "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
+                        [
+                            'headers' => [
+                                'Accept'        => 'application/json',
+                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                                'Content-Type'  => 'application/json;charset=UTF-8',
+                                'User-Agent'    => static::getUserAgent(),
+                            ],
+                            'body'    => json_encode($payload),
+                        ]
+                    );
+                } else {
+                    yield $client->postAsync(
+                        "ecommerce/stores/tbstore_{$idShop}/products",
+                        [
+                            'headers' => [
+                                'Accept'        => 'application/json',
+                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                                'Content-Type'  => 'application/json;charset=UTF-8',
+                                'User-Agent'    => static::getUserAgent(),
+                            ],
+                            'body'    => json_encode($payload),
+                        ]
+                    );
+                }
             }
-            if ($product['last_synced'] && $product['last_synced'] !== '1970-01-01 00:00:00') {
-                $batch->patch(
-                    'op'.(int) $product['id_product'],
-                    "/ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
-                    $payload
-                );
-            } else {
-                $batch->post(
-                    'op'.(int) $product['id_product'],
-                    "/ecommerce/stores/tbstore_{$idShop}/products",
-                    $payload
-                );
-            }
+        });
+
+        (new EachPromise($promises, [
+            'concurrency' => static::API_CONCURRENCY,
+            'rejected' => function ($reason) use (&$success) {
+                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                    $body = (string) $reason->getResponse()->getBody();
+                    Logger::addLog(
+                        "MailChimp client error: {$body}",
+                        2,
+                        $reason->getResponse()->getStatusCode(),
+                        'MailChimpProduct',
+                        json_decode((string) $reason->getRequest()->getBody())->id
+                    );
+                } else {
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
+                }
+            },
+        ]))->promise()->wait();
+
+        if (MailChimpProduct::setSynced(array_column($products, 'id_product'), $idShop)) {
+            Configuration::updateValue(static::PRODUCTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
         }
-
-        $result = $batch->execute(static::API_TIMEOUT);
-        if (!empty($result)) {
-            if (MailChimpProduct::setSynced(array_column($products, 'id_product'), $idShop)) {
-                Configuration::updateValue(static::PRODUCTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
-            }
-
-            return $result['id'];
-        }
-
-        return '';
     }
 
     /**
      * Export all carts
      *
      * @param int  $offset
-     *
-     * @param bool $remaining
      *
      * @return string MailChimp Batch ID
      *
@@ -2297,76 +2252,118 @@ class MailChimp extends Module
 
         $carts = MailChimpCart::getCarts($idShop, $offset, static::EXPORT_CHUNK_SIZE, $remaining);
         if (empty($carts)) {
-            return '';
+            return;
         }
         $mailChimpShop = MailChimpShop::getByShopId($idShop);
         if (!Validate::isLoadedObject($mailChimpShop)) {
-            return '';
+            return;
         }
+        $apiKey = static::getApiKey();
+        $dc = substr($apiKey, -4);
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
-        $batch = $mailChimp->newBatch();
+        $client = new Client([
+            'timeout' => static::API_TIMEOUT,
+            'verify'  => _PS_TOOL_DIR_.'cacert.pem',
+            'base_uri' => "https://$dc.api.mailchimp.com/3.0/"
+        ]);
+        $promises = call_user_func(function () use (&$carts, $client, $apiKey, $mailChimpShop, $idShop) {
+            foreach ($carts as &$cart) {
+                if (empty($cart['lines'])) {
+                    continue;
+                }
+                $subscriberHash = md5(mb_strtolower($cart['email']));
+                $mergeFields = [
+                    'FNAME' => $cart['firstname'],
+                    'LNAME' => $cart['lastname'],
+                ];
+                if ($cart['birthday'] && date('Y-m-d', strtotime($cart['birthday'])) > '1900-01-01') {
+                    $mergeFields['BDAY'] = date('m/d', strtotime($cart['birthday']));
+                }
 
-        foreach ($carts as &$cart) {
-            if (empty($cart['lines'])) {
-                continue;
-            }
-            $subscriberHash = md5(mb_strtolower($cart['email']));
-            $mergeFields = [
-                'FNAME' => $cart['firstname'],
-                'LNAME' => $cart['lastname'],
-            ];
-            if ($cart['birthday'] && date('Y-m-d', strtotime($cart['birthday'])) > '1900-01-01') {
-                $mergeFields['BDAY'] = date('c', strtotime($cart['birthday']));
-            }
-
-            $batch->put("ms{$cart['id_customer']}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
-                'email_address' => mb_strtolower($cart['email']),
-                'status_if_new' => false,
-                'merge_fields'  => (object) $mergeFields,
-                'language'      => static::getMailChimpLanguageByIso($cart['language_code']),
-            ]);
-
-            $payload = [
-                'id'            => (string) $cart['id_cart'],
-                'customer'      => [
-                    'id'            => (string) $cart['id_customer'],
-                    'email_address' => (string) $cart['email'],
-                    'first_name'    => (string) $cart['firstname'],
-                    'last_name'     => (string) $cart['lastname'],
-                    'opt_in_status' => false,
-                ],
-                'currency_code' => (string) $cart['currency_code'],
-                'order_total'   => (string) $cart['order_total'],
-                'checkout_url'  => (string) $cart['checkout_url'],
-                'lines'         => $cart['lines'],
-            ];
-
-            if ($cart['last_synced'] && $cart['last_synced'] !== '1970-01-01 00:00:00') {
-                $batch->patch(
-                    'op'.(int) $cart['id_cart'],
-                    "/ecommerce/stores/tbstore_{$idShop}/carts/{$cart['id_cart']}",
-                    $payload
+                yield $client->putAsync(
+                    "lists/{$mailChimpShop->list_id}/members/{$subscriberHash}",
+                    [
+                        'headers' => [
+                            'Content-Type'  => 'application/json;charset=UTF-8',
+                            'Accept'        => 'application/json',
+                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                            'User-Agent'    => static::getUserAgent(),
+                        ],
+                        'body'    => json_encode([
+                            'email_address' => mb_strtolower($cart['email']),
+                            'status_if_new' => 'unsubscribed',
+                            'merge_fields'  => (object) $mergeFields,
+                            'language'      => static::getMailChimpLanguageByIso($cart['language_code']),
+                        ]),
+                    ]
                 );
-            } else {
-                $batch->post(
-                    'op'.(int) $cart['id_cart'],
-                    "/ecommerce/stores/tbstore_{$idShop}/carts",
-                    $payload
-                );
+                $payload = [
+                    'id'            => (string) $cart['id_cart'],
+                    'customer'      => [
+                        'id'            => (string) $cart['id_customer'],
+                        'email_address' => (string) $cart['email'],
+                        'first_name'    => (string) $cart['firstname'],
+                        'last_name'     => (string) $cart['lastname'],
+                        'opt_in_status' => false,
+                    ],
+                    'currency_code' => (string) $cart['currency_code'],
+                    'order_total'   => (string) $cart['order_total'],
+                    'checkout_url'  => (string) $cart['checkout_url'],
+                    'lines'         => $cart['lines'],
+                ];
+
+                if ($cart['last_synced'] && $cart['last_synced'] !== '1970-01-01 00:00:00') {
+                    yield $client->patchAsync(
+                        "ecommerce/stores/tbstore_{$idShop}/carts/{$cart['id_cart']}",
+                        [
+                            'headers' => [
+                                'Accept'        => 'application/json',
+                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                                'Content-Type'  => 'application/json;charset=UTF-8',
+                                'User-Agent'    => static::getUserAgent(),
+                            ],
+                            'body'    => json_encode($payload),
+                        ]
+                    );
+                } else {
+                    yield $client->postAsync(
+                        "ecommerce/stores/tbstore_{$idShop}/carts",
+                        [
+                            'headers' => [
+                                'Accept'        => 'application/json',
+                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                                'Content-Type'  => 'application/json;charset=UTF-8',
+                                'User-Agent'    => static::getUserAgent(),
+                            ],
+                            'body'    => json_encode($payload),
+                        ]
+                    );
+                }
             }
+        });
+
+        (new EachPromise($promises, [
+            'concurrency' => static::API_CONCURRENCY,
+            'rejected' => function ($reason) use (&$success) {
+                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                    $body = (string) $reason->getResponse()->getBody();
+                    Logger::addLog(
+                        "MailChimp client error: {$body}",
+                        2,
+                        $reason->getResponse()->getStatusCode(),
+                        'MailChimpCart',
+                        json_decode((string) $reason->getRequest()->getBody())->id
+                    );
+                } elseif ($reason instanceof \GuzzleHttp\Exception\TransferException || $reason instanceof Exception) {
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
+                }
+                $success = false;
+            },
+        ]))->promise()->wait();
+
+        if (MailChimpCart::setSynced(array_column($carts, 'id_cart'))) {
+            Configuration::updateValue(static::CARTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
         }
-
-        $result = $batch->execute(static::API_TIMEOUT);
-        if ($result && isset($result['id'])) {
-            if (MailChimpCart::setSynced(array_column($carts, 'id_cart'))) {
-                Configuration::updateValue(static::CARTS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
-            }
-
-            return $result['id'];
-        }
-
-        return '';
     }
 
     /**
@@ -2374,8 +2371,6 @@ class MailChimp extends Module
      *
      * @param int  $offset
      * @param bool $exportRemaining
-     *
-     * @return string MailChimp Batch ID
      *
      * @throws Exception
      * @throws PrestaShopDatabaseException
@@ -2389,95 +2384,143 @@ class MailChimp extends Module
         // We use the Order objects
         $orders = MailChimpOrder::getOrders($idShop, $offset, static::EXPORT_CHUNK_SIZE, $exportRemaining);
         if (empty($orders)) {
-            return '';
+            return;
         }
         $mailChimpShop = MailChimpShop::getByShopId($idShop);
         if (!Validate::isLoadedObject($mailChimpShop)) {
-            return '';
+            return;
         }
+        $apiKey = static::getApiKey();
+        $dc = substr($apiKey, -4);
+        $client = new Client([
+            'timeout' => static::API_TIMEOUT,
+            'verify' => _PS_TOOL_DIR_.'cacert.pem',
+            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
+        ]);
+        $promises = call_user_func(function () use (&$orders, $client, $apiKey, $mailChimpShop, $idShop) {
+            foreach ($orders as &$order) {
+                if (empty($order['lines'])) {
+                    continue;
+                }
+                $subscriberHash = md5(mb_strtolower($order['email']));
+                $mergeFields = [
+                    'FNAME' => $order['firstname'],
+                    'LNAME' => $order['lastname'],
+                ];
+                if ($order['birthday'] && date('Y-m-d', strtotime($order['birthday'])) > '1900-01-01') {
+                    $mergeFields['BDAY'] = date('m/d', strtotime($order['birthday']));
+                }
 
-        $mailChimp = new MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
-        $batch = $mailChimp->newBatch();
-
-        foreach ($orders as &$order) {
-            if (empty($order['lines'])) {
-                continue;
-            }
-            $subscriberHash = md5(mb_strtolower($order['email']));
-            $mergeFields = [
-                'FNAME' => $order['firstname'],
-                'LNAME' => $order['lastname'],
-            ];
-            if ($order['birthday'] && date('Y-m-d', strtotime($order['birthday'])) > '1900-01-01') {
-                $mergeFields['BDAY'] = date('c', strtotime($order['birthday']));
-            }
-
-            $batch->put("ms{$order['id_customer']}", "/lists/{$mailChimpShop->list_id}/members/{$subscriberHash}", [
-                'email_address' => mb_strtolower($order['email']),
-                'status_if_new' => false,
-                'merge_fields'  => (object) $mergeFields,
-                'language'      => static::getMailChimpLanguageByIso($order['language_code']),
-            ]);
-
-            if (empty($order['lines'])) {
-                unset($order);
-                continue;
-            }
-
-            $payload = [
-                'id'                   => (string) $order['id_order'],
-                'customer'             => [
-                    'id'            => (string) $order['id_customer'],
-                    'email_address' => (string) $order['email'],
-                    'first_name'    => (string) $order['firstname'],
-                    'last_name'     => (string) $order['lastname'],
-                    'opt_in_status' => false,
-                ],
-                'currency_code'        => (string) $order['currency_code'],
-                'order_total'          => (string) $order['order_total'],
-                'lines'                => $order['lines'],
-            ];
-
-            if (static::validateDate($order['date_add'], 'Y-m-d H:i:s')) {
-                $payload['processed_at_foreign'] = date('c', strtotime($order['date_add']));
-            }
-            if (static::validateDate($order['date_upd'], 'Y-m-d H:i:s')) {
-                $payload['updated_at_foreign'] = date('c', strtotime($order['date_add']));
-            }
-
-            if ($order['mc_tc'] && ctype_xdigit($order['mc_tc']) && strlen($order['mc_tc']) === 10) {
-                $payload['tracking_code'] = $order['mc_tc'];
-            }
-
-            if ($order['last_synced'] && $order['last_synced'] !== '1970-01-01 00:00:00') {
-                $batch->patch(
-                    'op'.(int) $order['id_order'],
-                    "/ecommerce/stores/tbstore_{$idShop}/orders/{$order['id_order']}",
-                    $payload
+                yield $client->putAsync(
+                    "lists/{$mailChimpShop->list_id}/members/{$subscriberHash}",
+                    [
+                        'headers' => [
+                            'Accept'        => 'application/json',
+                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                            'Content-Type'  => 'application/json;charset=UTF-8',
+                            'User-Agent'    => static::getUserAgent(),
+                        ],
+                        'body'    => json_encode([
+                            'email_address' => mb_strtolower($order['email']),
+                            'status_if_new' => 'unsubscribed',
+                            'merge_fields'  => (object) $mergeFields,
+                            'language'      => static::getMailChimpLanguageByIso($order['language_code']),
+                        ]),
+                    ]
                 );
-            } else {
-                $batch->post(
-                    'op'.(int) $order['id_order'],
-                    "/ecommerce/stores/tbstore_{$idShop}/orders",
-                    $payload
-                );
-                $batch->delete(
-                    'opcart'.(int) $order['id_cart'],
-                    "/ecommerce/stores/tbstore_{$idShop}/carts/{$order['id_cart']}"
-                );
+
+                if (empty($order['lines'])) {
+                    unset($order);
+                    continue;
+                }
+
+                $payload = [
+                    'id'            => (string) $order['id_order'],
+                    'customer'      => [
+                        'id'            => (string) $order['id_customer'],
+                        'email_address' => (string) $order['email'],
+                        'first_name'    => (string) $order['firstname'],
+                        'last_name'     => (string) $order['lastname'],
+                        'opt_in_status' => false,
+                    ],
+                    'currency_code' => (string) $order['currency_code'],
+                    'order_total'   => (string) $order['order_total'],
+                    'lines'         => $order['lines'],
+                ];
+
+                if (static::validateDate($order['date_add'], 'Y-m-d H:i:s')) {
+                    $payload['processed_at_foreign'] = date('m/d', strtotime($order['date_add']));
+                }
+                if (static::validateDate($order['date_upd'], 'Y-m-d H:i:s')) {
+                    $payload['updated_at_foreign'] = date('m/d', strtotime($order['date_add']));
+                }
+
+                if ($order['mc_tc'] && ctype_xdigit($order['mc_tc']) && strlen($order['mc_tc']) === 10) {
+                    $payload['tracking_code'] = $order['mc_tc'];
+                }
+
+                if ($order['last_synced'] && $order['last_synced'] !== '1970-01-01 00:00:00') {
+                    yield $client->patchAsync(
+                        "ecommerce/stores/tbstore_{$idShop}/orders/{$order['id_order']}",
+                        [
+                            'headers' => [
+                                'Accept'        => 'application/json',
+                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                                'Content-Type'  => 'application/json;charset=UTF-8',
+                                'User-Agent'    => static::getUserAgent(),
+                            ],
+                            'body'    => json_encode($payload),
+                        ]
+                    );
+                } else {
+                    yield $client->postAsync(
+                        "ecommerce/stores/tbstore_{$idShop}/orders",
+                        [
+                            'headers' => [
+                                'Accept'        => 'application/json',
+                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                                'Content-Type'  => 'application/json;charset=UTF-8',
+                                'User-Agent'    => static::getUserAgent(),
+                            ],
+                            'body'    => json_encode($payload),
+                        ]
+                    );
+                    $client->deleteAsync(
+                        "ecommerce/stores/tbstore_{$idShop}/carts/{$order['id_cart']}",
+                        [
+                            'headers' => [
+                                'Accept'        => 'application/json',
+                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                                'Content-Type'  => 'application/json;charset=UTF-8',
+                                'User-Agent'    => static::getUserAgent(),
+                            ],
+                        ]
+                    );
+                }
             }
+        });
+
+        (new EachPromise($promises, [
+            'concurrency' => static::API_CONCURRENCY,
+            'rejected' => function ($reason) use (&$success) {
+                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                    $body = (string) $reason->getResponse()->getBody();
+                    Logger::addLog(
+                        "MailChimp client error: {$body}",
+                        2,
+                        $reason->getResponse()->getStatusCode(),
+                        'MailChimpOrder',
+                        json_decode((string) $reason->getRequest()->getBody())->id
+                    );
+                } else {
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
+                }
+            },
+        ]))->promise()->wait();
+
+        if (MailChimpOrder::setSynced(array_column($orders, 'id_order'))) {
+            Configuration::updateValue(static::ORDERS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
         }
-
-        $result = $batch->execute(static::API_TIMEOUT);
-        if ($result && isset($result['id'])) {
-            if (MailChimpOrder::setSynced(array_column($orders, 'id_order'))) {
-                Configuration::updateValue(static::ORDERS_LAST_SYNC, date('Y-m-d H:i:s'), false, null, $idShop);
-            }
-
-            return $result['id'];
-        }
-
-        return '';
     }
 
     /**
@@ -2498,20 +2541,34 @@ class MailChimp extends Module
     /**
      * Check if the merge fields have been remotely registered
      *
-     * @param int    $idShop
      * @param string $idList
      *
      * @return bool
      *
      * @throws Exception
      * @throws PrestaShopException
+     * @throws \GuzzleHttp\Exception\ClientException
+     * @throws \GuzzleHttp\Exception\TransferException
      * @since 1.1.0
      */
-    protected function checkMergeFields($idShop, $idList)
+    protected function checkMergeFields($idList)
     {
-        $mailChimp = new \MailChimpModule\MailChimp\MailChimp(Configuration::get(static::API_KEY, null, null, 1));
-        $result = $mailChimp->get("/lists/{$idList}/merge-fields");
+        $idShopDefault = (int) Configuration::get('PS_SHOP_DEFAULT');
+        $apiKey = Configuration::get(static::API_KEY, null, null, $idShopDefault);
+        $dc = substr($apiKey, -4);
+        $client = new Client([
+            'verify'   => _PS_TOOL_DIR_.'cacert.pem',
+            'timeout'  => static::API_TIMEOUT,
+            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
+        ]);
 
+        $result = json_decode((string) $client->get("lists/{$idList}/merge-fields", [
+            'headers' => [
+                'Accept'        => 'application/json',
+                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                'User-Agent'    => static::getUserAgent(),
+            ],
+        ])->getBody(), true);
         $missingFields = [
             'FNAME' => 'text',
             'LNAME' => 'text',
@@ -2523,23 +2580,58 @@ class MailChimp extends Module
             }
         }
 
-        $batch = $mailChimp->newBatch();
-        foreach ($missingFields as $fieldName => $fieldType) {
-            $batch->delete("del{$fieldName}", "/lists/{$idList}/merge-fields/{$fieldName}");
-            $batch->post("add{$fieldName}", "/lists/{$idList}/merge-fields", [
-                'tag'      => $fieldName,
-                'name'     => $fieldName,
-                'type'     => $fieldType,
-                'required' => false,
-            ]);
-        }
+        $promises = call_user_func(function () use ($missingFields, $client, $apiKey, $idList) {
+            foreach ($missingFields as $fieldName => $fieldType) {
+                yield $client->deleteAsync(
+                    "lists/{$idList}/merge-fields/{$fieldName}",
+                    [
+                        'headers' => [
+                            'Accept'        => 'application/json',
+                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                            'User-Agent'    => static::getUserAgent(),
+                        ],
+                    ]
+                );
+                yield $client->postAsync(
+                    "lists/{$idList}/merge-fields",
+                    [
+                        'headers' => [
+                            'Accept'        => 'application/json',
+                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                            'Content-Type'  => 'application/json;charset=UTF-8',
+                            'User-Agent'    => static::getUserAgent(),
+                        ],
+                        'body'    => json_encode([
+                            'tag'      => $fieldName,
+                            'name'     => $fieldName,
+                            'type'     => $fieldType,
+                            'required' => false,
+                        ]),
+                    ]
+                );
+            }
+        });
+        (new EachPromise($promises, [
+            'concurrency' => static::API_CONCURRENCY,
+        ]))->promise()->wait();
 
-        $result = $batch->execute(10);
         if (isset($result['id'])) {
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * @return string
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public static function getUserAgent()
+    {
+        $module = Module::getInstanceByName('mailchimp');
+        return 'thirty bees '._TB_VERSION_."/MailChimp {$module->version} (github.com/thirtybees/mailchimp)";
     }
 
     /**

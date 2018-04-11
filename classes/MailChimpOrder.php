@@ -161,13 +161,15 @@ class MailChimpOrder extends \ObjectModel
 
             $order['lines'] = [];
             foreach ($orderProducts as &$cartProduct) {
-                $order['lines'][] = [
+                $line = [
                     'id'                 => (string) $cartProduct['product_id'],
                     'product_id'         => (string) $cartProduct['product_id'],
                     'product_variant_id' => (string) $cartProduct['product_attribute_id'] ? $cartProduct['product_id'].'-'.$cartProduct['product_attribute_id'] : $cartProduct['product_id'],
                     'quantity'           => (int) $cartProduct['product_quantity'],
                     'price'              => (float) ($cartProduct['total_price_tax_incl'] * $rate),
                 ];
+
+                $order['lines'][] = $line;
             }
         }
 

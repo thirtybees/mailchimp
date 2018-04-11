@@ -82,6 +82,9 @@ class MailChimpRegisteredWebhook extends \ObjectModel
      * @param string|null $idList
      *
      * @return bool|MailChimpRegisteredWebhook
+     * @throws \Adapter_Exception
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
      */
     public static function getByCallbackUrl($url, $idList = null)
     {
@@ -117,6 +120,7 @@ class MailChimpRegisteredWebhook extends \ObjectModel
      *
      * @return bool Indicates whether the list was successfully refreshed
      * @throws \PrestaShopException
+     * @throws \Adapter_Exception
      */
     public static function refresh($urls, $idList)
     {

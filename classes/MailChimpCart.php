@@ -118,6 +118,7 @@ class MailChimpCart extends \ObjectModel
      * @return array|false|int
      * @since 1.1.0
      * @throws \PrestaShopException
+     * @throws \Adapter_Exception
      */
     public static function getCarts($idShop = null, $offset = 0, $limit = 0, $remaining = false)
     {

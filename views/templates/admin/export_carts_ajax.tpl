@@ -125,9 +125,15 @@
         $('#reset-cart-sync-data-btn-' + idShop).click(function () {
           $.get(exportUrl + '&ajax=true&action=resetCarts&shop=' + idShop, function (response) {
             if (response && JSON.parse(response).success) {
-              alert('{l s='Cart sync data has been reset' mod='mailchimp' js=1}');
+              swal({
+                icon: 'success',
+                text: '{l s='Cart sync data has been reset' mod='mailchimp' js=1}',
+              });
             } else {
-              alert('{l s='Unable to reset cart sync data' mod='mailchimp' js=1}');
+              swal({
+                icon: 'error',
+                text: '{l s='Unable to reset cart sync data' mod='mailchimp' js=1}'
+              });
             }
           });
         });

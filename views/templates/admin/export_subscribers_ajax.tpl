@@ -129,9 +129,15 @@
         $('#reset-subscriber-sync-data-btn-' + idShop).click(function () {
           $.get(exportUrl + '&ajax=true&action=resetSubscribers&shop=' + idShop, function (response) {
             if (response && JSON.parse(response).success) {
-              alert('{l s='Subscriber sync data has been reset' mod='mailchimp' js=1}');
+              swal({
+                icon: 'success',
+                text: '{l s='Subscriber sync data has been reset' mod='mailchimp' js=1}',
+              });
             } else {
-              alert('{l s='Unable to reset subscriber sync data' mod='mailchimp' js=1}');
+              swal({
+                icon: 'error',
+                text: '{l s='Unable to reset subscriber sync data' mod='mailchimp' js=1}',
+              });
             }
           });
         });
