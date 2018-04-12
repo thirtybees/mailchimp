@@ -46,7 +46,9 @@ class MailChimpOrder extends \ObjectModel
         ],
     ];
     // @codingStandardsIgnoreStart
+    /** @var int $id_order */
     public $id_order;
+    /** @var string $last_synced */
     public $last_synced;
     // @codingStandardsIgnoreEnd
 

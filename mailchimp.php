@@ -1503,7 +1503,7 @@ class MailChimp extends Module
 
         $context->smarty->assign(
             [
-                'cron_all_products'       => $context->link->getModuleLink(
+                'cron_all_products'           => $context->link->getModuleLink(
                     $this->name,
                     'cron',
                     [
@@ -1516,7 +1516,7 @@ class MailChimp extends Module
                     $idShop,
                     false
                 ),
-                'cron_remaining_products' => $context->link->getModuleLink(
+                'cron_remaining_products'     => $context->link->getModuleLink(
                     $this->name,
                     'cron',
                     [
@@ -1529,7 +1529,7 @@ class MailChimp extends Module
                     $idShop,
                     false
                 ),
-                'cron_all_carts'          => $context->link->getModuleLink(
+                'cron_all_carts'              => $context->link->getModuleLink(
                     $this->name,
                     'cron',
                     [
@@ -1542,7 +1542,7 @@ class MailChimp extends Module
                     $idShop,
                     false
                 ),
-                'cron_remaining_carts'    => $context->link->getModuleLink(
+                'cron_remaining_carts'        => $context->link->getModuleLink(
                     $this->name,
                     'cron',
                     [
@@ -1555,7 +1555,7 @@ class MailChimp extends Module
                     $idShop,
                     false
                 ),
-                'cron_all_orders'         => $context->link->getModuleLink(
+                'cron_all_orders'             => $context->link->getModuleLink(
                     $this->name,
                     'cron',
                     [
@@ -1568,7 +1568,7 @@ class MailChimp extends Module
                     $idShop,
                     false
                 ),
-                'cron_remaining_orders'   => $context->link->getModuleLink(
+                'cron_remaining_orders'       => $context->link->getModuleLink(
                     $this->name,
                     'cron',
                     [
@@ -1581,6 +1581,13 @@ class MailChimp extends Module
                     $idShop,
                     false
                 ),
+                'cron_all_products_cli'       => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportAllProducts",
+                'cron_remaining_products_cli' => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportRemainingProducts",
+                'cron_all_carts_cli'          => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportAllCarts",
+                'cron_remaining_carts_cli'    => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportRemainingCarts",
+                'cron_all_orders_cli'         => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportAllOrders",
+                'cron_remaining_orders_cli'   => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportRemainingOrders",
+                'id_profile'                  => $this->context->employee->id_profile,
             ]
         );
 
@@ -2253,15 +2260,8 @@ class MailChimp extends Module
         if (!Validate::isLoadedObject($mailChimpShop)) {
             return;
         }
-        $apiKey = static::getApiKey();
-        $dc = substr($apiKey, -4);
-
-        $client = new Client([
-            'timeout' => static::API_TIMEOUT,
-            'verify'  => _PS_TOOL_DIR_.'cacert.pem',
-            'base_uri' => "https://$dc.api.mailchimp.com/3.0/"
-        ]);
-        $promises = call_user_func(function () use (&$carts, $client, $apiKey, $mailChimpShop, $idShop) {
+        $client = static::getGuzzle();
+        $promises = call_user_func(function () use (&$carts, $client, $mailChimpShop, $idShop) {
             foreach ($carts as &$cart) {
                 if (empty($cart['lines'])) {
                     continue;
@@ -2305,26 +2305,14 @@ class MailChimp extends Module
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$idShop}/carts/{$cart['id_cart']}",
                         [
-                            'headers' => [
-                                'Accept'        => 'application/json',
-                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                                'Content-Type'  => 'application/json;charset=UTF-8',
-                                'User-Agent'    => static::getUserAgent(),
-                            ],
-                            'body'    => json_encode($payload),
+                            'body' => json_encode($payload),
                         ]
                     );
                 } else {
                     yield $client->postAsync(
                         "ecommerce/stores/tbstore_{$idShop}/carts",
                         [
-                            'headers' => [
-                                'Accept'        => 'application/json',
-                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                                'Content-Type'  => 'application/json;charset=UTF-8',
-                                'User-Agent'    => static::getUserAgent(),
-                            ],
-                            'body'    => json_encode($payload),
+                            'body' => json_encode($payload),
                         ]
                     );
                 }
