@@ -1,6 +1,6 @@
 <?php
 /**
- * 2017 Thirty Bees
+ * 2018 thirty bees
  *
  * NOTICE OF LICENSE
  *
@@ -12,7 +12,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@thirtybees.com so we can send you a copy immediately.
  *
- * @author    Thirty Bees <modules@thirtybees.com>
+ * @author    thirty bees <modules@thirtybees.com>
  * @copyright 2017-2018 thirty bees
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
@@ -557,6 +557,50 @@ class MailChimp extends Module
 //                    Logger::addLog('MailChimp customer subscription failed');
 //                }
             }
+        }
+    }
+
+    /**
+     * @param array $params
+     */
+    public function hookActionAdminOrdersListingFieldsModifier($params)
+    {
+        if (isset($params['select'])) {
+            $params['select'] .= ",\n\t\tmpdo.`myparcel_delivery_option`, IFNULL(mpdo.`date_delivery`, '1970-01-01 00:".
+                "00:00') as `myparcel_date_delivery`, mpdo.`pickup`, UPPER(country.`iso_code`) AS `myparcel_country_is".
+                "o`, 1 as `myparcel_void_1`, 1 as `myparcel_void_2`";
+        }
+        if (isset($params['join'])) {
+            $params['join'] .= "\n\t\tLEFT JOIN `"._DB_PREFIX_.bqSQL(MyParcelDeliveryOption::$definition['table'])."` ".
+                "mpdo ON (mpdo.`id_cart` = a.`id_cart`)";
+        }
+        if (isset($params['fields'])) {
+            $params['fields']['myparcel_date_delivery'] = array(
+                'title'           => $this->l('Preferred delivery date'),
+                'class'           => 'fixed-width-lg',
+                'callback'        => 'printOrderGridPreference',
+                'callback_object' => 'MyParcelTools',
+                'filter_key'      => 'mpdo!date_delivery',
+                'type'            => 'date',
+            );
+            $params['fields']['myparcel_void_1'] = array(
+                'title'           => $this->l('MyParcel'),
+                'class'           => 'fixed-width-lg',
+                'callback'        => 'printMyParcelTrackTrace',
+                'callback_object' => 'MyParcelTools',
+                'search'          => false,
+                'orderby'         => false,
+                'remove_onclick'  => true,
+            );
+            $params['fields']['myparcel_void_2'] = array(
+                'title'           => '',
+                'class'           => 'fixed-width-xs',
+                'callback'        => 'printMyParcelIcon',
+                'callback_object' => 'MyParcelTools',
+                'search'          => false,
+                'orderby'         => false,
+                'remove_onclick'  => true,
+            );
         }
     }
 
