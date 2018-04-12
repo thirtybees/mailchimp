@@ -41,8 +41,8 @@ class MailChimpOrder extends \ObjectModel
         'table'   => 'mailchimp_order',
         'primary' => 'id_mailchimp_order',
         'fields'  => [
-            'id_order'    => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'],
-            'last_synced' => ['type' => self::TYPE_DATE,   'validate' => 'isBool',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'        ],
+            'id_order'    => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'   ],
+            'last_synced' => ['type' => self::TYPE_DATE,   'validate' => 'isDate',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'           ],
         ],
     ];
     // @codingStandardsIgnoreStart
@@ -86,7 +86,7 @@ class MailChimpOrder extends \ObjectModel
     }
 
     /**
-     * Get products
+     * Get orders
      *
      * @param int|null $idShop
      * @param int      $offset

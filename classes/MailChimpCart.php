@@ -41,8 +41,8 @@ class MailChimpCart extends \ObjectModel
         'table'   => 'mailchimp_cart',
         'primary' => 'id_mailchimp_cart',
         'fields'  => [
-            'id_cart'     => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'],
-            'last_synced' => ['type' => self::TYPE_DATE,   'validate' => 'isBool',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'        ],
+            'id_cart'     => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'   ],
+            'last_synced' => ['type' => self::TYPE_DATE,   'validate' => 'isDate',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'           ],
         ],
     ];
     // @codingStandardsIgnoreStart
@@ -68,9 +68,6 @@ class MailChimpCart extends \ObjectModel
             $idShop = \Context::getContext()->shop->id;
         }
 
-        $fromDateTime = new \DateTime();
-        $fromDateTime->modify('-1 day');
-
         $selectOrdersSql = new \DbQuery();
         $selectOrdersSql->select('`id_cart`');
         $selectOrdersSql->from('orders');
@@ -81,7 +78,7 @@ class MailChimpCart extends \ObjectModel
         $sql->where('c.`id_shop` = '.(int) $idShop);
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = c.`id_customer`');
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
-        $sql->where('c.`date_upd` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
+        $sql->where('c.`date_upd` > \''.date('Y-m-d H:i:s', strtotime('-1 day')).'\'');
         try {
             $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
         } catch (\PrestaShopException $e) {
@@ -126,9 +123,6 @@ class MailChimpCart extends \ObjectModel
             $idShop = \Context::getContext()->shop->id;
         }
 
-        $fromDateTime = new \DateTime();
-        $fromDateTime->modify('-1 day');
-
         $selectOrdersSql = new \DbQuery();
         $selectOrdersSql->select('`id_cart`');
         $selectOrdersSql->from('orders');
@@ -141,7 +135,7 @@ class MailChimpCart extends \ObjectModel
         $sql->innerJoin('lang', 'l', 'l.`id_lang` = cu.`id_lang`');
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mc', 'mc.`id_cart` = c.`id_cart`');
         $sql->where('c.`id_shop` = '.(int) $idShop);
-        $sql->where('c.`date_upd` > \''.$fromDateTime->format('Y-m-d H:i:s').'\'');
+        $sql->where('c.`date_upd` > \''.date('Y-m-d H:i:s', strtotime('-1 day')).'\'');
         try {
             $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
         } catch (\PrestaShopException $e) {

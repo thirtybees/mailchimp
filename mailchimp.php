@@ -139,7 +139,10 @@ class MailChimp extends Module
         'vi' => 'vi',
         'gb' => 'en',
     ];
+    /** @var string $apiKey */
     protected static $apiKey;
+    /** @var Client $guzzle */
+    protected static $guzzle;
 
     /**
      * MailChimp constructor.
@@ -269,22 +272,14 @@ class MailChimp extends Module
      */
     public function getLists($prepare = false)
     {
-        $apiKey = static::getApiKey();
-        $dc = substr($apiKey, -4);
-
         try {
-            $lists = json_decode((string) (new Client([
-                'http_errors' => false,
-                'verify' => _PS_TOOL_DIR_.'cacert.pem',
-                'timeout' => static::API_TIMEOUT,
-                'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
-            ]))->get('lists', [
-                'headers' => [
-                    'Accept' => 'application/json',
-                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                    'User-Agent'    => static::getUserAgent(),
-                ]
-            ])->getBody(), true);
+            $lists = json_decode((string) static::getGuzzle()->get(
+                'lists',
+                [
+                    'headers' => [
+
+                    ],
+                ])->getBody(), true);
 
             if ($prepare) {
                 $preparedList = [];
@@ -444,7 +439,9 @@ class MailChimp extends Module
     {
         // Check if creation is successful
         if (isset($params['newCustomer']) && $params['newCustomer']->email) {
-            $subscription = (string) $params['newCustomer']->newsletter ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+            $subscription = (string) $params['newCustomer']->newsletter
+                ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED
+                : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
             $iso = Language::getIsoById($params['newCustomer']->id_lang);
             $customer = new MailChimpSubscriber(
                 $params['newCustomer']->email,
@@ -564,6 +561,41 @@ class MailChimp extends Module
     }
 
     /**
+     * Get the Guzzle client
+     *
+     * @return Client
+     * @throws PrestaShopException
+     * @throws Adapter_Exception
+     */
+    public static function getGuzzle()
+    {
+        if (!static::$guzzle) {
+            // Initialize Guzzle and the retry middleware, include the default options
+            $apiKey = Configuration::get(static::API_KEY, null, null, (int) Configuration::get('PS_SHOP_DEFAULT'));
+            $dc = substr($apiKey, -4);
+            $guzzle = new Client(array_merge(
+                [
+                    'timeout'         => static::API_TIMEOUT,
+                    'connect_timeout' => static::API_TIMEOUT,
+                    'verify'          => _PS_TOOL_DIR_.'cacert.pem',
+                    'http_errors'     => true,
+                    'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
+                    'headers'         => [
+                        'Accept'        => 'application/json',
+                        'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                        'Content-Type'  => 'application/json;charset=UTF-8',
+                        'User-Agent'    => static::getUserAgent(),
+                    ],
+                ]
+            ));
+
+            static::$guzzle = $guzzle;
+        }
+
+        return static::$guzzle;
+    }
+
+    /**
      * @return string
      * @throws PrestaShopException
      */
@@ -591,6 +623,9 @@ class MailChimp extends Module
         $idShop = (int) Configuration::get('PS_SHOP_DEFAULT');
         $idShopGroup = (int) Shop::getGroupFromShop($idShop, true);
 
+        // Reset the internal Guzzle
+        static::$guzzle = null;
+        // Change the internal API key
         static::$apiKey = $apiKey;
         return Configuration::updateValue(static::API_KEY, $apiKey, false, $idShopGroup, $idShop);
     }
@@ -994,6 +1029,9 @@ class MailChimp extends Module
                 break;
         }
         $entity = 'MailChimp'.ucfirst(substr($entityType, 0, strlen($entityType) - 1));
+        if (!isset($table) || !isset($primary)) {
+            return false;
+        }
 
         try {
             $success = Db::getInstance()->execute(
@@ -1089,14 +1127,7 @@ class MailChimp extends Module
         } elseif (Tools::isSubmit('submitShops')) {
             $shopLists = Tools::getValue('shop_list_id');
             $shopTaxes = Tools::getValue('shop_tax');
-            $apiKey = static::getApiKey();
-            $dc = substr($apiKey, -4);
-            $client = new \GuzzleHttp\Client([
-                'http_errors' => false,
-                'verify'      => _PS_TOOL_DIR_.'cacert.pem',
-                'base_uri'    => "https://$dc.api.mailchimp.com/3.0/",
-            ]);
-
+            $client = static::getGuzzle();
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
                     $this->checkMergeFields($idList);
@@ -1104,17 +1135,10 @@ class MailChimp extends Module
                     $shop = new Shop($idShop);
                     $defaultIdCurrency = (int) Configuration::get('PS_CURRENCY_DEFAULT', null, $shop->id_shop_group, $shop->id);
                     $currency = new Currency($defaultIdCurrency);
-
                     $result = json_decode((string) $client
                         ->post(
                             'ecommerce/stores',
                             [
-                                'headers' => [
-                                    'Content-Type'  => 'application/json;charset=UTF-8',
-                                    'Accept'        => 'application/json',
-                                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                                    'User-Agent'    => static::getUserAgent(),
-                                ],
                                 'body'    => json_encode([
                                     'id'            => 'tbstore_'.(int) $idShop,
                                     'list_id'       => $idList,
@@ -1130,12 +1154,6 @@ class MailChimp extends Module
                         $client->patch(
                             'ecommerce/stores/tbstore_'.(int) $idShop,
                             [
-                                'headers' => [
-                                    'Accept'        => 'application/json',
-                                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                                    'Content-Type'  => 'application/json;charset=UTF-8',
-                                    'User-Agent'    => static::getUserAgent(),
-                                ],
                                 'body' => json_encode([
                                     'id'            => 'tbstore_'.(int) $idShop,
                                     'list_id'       => $idList,
@@ -1249,23 +1267,10 @@ class MailChimp extends Module
             $url = $this->urlForWebhook();
         }
 
-        $apiKey = Configuration::get(static::API_KEY, null, null, (int) Configuration::get('PS_SHOP_DEFAULT'));
-        $dc = substr($apiKey, -4);
-        $client = new Client([
-            'timeout' => static::API_TIMEOUT,
-            'verify' => _PS_TOOL_DIR_.'cacert.pem',
-            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
-        ]);
-
+        $client = static::getGuzzle();
         $result = json_decode((string) $client->post(
             "lists/{$idList}/webhooks",
             [
-                'headers' => [
-                    'Accept'        => 'application/json',
-                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                    'Content-Type'  => 'application/json;charset=UTF-8',
-                    'User-Agent'    => static::getUserAgent(),
-                ],
                 'body'   => json_encode([
                     'url'     => $url,
                     'events'  => [
@@ -1299,19 +1304,10 @@ class MailChimp extends Module
      */
     protected function importList($list)
     {
-        $apiKey = static::getApiKey();
-        $dc = substr($apiKey, -4);
         $success = true;
-
-        $client = new Client([
-            'http_errors' => false,
-            'verify'      => _PS_TOOL_DIR_.'cacert.pem',
-            'timeout'     => static::API_TIMEOUT,
-            'base_uri'    => "https://$dc.api.mailchimp.com/3.0/",
-        ]);
-
         // Append subscribers to batch operation request using PUT method (to enable update existing)
-        $promises = call_user_func(function () use ($list, $client, $apiKey) {
+        $client = static::getGuzzle();
+        $promises = call_user_func(function () use ($list, $client) {
             for ($i = 0; $i < count($list); $i++) {
                 /** @var MailChimpSubscriber $subscriber */
                 $subscriber = $list[$i];
@@ -1320,13 +1316,7 @@ class MailChimp extends Module
                 yield $client->putAsync(
                     "lists/{$mailChimpShop->list_id}/members/{$hash}",
                     [
-                        'headers' => [
-                            'Accept'        => 'application/json',
-                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                            'Content-Type'  => 'application/json;charset=UTF-8',
-                            'User-Agent'    => static::getUserAgent(),
-                        ],
-                        'body'    => $subscriber->getAsJSON(),
+                        'body' => $subscriber->getAsJSON(),
                     ]
                 );
             }
@@ -1335,10 +1325,10 @@ class MailChimp extends Module
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected'    => function ($reason) use (&$success) {
-                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                if ($reason instanceof \GuzzleHttp\Exception\RequestException) {
                     $body = (string) $reason->getResponse()->getBody();
                     Logger::addLog("MailChimp client error: {$body}", 2);
-                } else {
+                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
                 $success = false;
@@ -2031,12 +2021,8 @@ class MailChimp extends Module
             return '';
         }
 
-        $client = new Client([
-            'timeout' => static::API_TIMEOUT,
-            'verify'  => _PS_TOOL_DIR_.'cacert.pem',
-            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
-        ]);
-        $promises = call_user_func(function () use (&$subscribers, $mailChimpShop, $client, $apiKey) {
+        $client = static::getGuzzle();
+        $promises = call_user_func(function () use (&$subscribers, $mailChimpShop, $client) {
             foreach ($subscribers as &$subscriber) {
                 $mergeFields = [
                     'FNAME' => $subscriber['firstname'],
@@ -2050,12 +2036,6 @@ class MailChimp extends Module
                 yield $client->putAsync(
                     "lists/{$mailChimpShop->list_id}/members/{$subscriberHash}",
                     [
-                        'headers' => [
-                            'Accept'        => 'application/json',
-                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                            'Content-Type'  => 'application/json;charset=UTF-8',
-                            'User-Agent'    => static::getUserAgent(),
-                        ],
                         'body'    => json_encode([
                             'email_address' => mb_strtolower($subscriber['email']),
                             'status_if_new' => $subscriber['subscription'],
@@ -2072,7 +2052,7 @@ class MailChimp extends Module
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use (&$success) {
-                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                if ($reason instanceof \GuzzleHttp\Exception\RequestException) {
                     $body = (string) $reason->getResponse()->getBody();
                     Logger::addLog("MailChimp client error: {$body}", 2);
                 } elseif ($reason instanceof \GuzzleHttp\Exception\TransferException) {
@@ -2120,15 +2100,10 @@ class MailChimp extends Module
         }
         $apiKey = static::getApiKey();
         $dc = substr($apiKey, -4);
-        $client = new Client([
-            'timeout'  => static::API_TIMEOUT,
-            'verify'   => _PS_TOOL_DIR_.'cacert.pem',
-            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
-        ]);
-
+        $client = static::getGuzzle();
         $link = \Context::getContext()->link;
 
-        $promises = call_user_func(function () use (&$products, $idLang, $client, $apiKey, $idShop, $rate, $link) {
+        $promises = call_user_func(function () use (&$products, $idLang, $client, $idShop, $rate, $link) {
             foreach ($products as &$product) {
                 $productObj = new Product();
                 $productObj->hydrate($product);
@@ -2186,26 +2161,14 @@ class MailChimp extends Module
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
                         [
-                            'headers' => [
-                                'Accept'        => 'application/json',
-                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                                'Content-Type'  => 'application/json;charset=UTF-8',
-                                'User-Agent'    => static::getUserAgent(),
-                            ],
-                            'body'    => json_encode($payload),
+                            'body' => json_encode($payload),
                         ]
                     );
                 } else {
                     yield $client->postAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products",
                         [
-                            'headers' => [
-                                'Accept'        => 'application/json',
-                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                                'Content-Type'  => 'application/json;charset=UTF-8',
-                                'User-Agent'    => static::getUserAgent(),
-                            ],
-                            'body'    => json_encode($payload),
+                            'body' => json_encode($payload),
                         ]
                     );
                 }
@@ -2214,17 +2177,49 @@ class MailChimp extends Module
 
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
-            'rejected' => function ($reason) use (&$success) {
+            'rejected' => function ($reason) use (&$success, $client, $idShop) {
                 if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
-                    $body = (string) $reason->getResponse()->getBody();
+                    if (strtoupper($reason->getRequest()->getMethod()) === 'DELETE') {
+                        // We don't care about the DELETEs, those are fire-and-forget
+                        return;
+                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
+                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Order Exists'
+                    ) {
+                        $idProduct = json_decode((string) $reason->getRequest()->getBody())->id;
+                        try {
+                            $client->patch("ecommerce/stores/tbstore_{$idShop}/products/{$idProduct}}",
+                                [
+                                    'body' => (string) $reason->getRequest()->getBody(),
+                                ]
+                            );
+                            return;
+                        } catch (\GuzzleHttp\Exception\TransferException $e) {
+                        } catch (\Exception $e) {
+                        }
+                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
+                        && json_decode($reason->getResponse()->getBody())->title === 'Resource Not Found'
+                    ) {
+                        try {
+                            $client->post("ecommerce/stores/tbstore_{$idShop}/products",
+                                [
+                                    'body' => (string) $reason->getRequest()->getBody(),
+                                ]
+                            );
+                            return;
+                        } catch (\GuzzleHttp\Exception\TransferException $e) {
+                        } catch (\Exception $e) {
+                        }
+                    }
+
+                    $responseBody = (string) $reason->getResponse()->getBody();
                     Logger::addLog(
-                        "MailChimp client error: {$body}",
+                        "MailChimp client error: {$responseBody}",
                         2,
                         $reason->getResponse()->getStatusCode(),
                         'MailChimpProduct',
                         json_decode((string) $reason->getRequest()->getBody())->id
                     );
-                } else {
+                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -2239,10 +2234,10 @@ class MailChimp extends Module
      * Export all carts
      *
      * @param int  $offset
+     * @param bool $remaining
      *
-     * @return string MailChimp Batch ID
-     *
-     * @throws Exception
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
      */
@@ -2283,15 +2278,9 @@ class MailChimp extends Module
                 yield $client->putAsync(
                     "lists/{$mailChimpShop->list_id}/members/{$subscriberHash}",
                     [
-                        'headers' => [
-                            'Content-Type'  => 'application/json;charset=UTF-8',
-                            'Accept'        => 'application/json',
-                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                            'User-Agent'    => static::getUserAgent(),
-                        ],
-                        'body'    => json_encode([
+                        'body' => json_encode([
                             'email_address' => mb_strtolower($cart['email']),
-                            'status_if_new' => 'unsubscribed',
+                            'status_if_new' => MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED,
                             'merge_fields'  => (object) $mergeFields,
                             'language'      => static::getMailChimpLanguageByIso($cart['language_code']),
                         ]),
@@ -2344,20 +2333,51 @@ class MailChimp extends Module
 
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
-            'rejected' => function ($reason) use (&$success) {
+            'rejected' => function ($reason) use (&$success, $client, $idShop) {
                 if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
-                    $body = (string) $reason->getResponse()->getBody();
+                    if (strtoupper($reason->getRequest()->getMethod()) === 'DELETE') {
+                        // We don't care about the DELETEs, those are fire-and-forget
+                        return;
+                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
+                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Order Exists'
+                    ) {
+                        $idCart = json_decode((string) $reason->getRequest()->getBody())->id;
+                        try {
+                            $client->patch("ecommerce/stores/tbstore_{$idShop}/carts/{$idCart}",
+                                [
+                                    'body' => (string) $reason->getRequest()->getBody(),
+                                ]
+                            );
+                            return;
+                        } catch (\GuzzleHttp\Exception\TransferException $e) {
+                        } catch (\Exception $e) {
+                        }
+                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
+                        && json_decode($reason->getResponse()->getBody())->title === 'Resource Not Found'
+                    ) {
+                        try {
+                            $client->post("ecommerce/stores/tbstore_{$idShop}/carts",
+                                [
+                                    'body' => (string) $reason->getRequest()->getBody(),
+                                ]
+                            );
+                            return;
+                        } catch (\GuzzleHttp\Exception\TransferException $e) {
+                        } catch (\Exception $e) {
+                        }
+                    }
+
+                    $responseBody = (string) $reason->getResponse()->getBody();
                     Logger::addLog(
-                        "MailChimp client error: {$body}",
+                        "MailChimp client error: {$responseBody}",
                         2,
                         $reason->getResponse()->getStatusCode(),
                         'MailChimpCart',
                         json_decode((string) $reason->getRequest()->getBody())->id
                     );
-                } elseif ($reason instanceof \GuzzleHttp\Exception\TransferException || $reason instanceof Exception) {
+                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
-                $success = false;
             },
         ]))->promise()->wait();
 
@@ -2390,14 +2410,8 @@ class MailChimp extends Module
         if (!Validate::isLoadedObject($mailChimpShop)) {
             return;
         }
-        $apiKey = static::getApiKey();
-        $dc = substr($apiKey, -4);
-        $client = new Client([
-            'timeout' => static::API_TIMEOUT,
-            'verify' => _PS_TOOL_DIR_.'cacert.pem',
-            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
-        ]);
-        $promises = call_user_func(function () use (&$orders, $client, $apiKey, $mailChimpShop, $idShop) {
+        $client = static::getGuzzle();
+        $promises = call_user_func(function () use (&$orders, $client, $mailChimpShop, $idShop) {
             foreach ($orders as &$order) {
                 if (empty($order['lines'])) {
                     continue;
@@ -2414,15 +2428,9 @@ class MailChimp extends Module
                 yield $client->putAsync(
                     "lists/{$mailChimpShop->list_id}/members/{$subscriberHash}",
                     [
-                        'headers' => [
-                            'Accept'        => 'application/json',
-                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                            'Content-Type'  => 'application/json;charset=UTF-8',
-                            'User-Agent'    => static::getUserAgent(),
-                        ],
                         'body'    => json_encode([
                             'email_address' => mb_strtolower($order['email']),
-                            'status_if_new' => 'unsubscribed',
+                            'status_if_new' => MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED,
                             'merge_fields'  => (object) $mergeFields,
                             'language'      => static::getMailChimpLanguageByIso($order['language_code']),
                         ]),
@@ -2463,56 +2471,66 @@ class MailChimp extends Module
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$idShop}/orders/{$order['id_order']}",
                         [
-                            'headers' => [
-                                'Accept'        => 'application/json',
-                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                                'Content-Type'  => 'application/json;charset=UTF-8',
-                                'User-Agent'    => static::getUserAgent(),
-                            ],
-                            'body'    => json_encode($payload),
+                            'body' => json_encode($payload),
                         ]
                     );
                 } else {
                     yield $client->postAsync(
                         "ecommerce/stores/tbstore_{$idShop}/orders",
                         [
-                            'headers' => [
-                                'Accept'        => 'application/json',
-                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                                'Content-Type'  => 'application/json;charset=UTF-8',
-                                'User-Agent'    => static::getUserAgent(),
-                            ],
-                            'body'    => json_encode($payload),
+                            'body' => json_encode($payload),
                         ]
                     );
-                    $client->deleteAsync(
-                        "ecommerce/stores/tbstore_{$idShop}/carts/{$order['id_cart']}",
-                        [
-                            'headers' => [
-                                'Accept'        => 'application/json',
-                                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                                'Content-Type'  => 'application/json;charset=UTF-8',
-                                'User-Agent'    => static::getUserAgent(),
-                            ],
-                        ]
-                    );
+                    $client->deleteAsync("ecommerce/stores/tbstore_{$idShop}/carts/{$order['id_cart']}");
                 }
             }
         });
 
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
-            'rejected' => function ($reason) use (&$success) {
+            'rejected'    => function ($reason) use (&$success, $idShop, $client) {
                 if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
-                    $body = (string) $reason->getResponse()->getBody();
+                    if (strtoupper($reason->getRequest()->getMethod()) === 'DELETE') {
+                        // We don't care about the DELETEs, those are fire-and-forget
+                        return;
+                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
+                        && json_decode($reason->getResponse()->getBody())->title === 'Order Exists'
+                    ) {
+                        $idOrder = json_decode($reason->getRequest()->getBody())->id;
+                        try {
+                            $client->patch("ecommerce/stores/tbstore_{$idShop}/orders/{$idOrder}",
+                                [
+                                    'body' => (string) $reason->getRequest()->getBody(),
+                                ]
+                            );
+                            return;
+                        } catch (\GuzzleHttp\Exception\TransferException $e) {
+                        } catch (\Exception $e) {
+                        }
+                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
+                        && json_decode($reason->getResponse()->getBody())->title === 'Resource Not Found'
+                    ) {
+                        try {
+                            $client->post("ecommerce/stores/tbstore_{$idShop}/orders",
+                                [
+                                    'body' => (string) $reason->getRequest()->getBody(),
+                                ]
+                            );
+                            return;
+                        } catch (\GuzzleHttp\Exception\TransferException $e) {
+                        } catch (\Exception $e) {
+                        }
+                    }
+
+                    $responseBody = (string) $reason->getResponse()->getBody();
                     Logger::addLog(
-                        "MailChimp client error: {$body}",
+                        "MailChimp client error: {$responseBody}",
                         2,
                         $reason->getResponse()->getStatusCode(),
                         'MailChimpOrder',
                         json_decode((string) $reason->getRequest()->getBody())->id
                     );
-                } else {
+                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -2553,22 +2571,8 @@ class MailChimp extends Module
      */
     protected function checkMergeFields($idList)
     {
-        $idShopDefault = (int) Configuration::get('PS_SHOP_DEFAULT');
-        $apiKey = Configuration::get(static::API_KEY, null, null, $idShopDefault);
-        $dc = substr($apiKey, -4);
-        $client = new Client([
-            'verify'   => _PS_TOOL_DIR_.'cacert.pem',
-            'timeout'  => static::API_TIMEOUT,
-            'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
-        ]);
-
-        $result = json_decode((string) $client->get("lists/{$idList}/merge-fields", [
-            'headers' => [
-                'Accept'        => 'application/json',
-                'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                'User-Agent'    => static::getUserAgent(),
-            ],
-        ])->getBody(), true);
+        $client = static::getGuzzle();
+        $result = json_decode((string) $client->get("lists/{$idList}/merge-fields")->getBody(), true);
         $missingFields = [
             'FNAME' => 'text',
             'LNAME' => 'text',
@@ -2580,27 +2584,12 @@ class MailChimp extends Module
             }
         }
 
-        $promises = call_user_func(function () use ($missingFields, $client, $apiKey, $idList) {
+        $promises = call_user_func(function () use ($missingFields, $client, $idList) {
             foreach ($missingFields as $fieldName => $fieldType) {
-                yield $client->deleteAsync(
-                    "lists/{$idList}/merge-fields/{$fieldName}",
-                    [
-                        'headers' => [
-                            'Accept'        => 'application/json',
-                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                            'User-Agent'    => static::getUserAgent(),
-                        ],
-                    ]
-                );
+                yield $client->deleteAsync("lists/{$idList}/merge-fields/{$fieldName}");
                 yield $client->postAsync(
                     "lists/{$idList}/merge-fields",
                     [
-                        'headers' => [
-                            'Accept'        => 'application/json',
-                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                            'Content-Type'  => 'application/json;charset=UTF-8',
-                            'User-Agent'    => static::getUserAgent(),
-                        ],
                         'body'    => json_encode([
                             'tag'      => $fieldName,
                             'name'     => $fieldName,
