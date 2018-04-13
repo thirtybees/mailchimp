@@ -40,7 +40,7 @@ function upgrade_module_1_2_0($module)
         }
     }
 
-    $module->registerHookj('ActionAdminCartRulesListingFieldsModifier');
+    $module->registerHook('ActionAdminCartRulesListingFieldsModifier');
 
     return true;
 }
