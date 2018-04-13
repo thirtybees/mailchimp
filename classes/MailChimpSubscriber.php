@@ -85,6 +85,7 @@ class MailChimpSubscriber
             'merge_fields'     => [
                 'FNAME' => ($this->fname == '') ? '-' : $this->fname,
                 'LNAME' => ($this->lname == '') ? '-' : $this->lname,
+                'TBREF' => static::getTbRef($this->email),
             ],
             'ip_signup'        => ($this->ipSignup == '') ? '' : $this->ipSignup,
             'language'         => $this->language,
@@ -402,10 +403,23 @@ class MailChimpSubscriber
                     'company'             => $row['company'] ?: '',
                     'website'             => $row['website'] ?: '',
                     'birthday'            => $row['birthday'] ?: '',
+                    'tbref'               => static::getTbRef($row['email']),
                 ];
             }
         }
 
         return $list;
+    }
+
+    /**
+     * Get TBREF tag
+     *
+     * @param string $email
+     *
+     * @return string
+     */
+    public static function getTbRef($email)
+    {
+        return strtoupper(substr(md5($email), 0, 8));
     }
 }

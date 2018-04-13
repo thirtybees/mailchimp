@@ -18,10 +18,12 @@
  */
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Promise\EachPromise;
 use MailChimpModule\MailChimpCart;
 use MailChimpModule\MailChimpOrder;
 use MailChimpModule\MailChimpProduct;
+use MailChimpModule\MailChimpPromo;
 use MailChimpModule\MailChimpRegisteredWebhook;
 use MailChimpModule\MailChimpShop;
 use MailChimpModule\MailChimpSubscriber;
@@ -154,7 +156,7 @@ class MailChimp extends Module
     {
         $this->name = 'mailchimp';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.5';
+        $this->version = '1.2.0';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -206,6 +208,7 @@ class MailChimp extends Module
         $this->registerHook('actionObjectCustomerUpdateAfter'); // front office account creation
         $this->registerHook('actionAdminCustomersControllerSaveAfter'); // back office update customer
         $this->registerHook('actionValidateOrder'); // validate order
+        $this->registerHook('actionAdminCartRulesListingFieldsModifier');
 
         return true;
     }
@@ -251,6 +254,7 @@ class MailChimp extends Module
      */
     public function getContent()
     {
+        MailChimpPromo::duplicateCartRules(1065);
         if (Tools::isSubmit('ajax')) {
             $this->displayAjax();
 
@@ -562,45 +566,30 @@ class MailChimp extends Module
 
     /**
      * @param array $params
+     *
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
-    public function hookActionAdminOrdersListingFieldsModifier($params)
+    public function hookActionAdminCartRulesListingFieldsModifier($params)
     {
-        if (isset($params['select'])) {
-            $params['select'] .= ",\n\t\tmpdo.`myparcel_delivery_option`, IFNULL(mpdo.`date_delivery`, '1970-01-01 00:".
-                "00:00') as `myparcel_date_delivery`, mpdo.`pickup`, UPPER(country.`iso_code`) AS `myparcel_country_is".
-                "o`, 1 as `myparcel_void_1`, 1 as `myparcel_void_2`";
+        // Process submits
+        if (Tools::isSubmit('statusmailchimp_promo')) {
+            MailChimpPromo::toggle(Tools::getValue('id_cart_rule'));
         }
-        if (isset($params['join'])) {
-            $params['join'] .= "\n\t\tLEFT JOIN `"._DB_PREFIX_.bqSQL(MyParcelDeliveryOption::$definition['table'])."` ".
-                "mpdo ON (mpdo.`id_cart` = a.`id_cart`)";
-        }
+
+        $params['select'] .= "\n\t\tIF(mcp.`enabled`, 'true', 'false') AS `mailchimp_enabled`, mcp.`locked` AS `mailchimp_locked`";
+        $params['join'] .= "\n\t\tLEFT JOIN `"._DB_PREFIX_.bqSQL(MailChimpPromo::$definition['table']).'` mcp ON (mcp.`id_cart_rule` = a.`id_cart_rule`)';
         if (isset($params['fields'])) {
-            $params['fields']['myparcel_date_delivery'] = array(
-                'title'           => $this->l('Preferred delivery date'),
+            $params['fields']['mailchimp_enabled'] = [
+                'title'           => $this->l('MailChimp'),
                 'class'           => 'fixed-width-lg',
-                'callback'        => 'printOrderGridPreference',
-                'callback_object' => 'MyParcelTools',
-                'filter_key'      => 'mpdo!date_delivery',
-                'type'            => 'date',
-            );
-            $params['fields']['myparcel_void_1'] = array(
-                'title'           => $this->l('MyParcel'),
-                'class'           => 'fixed-width-lg',
-                'callback'        => 'printMyParcelTrackTrace',
-                'callback_object' => 'MyParcelTools',
+                'callback'        => 'printMailChimpPromoButton',
+                'callback_object' => 'MailChimpModule\\MailChimpPromo',
                 'search'          => false,
                 'orderby'         => false,
                 'remove_onclick'  => true,
-            );
-            $params['fields']['myparcel_void_2'] = array(
-                'title'           => '',
-                'class'           => 'fixed-width-xs',
-                'callback'        => 'printMyParcelIcon',
-                'callback_object' => 'MyParcelTools',
-                'search'          => false,
-                'orderby'         => false,
-                'remove_onclick'  => true,
-            );
+            ];
         }
     }
 
@@ -1179,20 +1168,23 @@ class MailChimp extends Module
                     $shop = new Shop($idShop);
                     $defaultIdCurrency = (int) Configuration::get('PS_CURRENCY_DEFAULT', null, $shop->id_shop_group, $shop->id);
                     $currency = new Currency($defaultIdCurrency);
-                    $result = json_decode((string) $client
-                        ->post(
-                            'ecommerce/stores',
-                            [
-                                'body'    => json_encode([
-                                    'id'            => 'tbstore_'.(int) $idShop,
-                                    'list_id'       => $idList,
-                                    'name'          => $shop->name,
-                                    'domain'        => $shop->domain_ssl,
-                                    'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
-                                    'currency_code' => strtoupper($currency->iso_code),
-                                ]),
-                            ]
-                        )->getBody(), true);
+                    try {
+                        $result = json_decode((string) $client
+                            ->post(
+                                'ecommerce/stores',
+                                [
+                                    'body' => json_encode([
+                                        'id'            => 'tbstore_'.(int) $idShop,
+                                        'list_id'       => $idList,
+                                        'name'          => $shop->name,
+                                        'domain'        => $shop->domain_ssl,
+                                        'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
+                                        'currency_code' => strtoupper($currency->iso_code),
+                                    ]),
+                                ]
+                            )->getBody(), true);
+                    } catch (\GuzzleHttp\Exception\TransferException $e) {
+                    }
 
                     if (empty($result['id'])) {
                         $client->patch(
@@ -2064,9 +2056,6 @@ class MailChimp extends Module
         }
 
         $mailChimpShop = MailChimpShop::getByShopId($idShop);
-        $apiKey = static::getApiKey();
-        $dc = substr($apiKey, -4);
-
         $subscribers = MailChimpSubscriber::getSubscribers($idShop, $offset, static::EXPORT_CHUNK_SIZE);
         if (empty($subscribers)) {
             return '';
@@ -2078,6 +2067,7 @@ class MailChimp extends Module
                 $mergeFields = [
                     'FNAME' => $subscriber['firstname'],
                     'LNAME' => $subscriber['lastname'],
+                    'TBREF' => $subscriber['tbref'],
                 ];
                 if ($subscriber['birthday']) {
                     $mergeFields['BDAY'] = date('m/d', strtotime($subscriber['birthday']));
@@ -2234,7 +2224,7 @@ class MailChimp extends Module
                         // We don't care about the DELETEs, those are fire-and-forget
                         return;
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
-                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Order Exists'
+                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Product Exists'
                     ) {
                         $idProduct = json_decode((string) $reason->getRequest()->getBody())->id;
                         try {
@@ -2248,7 +2238,7 @@ class MailChimp extends Module
                         } catch (\Exception $e) {
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
-                        && json_decode($reason->getResponse()->getBody())->title === 'Resource Not Found'
+                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
                     ) {
                         try {
                             $client->post("ecommerce/stores/tbstore_{$idShop}/products",
@@ -2371,7 +2361,7 @@ class MailChimp extends Module
                         // We don't care about the DELETEs, those are fire-and-forget
                         return;
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
-                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Order Exists'
+                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Cart Exists'
                     ) {
                         $idCart = json_decode((string) $reason->getRequest()->getBody())->id;
                         try {
@@ -2385,7 +2375,7 @@ class MailChimp extends Module
                         } catch (\Exception $e) {
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
-                        && json_decode($reason->getResponse()->getBody())->title === 'Resource Not Found'
+                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
                     ) {
                         try {
                             $client->post("ecommerce/stores/tbstore_{$idShop}/carts",
@@ -2409,6 +2399,12 @@ class MailChimp extends Module
                     );
                 } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
+                }
+            },
+            'fulfilled' => function ($value) {
+                $request = json_decode((string) $value->getRequest()->getBody(), true);
+                if (!empty($request['customer']['id'])) {
+                    MailChimpPromo::duplicateCartRules($request['customer']['id']);
                 }
             },
         ]))->promise()->wait();
@@ -2526,7 +2522,7 @@ class MailChimp extends Module
                         // We don't care about the DELETEs, those are fire-and-forget
                         return;
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
-                        && json_decode($reason->getResponse()->getBody())->title === 'Order Exists'
+                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Order Exists'
                     ) {
                         $idOrder = json_decode($reason->getRequest()->getBody())->id;
                         try {
@@ -2540,7 +2536,7 @@ class MailChimp extends Module
                         } catch (\Exception $e) {
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
-                        && json_decode($reason->getResponse()->getBody())->title === 'Resource Not Found'
+                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
                     ) {
                         try {
                             $client->post("ecommerce/stores/tbstore_{$idShop}/orders",
@@ -2606,9 +2602,26 @@ class MailChimp extends Module
         $client = static::getGuzzle();
         $result = json_decode((string) $client->get("lists/{$idList}/merge-fields")->getBody(), true);
         $missingFields = [
-            'FNAME' => 'text',
-            'LNAME' => 'text',
-            'BDAY'  => 'date',
+            'FNAME' => [
+                'type'     => 'text',
+                'name'     => 'First name',
+                'required' => false,
+            ],
+            'LNAME' => [
+                'type'     => 'text',
+                'name'     => 'Last name',
+                'required' => false,
+            ],
+            'BDAY'  => [
+                'type'     => 'date',
+                'name'     => 'Birthday',
+                'required' => false,
+            ],
+            'TBREF' => [
+                'type'     => 'text',
+                'name'     => 'thirty bees customer reference',
+                'required' => true,
+            ],
         ];
         foreach ($result['merge_fields'] as $mergeField) {
             if (isset($missingFields[$mergeField['tag']]) && $missingFields[$mergeField['tag']] === $mergeField['type']) {
@@ -2617,16 +2630,15 @@ class MailChimp extends Module
         }
 
         $promises = call_user_func(function () use ($missingFields, $client, $idList) {
-            foreach ($missingFields as $fieldName => $fieldType) {
-                yield $client->deleteAsync("lists/{$idList}/merge-fields/{$fieldName}");
+            foreach ($missingFields as $tag => $field) {
                 yield $client->postAsync(
                     "lists/{$idList}/merge-fields",
                     [
                         'body'    => json_encode([
-                            'tag'      => $fieldName,
-                            'name'     => $fieldName,
-                            'type'     => $fieldType,
-                            'required' => false,
+                            'tag'      => $tag,
+                            'name'     => $field['name'],
+                            'type'     => $field['type'],
+                            'required' => $field['required'],
                         ]),
                     ]
                 );
@@ -2634,6 +2646,31 @@ class MailChimp extends Module
         });
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
+            'rejected'    => function ($reason) use ($client, $idList) {
+                if ($reason instanceof ClientException) {
+                    if (preg_match("/A Merge Field with the tag \"(?P<tag>.*)?\" already exists for this list./", json_decode((string) $reason->getResponse()->getBody())->detail, $m)) {
+                        $request = $reason->getRequest();
+                        $client->getAsync("lists/{$idList}/merge-fields")->then(function ($response) use ($client, $idList, $request, $m) {
+                            /** @var \GuzzleHttp\Psr7\Response $response */
+                            $mergeFields = json_decode((string) $response->getBody(), true);
+                            $idMerge = null;
+                            foreach ($mergeFields['merge_fields'] as $mergeField) {
+                                if ($mergeField['tag'] === $m['tag']) {
+                                    $idMerge = $mergeField['merge_id'];
+                                    break;
+                                }
+                            }
+                            if ($idMerge) {
+                                try {
+                                    $client->patch("lists/{$idList}/merge-fields/{$idMerge}", ['body' => (string) $request->getBody()]);
+                                } catch (\GuzzleHttp\Exception\TransferException $e) {
+                                    Logger::addLog("MailChimp merge field error: {$e->getMessage()}");
+                                }
+                            }
+                        });
+                    }
+                }
+            },
         ]))->promise()->wait();
 
         if (isset($result['id'])) {

@@ -30,6 +30,7 @@ spl_autoload_register(
             'MailChimpModule\\MailChimpCart',
             'MailChimpModule\\MailChimpObjectModel',
             'MailChimpModule\\MailChimpOrder',
+            'MailChimpModule\\MailChimpPromo',
             'MailChimpModule\\MailChimpTracking',
         ])) {
             // project-specific namespace prefix
