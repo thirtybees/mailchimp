@@ -57,7 +57,7 @@
         var idShop = parseInt(elem.attr('data-shop'), 10);
         orderExportStatus(ORDER_IN_PROGRESS);
 
-        $.get(exportUrl + '&ajax=true&action=exportAllOrders&shop=' + idShop +'&start' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax=true&action=exportAllOrders&shop=' + idShop +'&start' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           $('#export_orders_total').html(response.totalOrders);
           $('#export_orders_progressbar_done').width('0%');
@@ -66,6 +66,18 @@
 
           inProgress = true;
           exportAllOrdersNext(idShop, response.totalOrders, response.totalChunks, exportRemaining);
+        }).fail(function () {
+          if (jqXhr.status === 504) {
+            swal({
+              icon: 'error',
+              text: '{l s='Server timed out. Please try again when it is less busy, try the CLI method or upgrade your server to solve the problem.' mod='mailchimp'}'
+            });
+          } else {
+            swal({
+              icon: 'error',
+              text: '{l s='An error occurred. Check your server logs for the actual error message.' mod='mailchimp'}'
+            });
+          }
         });
       }
 
@@ -74,7 +86,7 @@
           return;
         }
 
-        $.get(exportUrl + '&ajax&action=exportAllOrders&shop=' + idShop +'&next' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllOrders&shop=' + idShop +'&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           var remaining = parseInt(response.remaining, 10);
           var processed = (totalChunks - remaining) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
@@ -102,6 +114,18 @@
 
           // finish
           orderExportStatus(ORDER_COMPLETED);
+        }).fail(function () {
+          if (jqXhr.status === 504) {
+            swal({
+              icon: 'error',
+              text: '{l s='Server timed out. Please try again when it is less busy, try the CLI method or upgrade your server to solve the problem.' mod='mailchimp'}'
+            });
+          } else {
+            swal({
+              icon: 'error',
+              text: '{l s='An error occurred. Check your server logs for the actual error message.' mod='mailchimp'}'
+            });
+          }
         });
       }
 
@@ -124,7 +148,7 @@
         });
 
         $('#reset-order-sync-data-btn-' + idShop).click(function () {
-          $.get(exportUrl + '&ajax=true&action=resetOrders&shop=' + idShop, function (response) {
+          var jqXhr = $.get(exportUrl + '&ajax=true&action=resetOrders&shop=' + idShop, function (response) {
             if (response && JSON.parse(response).success) {
               swal({
                 icon: 'success',
@@ -134,6 +158,18 @@
               swal({
                 icon: 'error',
                 text: '{l s='Unable to reset order sync data' mod='mailchimp' js=1}',
+              });
+            }
+          }).fail(function () {
+            if (jqXhr.status === 504) {
+              swal({
+                icon: 'error',
+                text: '{l s='Server timed out. Please try again when it is less busy, try the CLI method or upgrade your server to solve the problem.' mod='mailchimp'}'
+              });
+            } else {
+              swal({
+                icon: 'error',
+                text: '{l s='An error occurred. Check your server logs for the actual error message.' mod='mailchimp'}'
               });
             }
           });

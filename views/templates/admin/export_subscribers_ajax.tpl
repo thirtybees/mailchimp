@@ -57,7 +57,7 @@
         var idShop = parseInt(elem.attr('data-shop'), 10);
         subscriberExportStatus(SUBSCRIBER_IN_PROGRESS);
 
-        $.get(exportUrl + '&ajax=true&action=exportAllSubscribers&shop=' + idShop +'&start' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax=true&action=exportAllSubscribers&shop=' + idShop +'&start' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           $('#export_subscribers_total').html(response.totalSubscribers);
           $('#export_subscribers_progressbar_done').width('0%');
@@ -66,6 +66,18 @@
 
           inProgress = true;
           exportSubscribersNext(idShop, response.totalSubscribers, response.totalChunks, exportRemaining);
+        }).fail(function () {
+          if (jqXhr.status === 504) {
+            swal({
+              icon: 'error',
+              text: '{l s='Server timed out. Please try again when it is less busy, try the CLI method or upgrade your server to solve the problem.' mod='mailchimp'}'
+            });
+          } else {
+            swal({
+              icon: 'error',
+              text: '{l s='An error occurred. Check your server logs for the actual error message.' mod='mailchimp'}'
+            });
+          }
         });
       }
 
@@ -74,7 +86,7 @@
           return;
         }
 
-        $.get(exportUrl + '&ajax&action=exportAllSubscribers&shop=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllSubscribers&shop=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           var remaining = parseInt(response.remaining, 10);
           var processed = (totalChunks - remaining) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
@@ -102,6 +114,18 @@
 
           // finish
           subscriberExportStatus(SUBSCRIBER_COMPLETED);
+        }).fail(function () {
+          if (jqXhr.status === 504) {
+            swal({
+              icon: 'error',
+              text: '{l s='Server timed out. Please try again when it is less busy, try the CLI method or upgrade your server to solve the problem.' mod='mailchimp'}'
+            });
+          } else {
+            swal({
+              icon: 'error',
+              text: '{l s='An error occurred. Check your server logs for the actual error message.' mod='mailchimp'}'
+            });
+          }
         });
       }
 
