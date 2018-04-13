@@ -193,6 +193,7 @@ class MailChimp extends Module
             || !MailChimpProduct::createDatabase()
             || !MailChimpCart::createDatabase()
             || !MailChimpOrder::createDatabase()
+            || !MailChimpPromo::createDatabase()
             || !MailChimpTracking::createDatabase()
         ) {
             return false;
