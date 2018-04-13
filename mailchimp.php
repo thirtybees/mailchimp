@@ -19,6 +19,7 @@
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\EachPromise;
 use MailChimpModule\MailChimpCart;
 use MailChimpModule\MailChimpOrder;
@@ -612,7 +613,6 @@ class MailChimp extends Module
                     'timeout'         => static::API_TIMEOUT,
                     'connect_timeout' => static::API_TIMEOUT,
                     'verify'          => _PS_TOOL_DIR_.'cacert.pem',
-                    'http_errors'     => true,
                     'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
                     'headers'         => [
                         'Accept'        => 'application/json',
@@ -1172,64 +1172,83 @@ class MailChimp extends Module
             $client = static::getGuzzle();
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
-                    $this->checkMergeFields($idList);
+                    if ($idList) {
+                        $this->checkMergeFields($idList);
+                        $shop = new Shop($idShop);
+                        $defaultIdCurrency = (int) Configuration::get('PS_CURRENCY_DEFAULT', null, $shop->id_shop_group, $shop->id);
+                        $currency = new Currency($defaultIdCurrency);
 
-                    $shop = new Shop($idShop);
-                    $defaultIdCurrency = (int) Configuration::get('PS_CURRENCY_DEFAULT', null, $shop->id_shop_group, $shop->id);
-                    $currency = new Currency($defaultIdCurrency);
-                    try {
-                        $result = json_decode((string) $client
-                            ->post(
-                                'ecommerce/stores',
-                                [
-                                    'body' => json_encode([
-                                        'id'            => 'tbstore_'.(int) $idShop,
-                                        'list_id'       => $idList,
-                                        'name'          => $shop->name,
-                                        'domain'        => $shop->domain_ssl,
-                                        'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
-                                        'currency_code' => strtoupper($currency->iso_code),
-                                    ]),
-                                ]
-                            )->getBody(), true);
-                    } catch (\GuzzleHttp\Exception\TransferException $e) {
-                    }
+                        $mailChimpShop = MailChimpShop::getByShopId($idShop);
+                        if (!Validate::isLoadedObject($mailChimpShop)) {
+                            $mailChimpShop = new MailChimpShop();
+                        }
 
-                    if (empty($result['id'])) {
-                        $client->patch(
-                            'ecommerce/stores/tbstore_'.(int) $idShop,
-                            [
-                                'body' => json_encode([
-                                    'id'            => 'tbstore_'.(int) $idShop,
-                                    'list_id'       => $idList,
-                                    'name'          => $shop->name,
-                                    'domain'        => $shop->domain_ssl,
-                                    'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
-                                    'currency_code' => strtoupper($currency->iso_code),
-                                ])
-                            ]
-                        );
-                    }
+                        if ($mailChimpShop->list_id && $mailChimpShop->list_id !== $idList) {
+                            try {
+                                $client->delete('ecommerce/stores/tbstore_'.(int) $idShop);
+                            } catch (TransferException $e){
+                            }
+                            try {
+                                $client->post(
+                                    'ecommerce/stores',
+                                    [
+                                        'body' => json_encode([
+                                            'id'            => 'tbstore_'.(int) $idShop,
+                                            'list_id'       => $idList,
+                                            'name'          => $shop->name,
+                                            'domain'        => $shop->domain_ssl,
+                                            'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
+                                            'currency_code' => strtoupper($currency->iso_code),
+                                        ]),
+                                    ]
+                                );
+                            } catch (ClientException $reason) {
+                                $response = (string) $reason->getResponse()->getBody();
+                                Logger::addLog("MailChimp store error: {$response}");
+                            } catch (TransferException $e) {
+                            }
+                            MailChimpProduct::resetShop($idShop);
+                            MailChimpCart::resetShop($idShop);
+                            MailChimpOrder::resetShop($idShop);
+                        } elseif (!$mailChimpShop->list_id) {
+                            try {
+                                $client
+                                    ->post(
+                                        'ecommerce/stores',
+                                        [
+                                            'body' => json_encode([
+                                                'id'            => 'tbstore_'.(int) $idShop,
+                                                'list_id'       => $idList,
+                                                'name'          => $shop->name,
+                                                'domain'        => $shop->domain_ssl,
+                                                'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
+                                                'currency_code' => strtoupper($currency->iso_code),
+                                            ]),
+                                        ]
+                                    );
+                            } catch (ClientException $e) {
+                            } catch (TransferException $e) {
+                            }
+                        }
 
-                    $mailChimpShop = MailChimpShop::getByShopId($idShop);
-                    if (!Validate::isLoadedObject($mailChimpShop)) {
-                        $mailChimpShop = new MailChimpShop();
-                    }
-                    $mailChimpShop->list_id = $idList;
-                    $mailChimpShop->id_shop = $idShop;
-                    $mailChimpShop->id_tax = (int) $shopTaxes[$idShop];
-                    $mailChimpShop->synced = true;
+                        $mailChimpShop->list_id = $idList;
+                        $mailChimpShop->id_shop = $idShop;
+                        $mailChimpShop->id_tax = (int) $shopTaxes[$idShop];
+                        $mailChimpShop->synced = true;
 
-                    try {
-                        $mailChimpShop->save();
-                    } catch (PrestaShopException $e) {
-                        $this->addError($this->l('Shop info could not be saved'));
-                    }
+                        try {
+                            $mailChimpShop->save();
+                        } catch (PrestaShopException $e) {
+                            $this->addError($this->l('Shop info could not be saved'));
+                        }
 
-                    // Create MailChimp side webhooks
-                    $register = $this->registerWebhookForList($mailChimpShop->list_id);
-                    if (!$register) {
-                        $this->addError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
+                        // Create MailChimp side webhooks
+                        if ($mailChimpShop->list_id) {
+                            $register = $this->registerWebhookForList($mailChimpShop->list_id);
+                            if (!$register) {
+                                $this->addError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
+                            }
+                        }
                     }
                 }
             }
@@ -1262,9 +1281,9 @@ class MailChimp extends Module
             $result = $this->registerWebhook($idList, $callbackUrl);
             if ($result) {
                 if (!MailChimpRegisteredWebhook::saveWebhook($callbackUrl, $idList)) {
-                    Logger::addLog('Could not save webhook to database, List ID: '.$idList.', URL: '.$callbackUrl);
+                    Logger::addLog('MailChimp: Could not save webhook to database, List ID: '.$idList.', URL: '.$callbackUrl);
                 } else {
-                    Logger::addLog('Webhook saved to database, List ID: '.$idList.', URL: '.$callbackUrl);
+                    Logger::addLog('MailChimp: Webhook saved to database, List ID: '.$idList.', URL: '.$callbackUrl);
                 }
             } else {
 //                if (is_object($this->mailChimp)) {
@@ -1308,12 +1327,17 @@ class MailChimp extends Module
      */
     protected function registerWebhook($idList, $url = null)
     {
+        if (!$idList) {
+            return false;
+        }
+
         if (!$url) {
             $url = $this->urlForWebhook();
         }
 
+        $success = true;
         $client = static::getGuzzle();
-        $result = json_decode((string) $client->post(
+        $promise = $client->postAsync(
             "lists/{$idList}/webhooks",
             [
                 'body'   => json_encode([
@@ -1333,9 +1357,21 @@ class MailChimp extends Module
                     ],
                 ]),
             ]
-        )->getBody(), true);
+        );
+        $promise->then(function ($response) use (&$success) {
+            $success = $response instanceof \GuzzleHttp\Psr7\Response && $response->getStatusCode() === 200;
+        });
+        $promise->otherwise(function ($reason) use (&$success, $client) {
+            if ($reason instanceof ClientException) {
+                $response = json_decode((string) $reason->getResponse()->getBody(), true);
+                if (!empty($response['errors'][0]['message']) && $response['errors'][0]['message'] !== 'Sorry, you can\'t set up multiple WebHooks for one URL') {
+                    $success = false;
+                }
+            }
+        });
+        GuzzleHttp\Promise\settle([$promise])->wait();
 
-        return !empty($result['id']);
+        return $success;
     }
 
     /**
@@ -2614,8 +2650,19 @@ class MailChimp extends Module
      */
     protected function checkMergeFields($idList)
     {
+        if (!$idList) {
+            return false;
+        }
+
         $client = static::getGuzzle();
-        $result = json_decode((string) $client->get("lists/{$idList}/merge-fields")->getBody(), true);
+        try {
+            $result = json_decode((string) $client->get("lists/{$idList}/merge-fields")->getBody(), true);
+        } catch (ClientException $e) {
+            $response = (string) $e->getResponse()->getBody();
+            Logger::addLog("MailChimp client error while grabbing the merge fields: {$response}");
+        } catch (TransferException $e) {
+            Logger::addLog("MailChimp generic error while grabbing the merge fields: {$e->getMessage()}");
+        }
         $missingFields = [
             'FNAME' => [
                 'type'     => 'text',

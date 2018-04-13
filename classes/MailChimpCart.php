@@ -251,4 +251,22 @@ class MailChimpCart extends \ObjectModel
             return false;
         }
     }
+
+    /**
+     * @param int $idShop
+     *
+     * @return bool
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
+     */
+    public static function resetShop($idShop)
+    {
+        return \Db::getInstance()->update(
+            bqSQL(static::$definition['table']),
+            [
+                'last_synced' => '1970-01-01 00:00:00',
+            ],
+            '`id_cart` IN (SELECT `id_cart` FROM `'._DB_PREFIX_.'cart` WHERE `id_shop` = '.(int) $idShop.')'
+        );
+    }
 }

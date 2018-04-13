@@ -228,4 +228,22 @@ class MailChimpOrder extends \ObjectModel
             return false;
         }
     }
+
+    /**
+     * @param int $idShop
+     *
+     * @return bool
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
+     */
+    public static function resetShop($idShop)
+    {
+        return \Db::getInstance()->update(
+            bqSQL(static::$definition['table']),
+            [
+                'last_synced' => '1970-01-01 00:00:00',
+            ],
+            '`id_order` IN (SELECT `id_order` FROM `'._DB_PREFIX_.'orders` WHERE `id_shop` = '.(int) $idShop.')'
+        );
+    }
 }
