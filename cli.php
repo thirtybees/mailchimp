@@ -38,6 +38,7 @@ function processExportAllProducts($idShop, $module)
 {
     $data = $module->cronExport('products', $idShop, false, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+        MailChimp::resetGuzzle();
         $module->cronExport('products', $idShop, false, 'next');
     }
 
@@ -57,6 +58,7 @@ function processExportRemainingProducts($idShop, $module)
 {
     $data = $module->cronExport('products', $idShop, true, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+        MailChimp::resetGuzzle();
         $module->cronExport('products', $idShop, true, 'next');
     }
 
@@ -95,6 +97,7 @@ function processExportAllCarts($idShop, $module)
 {
     $data = $module->cronExport('carts', $idShop, false, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+        MailChimp::resetGuzzle();
         $module->cronExport('carts', $idShop, false, 'next');
     }
 
@@ -114,6 +117,7 @@ function processExportRemainingCarts($idShop, $module)
 {
     $data = $module->cronExport('carts', $idShop, true, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+        MailChimp::resetGuzzle();
         $module->cronExport('carts', $idShop, true, 'next');
     }
 
@@ -152,6 +156,7 @@ function processExportAllOrders($idShop, $module)
 {
     $data = $module->cronExport('orders', $idShop, false, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+        MailChimp::resetGuzzle();
         $module->cronExport('orders', $idShop, false, 'next');
     }
 
@@ -171,6 +176,7 @@ function processExportRemainingOrders($idShop, $module)
 {
     $data = $module->cronExport('orders', $idShop, true, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+        MailChimp::resetGuzzle();
         $module->cronExport('orders', $idShop, true, 'next');
     }
 

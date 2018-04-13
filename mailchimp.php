@@ -58,7 +58,7 @@ class MailChimp extends Module
     const LAST_IMPORT = 'MAILCHIMP_LAST_IMPORT';
     const LAST_IMPORT_ID = 'MAILCHIMP_LAST_IMPORT_ID';
     const API_TIMEOUT = 20;
-    const API_CONCURRENCY = 10;
+    const API_CONCURRENCY = 5;
 
     const SUBSCRIBERS_SYNC_COUNT = 'MAILCHIMP_SUBSCRIBERS_SYNC_COUNT';
     const SUBSCRIBERS_SYNC_TOTAL = 'MAILCHIMP_SUBSCRIBERS_SYNC_TOTAL';
@@ -627,6 +627,14 @@ class MailChimp extends Module
         }
 
         return static::$guzzle;
+    }
+
+    /**
+     * Reset Guzzle
+     */
+    public static function resetGuzzle()
+    {
+        static::$guzzle = null;
     }
 
     /**
