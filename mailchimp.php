@@ -2140,8 +2140,6 @@ class MailChimp extends Module
         if (Validate::isLoadedObject($tax) && $tax->active) {
             $rate = 1 + ($tax->rate / 100);
         }
-        $apiKey = static::getApiKey();
-        $dc = substr($apiKey, -4);
         $client = static::getGuzzle();
         $link = \Context::getContext()->link;
 
@@ -2225,11 +2223,11 @@ class MailChimp extends Module
                         // We don't care about the DELETEs, those are fire-and-forget
                         return;
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
-                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Product Exists'
+                        && strpos(json_decode((string) $reason->getResponse()->getBody())->detail, 'A product with the provided ID') !== false
                     ) {
                         $idProduct = json_decode((string) $reason->getRequest()->getBody())->id;
                         try {
-                            $client->patch("ecommerce/stores/tbstore_{$idShop}/products/{$idProduct}}",
+                            $client->patch("ecommerce/stores/tbstore_{$idShop}/products/{$idProduct}",
                                 [
                                     'body' => (string) $reason->getRequest()->getBody(),
                                 ]
@@ -2305,6 +2303,7 @@ class MailChimp extends Module
                 $mergeFields = [
                     'FNAME' => $cart['firstname'],
                     'LNAME' => $cart['lastname'],
+                    'TBREF' => MailChimpSubscriber::getTbRef($cart['email']),
                 ];
                 if ($cart['birthday'] && date('Y-m-d', strtotime($cart['birthday'])) > '1900-01-01') {
                     $mergeFields['BDAY'] = date('m/d', strtotime($cart['birthday']));
@@ -2362,15 +2361,18 @@ class MailChimp extends Module
                         // We don't care about the DELETEs, those are fire-and-forget
                         return;
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
-                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Cart Exists'
+                        && strpos(json_decode((string) $reason->getResponse()->getBody())->detail, 'A cart with the provided ID') !== false
                     ) {
                         $idCart = json_decode((string) $reason->getRequest()->getBody())->id;
                         try {
-                            $client->patch("ecommerce/stores/tbstore_{$idShop}/carts/{$idCart}",
+                            $response = json_decode($client->patch("ecommerce/stores/tbstore_{$idShop}/carts/{$idCart}",
                                 [
                                     'body' => (string) $reason->getRequest()->getBody(),
                                 ]
-                            );
+                            )->getBody(), true);
+                            if (!empty($response['customer']['id'])) {
+                                MailChimpPromo::duplicateCartRules($response['customer']['id']);
+                            }
                             return;
                         } catch (\GuzzleHttp\Exception\TransferException $e) {
                         } catch (\Exception $e) {
@@ -2379,11 +2381,14 @@ class MailChimp extends Module
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
                     ) {
                         try {
-                            $client->post("ecommerce/stores/tbstore_{$idShop}/carts",
+                            $response = json_decode($client->post("ecommerce/stores/tbstore_{$idShop}/carts",
                                 [
                                     'body' => (string) $reason->getRequest()->getBody(),
                                 ]
-                            );
+                            )->getBody(), true);
+                            if (!empty($response['customer']['id'])) {
+                                MailChimpPromo::duplicateCartRules($response['customer']['id']);
+                            }
                             return;
                         } catch (\GuzzleHttp\Exception\TransferException $e) {
                         } catch (\Exception $e) {
@@ -2403,9 +2408,9 @@ class MailChimp extends Module
                 }
             },
             'fulfilled' => function ($value) {
-                $request = json_decode((string) $value->getRequest()->getBody(), true);
-                if (!empty($request['customer']['id'])) {
-                    MailChimpPromo::duplicateCartRules($request['customer']['id']);
+                $response = json_decode((string) $value->getBody(), true);
+                if (!empty($response['customer']['id'])) {
+                    MailChimpPromo::duplicateCartRules($response['customer']['id']);
                 }
             },
         ]))->promise()->wait();
@@ -2449,6 +2454,7 @@ class MailChimp extends Module
                 $mergeFields = [
                     'FNAME' => $order['firstname'],
                     'LNAME' => $order['lastname'],
+                    'TBREF' => MailChimpSubscriber::getTbRef($order['email']),
                 ];
                 if ($order['birthday'] && date('Y-m-d', strtotime($order['birthday'])) > '1900-01-01') {
                     $mergeFields['BDAY'] = date('m/d', strtotime($order['birthday']));
@@ -2523,7 +2529,7 @@ class MailChimp extends Module
                         // We don't care about the DELETEs, those are fire-and-forget
                         return;
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
-                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Order Exists'
+                        && strpos(json_decode((string) $reason->getResponse()->getBody())->detail, 'An order with the provided ID') !== false
                     ) {
                         $idOrder = json_decode($reason->getRequest()->getBody())->id;
                         try {
