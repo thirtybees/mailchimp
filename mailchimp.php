@@ -1105,7 +1105,7 @@ class MailChimp extends Module
     public function cronExport($type = 'products', $idShop, $exportRemaining, $submit)
     {
         if ($submit === 'start') {
-            $totalItems = call_user_func('MailChimp'.ucfirst(substr($type, 0, strlen($type) - 1)).'::count'.ucfirst($type), $idShop, $exportRemaining);
+            $totalItems = call_user_func('\\MailChimpModule\\MailChimp'.ucfirst(substr($type, 0, strlen($type) - 1)).'::count'.ucfirst($type), $idShop, $exportRemaining);
             $totalChunks = ceil($totalItems / static::EXPORT_CHUNK_SIZE);
 
             Configuration::updateValue(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_COUNT'), 0, false, 0, 0);
@@ -1618,12 +1618,12 @@ class MailChimp extends Module
                     $idShop,
                     false
                 ),
-                'cron_all_products_cli'       => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportAllProducts",
-                'cron_remaining_products_cli' => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportRemainingProducts",
-                'cron_all_carts_cli'          => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportAllCarts",
-                'cron_remaining_carts_cli'    => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportRemainingCarts",
-                'cron_all_orders_cli'         => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportAllOrders",
-                'cron_remaining_orders_cli'   => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --id_shop=$idShop action=ExportRemainingOrders",
+                'cron_all_products_cli'       => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportAllProducts",
+                'cron_remaining_products_cli' => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportRemainingProducts",
+                'cron_all_carts_cli'          => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportAllCarts",
+                'cron_remaining_carts_cli'    => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportRemainingCarts",
+                'cron_all_orders_cli'         => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportAllOrders",
+                'cron_remaining_orders_cli'   => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportRemainingOrders",
                 'id_profile'                  => $this->context->employee->id_profile,
             ]
         );

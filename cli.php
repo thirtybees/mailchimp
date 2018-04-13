@@ -19,6 +19,7 @@
 
 require_once __DIR__.'/../../config/config.inc.php';
 require_once __DIR__.'/../../init.php';
+require_once __DIR__.'/mailchimp.php';
 
 if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_') || php_sapi_name() !== 'cli') {
     die('no access');
@@ -31,12 +32,13 @@ if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_') || php_sapi_name() !== 
  * @param MailChimp $module
  *
  * @since 1.1.0
+ * @throws PrestaShopException
  */
 function processExportAllProducts($idShop, $module)
 {
-    $data = $module->cronExportProducts($idShop, false, 'start');
+    $data = $module->cronExport('products', $idShop, false, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-        $module->cronExportProducts($idShop, false, 'next');
+        $module->cronExport('products', $idShop, false, 'next');
     }
 
     die('ok');
@@ -49,12 +51,13 @@ function processExportAllProducts($idShop, $module)
  * @param MailChimp $module
  *
  * @since 1.1.0
+ * @throws PrestaShopException
  */
 function processExportRemainingProducts($idShop, $module)
 {
-    $data = $module->cronExportProducts($idShop, true, 'start');
+    $data = $module->cronExport('products', $idShop, true, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-        $module->cronExportProducts($idShop, true, 'next');
+        $module->cronExport('products', $idShop, true, 'next');
     }
 
     die('ok');
@@ -66,11 +69,13 @@ function processExportRemainingProducts($idShop, $module)
  * @param int       $idShop
  * @param MailChimp $module
  *
+ * @throws PrestaShopDatabaseException
+ * @throws PrestaShopException
  * @since 1.0.0
  */
 function processResetProducts($idShop, $module)
 {
-    if ($module->processResetProducts($idShop, false)) {
+    if ($module->processReset('products', $idShop, false)) {
         die('ok');
     }
 
@@ -84,12 +89,13 @@ function processResetProducts($idShop, $module)
  * @param MailChimp $module
  *
  * @since 1.1.0
+ * @throws PrestaShopException
  */
 function processExportAllCarts($idShop, $module)
 {
-    $data = $module->cronExportCarts($idShop, false, 'start');
+    $data = $module->cronExport('carts', $idShop, false, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-        $module->cronExportCarts($idShop, false, 'next');
+        $module->cronExport('carts', $idShop, false, 'next');
     }
 
     die('ok');
@@ -102,12 +108,13 @@ function processExportAllCarts($idShop, $module)
  * @param MailChimp $module
  *
  * @since 1.1.0
+ * @throws PrestaShopException
  */
 function processExportRemainingCarts($idShop, $module)
 {
-    $data = $module->cronExportCarts($idShop, true, 'start');
+    $data = $module->cronExport('carts', $idShop, true, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-        $module->cronExportCarts($idShop, true, 'next');
+        $module->cronExport('carts', $idShop, true, 'next');
     }
 
     die('ok');
@@ -119,11 +126,13 @@ function processExportRemainingCarts($idShop, $module)
  * @param int       $idShop
  * @param MailChimp $module
  *
+ * @throws PrestaShopDatabaseException
+ * @throws PrestaShopException
  * @since 1.1.0
  */
 function processResetCarts($idShop, $module)
 {
-    if ($module->processResetCarts($idShop, false)) {
+    if ($module->processReset('carts', $idShop, false)) {
         die('ok');
     }
 
@@ -137,12 +146,13 @@ function processResetCarts($idShop, $module)
  * @param MailChimp $module
  *
  * @since 1.1.0
+ * @throws PrestaShopException
  */
 function processExportAllOrders($idShop, $module)
 {
-    $data = $module->cronExportOrders($idShop, false, 'start');
+    $data = $module->cronExport('orders', $idShop, false, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-        $module->cronExportOrders($idShop, false, 'next');
+        $module->cronExport('orders', $idShop, false, 'next');
     }
 
     die('ok');
@@ -155,12 +165,13 @@ function processExportAllOrders($idShop, $module)
  * @param MailChimp $module
  *
  * @since 1.1.0
+ * @throws PrestaShopException
  */
 function processExportRemainingOrders($idShop, $module)
 {
-    $data = $module->cronExportOrders($idShop, true, 'start');
+    $data = $module->cronExport('orders', $idShop, true, 'start');
     for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
-        $module->cronExportOrders($idShop, true, 'next');
+        $module->cronExport('orders', $idShop, true, 'next');
     }
 
     die('ok');
@@ -172,11 +183,13 @@ function processExportRemainingOrders($idShop, $module)
  * @param int       $idShop
  * @param MailChimp $module
  *
+ * @throws PrestaShopDatabaseException
+ * @throws PrestaShopException
  * @since 1.1.0
  */
 function processResetOrders($idShop, $module)
 {
-    if ($module->processResetOrders($idShop, false)) {
+    if ($module->processReset('orders', $idShop, false)) {
         die('ok');
     }
 
@@ -187,7 +200,7 @@ $module = Module::getInstanceByName('mailchimp');
 
 $params = getopt('shop:action:', ['shop:', 'action:']);
 
-if (!array_key_exists('shop', $params) || !array_key_exists('shop', $params)) {
+if (!array_key_exists('shop', $params) || !array_key_exists('action', $params)) {
     die('fail');
 }
 
