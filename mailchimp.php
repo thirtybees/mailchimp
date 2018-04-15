@@ -1183,7 +1183,7 @@ class MailChimp extends Module
                             $mailChimpShop = new MailChimpShop();
                         }
 
-                        if ($mailChimpShop->list_id && $mailChimpShop->list_id !== $idList || !$idList) {
+                        if ($idList && $mailChimpShop->list_id !== $idList || !$idList) {
                             try {
                                 $client->delete('ecommerce/stores/tbstore_'.(int) $idShop);
                             } catch (TransferException $e){
