@@ -1183,37 +1183,14 @@ class MailChimp extends Module
                             $mailChimpShop = new MailChimpShop();
                         }
 
-                        if ($mailChimpShop->list_id && $mailChimpShop->list_id !== $idList) {
+                        if ($mailChimpShop->list_id && $mailChimpShop->list_id !== $idList || !$idList) {
                             try {
                                 $client->delete('ecommerce/stores/tbstore_'.(int) $idShop);
                             } catch (TransferException $e){
                             }
-                            try {
-                                $client->post(
-                                    'ecommerce/stores',
-                                    [
-                                        'body' => json_encode([
-                                            'id'            => 'tbstore_'.(int) $idShop,
-                                            'list_id'       => $idList,
-                                            'name'          => $shop->name,
-                                            'domain'        => $shop->domain_ssl,
-                                            'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
-                                            'currency_code' => strtoupper($currency->iso_code),
-                                        ]),
-                                    ]
-                                );
-                            } catch (ClientException $reason) {
-                                $response = (string) $reason->getResponse()->getBody();
-                                Logger::addLog("MailChimp store error: {$response}");
-                            } catch (TransferException $e) {
-                            }
-                            MailChimpProduct::resetShop($idShop);
-                            MailChimpCart::resetShop($idShop);
-                            MailChimpOrder::resetShop($idShop);
-                        } elseif (!$mailChimpShop->list_id) {
-                            try {
-                                $client
-                                    ->post(
+                            if ($idList) {
+                                try {
+                                    $client->post(
                                         'ecommerce/stores',
                                         [
                                             'body' => json_encode([
@@ -1226,9 +1203,15 @@ class MailChimp extends Module
                                             ]),
                                         ]
                                     );
-                            } catch (ClientException $e) {
-                            } catch (TransferException $e) {
+                                } catch (ClientException $reason) {
+                                    $response = (string) $reason->getResponse()->getBody();
+                                    Logger::addLog("MailChimp store error: {$response}");
+                                } catch (TransferException $e) {
+                                }
                             }
+                            MailChimpProduct::resetShop($idShop);
+                            MailChimpCart::resetShop($idShop);
+                            MailChimpOrder::resetShop($idShop);
                         }
 
                         $mailChimpShop->list_id = $idList;
