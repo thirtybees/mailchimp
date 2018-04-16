@@ -1331,8 +1331,9 @@ class MailChimp extends Module
             'concurrency' => static::API_CONCURRENCY,
             'rejected'    => function ($reason) use (&$success) {
                 if ($reason instanceof \GuzzleHttp\Exception\RequestException) {
-                    $body = (string) $reason->getResponse()->getBody();
-                    Logger::addLog("MailChimp client error: {$body}", 2);
+                    $responseBody = (string) $reason->getResponse()->getBody();
+                    $requestBody = (string) $reason->getRequest()->getBody();
+                    Logger::addLog("MailChimp client error: {$requestBody} -- {$responseBody}", 2);
                 } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
@@ -2003,8 +2004,9 @@ class MailChimp extends Module
                     Configuration::updateValue(static::API_KEY_VALID, true);
                 }
             } catch (\GuzzleHttp\Exception\ClientException $e) {
-                $body = (string) $e->getResponse()->getBody();
-                $this->addError("MailChimp client error: {$body}");
+                $responseBody = (string) $e->getResponse()->getBody();
+                $requestBody = (string) $e->getRequest()->getBody();
+                $this->addError("MailChimp client error: {$requestBody} -- {$responseBody}");
             } catch (\GuzzleHttp\Exception\TransferException $e) {
                 $this->addError("MailChimp connection error: {$e->getMessage()}");
             } catch (Exception $e) {
@@ -2083,8 +2085,9 @@ class MailChimp extends Module
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use (&$success) {
                 if ($reason instanceof \GuzzleHttp\Exception\RequestException) {
-                    $body = (string) $reason->getResponse()->getBody();
-                    Logger::addLog("MailChimp client error: {$body}", 2);
+                    $responseBody = (string) $reason->getResponse()->getBody();
+                    $requestBody = (string) $reason->getRequest()->getBody();
+                    Logger::addLog("MailChimp client error: {$requestBody} -- {$responseBody}", 2);
                 } elseif ($reason instanceof \GuzzleHttp\Exception\TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
@@ -2256,8 +2259,9 @@ class MailChimp extends Module
                     }
 
                     $responseBody = (string) $reason->getResponse()->getBody();
+                    $requestBody = (string) $reason->getRequest()->getBody();
                     Logger::addLog(
-                        "MailChimp client error: {$responseBody}",
+                        "MailChimp client error: {$requestBody} -- {$responseBody}",
                         2,
                         $reason->getResponse()->getStatusCode(),
                         'MailChimpProduct',
@@ -2480,7 +2484,7 @@ class MailChimp extends Module
                     $responseBody = (string) $reason->getResponse()->getBody();
                     $requestBody = (string) $reason->getRequest()->getBody();
                     Logger::addLog(
-                        "MailChimp client error: {$requestBody} - {$reason->getRequest()->getMethod()}",
+                        "MailChimp client error: {$requestBody} -- {$responseBody}",
                         2,
                         $reason->getResponse()->getStatusCode(),
                         'MailChimpProduct',
@@ -2639,8 +2643,9 @@ class MailChimp extends Module
                     }
 
                     $responseBody = (string) $reason->getResponse()->getBody();
+                    $requestBody = (string) $reason->getRequest()->getBody();
                     Logger::addLog(
-                        "MailChimp client error: {$responseBody}",
+                        "MailChimp client error: {$requestBody} -- {$responseBody}",
                         2,
                         $reason->getResponse()->getStatusCode(),
                         'MailChimpCart',
@@ -2814,7 +2819,7 @@ class MailChimp extends Module
                     $responseBody = (string) $reason->getResponse()->getBody();
                     $requestBody = (string) $reason->getRequest()->getBody();
                     Logger::addLog(
-                        "MailChimp client error: {$responseBody} -- {$requestBody}",
+                        "MailChimp client error: {$requestBody} -- {$responseBody}",
                         2,
                         $reason->getResponse()->getStatusCode(),
                         'MailChimpOrder',
@@ -2869,8 +2874,9 @@ class MailChimp extends Module
         try {
             $result = json_decode((string) $client->get("lists/{$idList}/merge-fields")->getBody(), true);
         } catch (ClientException $e) {
-            $response = (string) $e->getResponse()->getBody();
-            Logger::addLog("MailChimp client error while grabbing the merge fields: {$response}");
+            $responseBody = (string) $e->getResponse()->getBody();
+            $requestBody = (string) $e->getRequest()->getBody();
+            Logger::addLog("MailChimp client error while grabbing the merge fields: {$requestBody} -- {$responseBody}");
         } catch (TransferException $e) {
             Logger::addLog("MailChimp generic error while grabbing the merge fields: {$e->getMessage()}");
         }
