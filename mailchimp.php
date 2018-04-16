@@ -784,7 +784,7 @@ class MailChimp extends Module
      */
     public function displayAjaxExportAllSubscribers()
     {
-        $idShops = \Shop::getContextListShopID(\Shop::SHARE_CUSTOMER);
+        $idShops = Tools::getValue('shops');
         if (Tools::isSubmit('start')) {
             $totalSubscribers = MailChimpSubscriber::getSubscribers($idShops, 0, 0, true, false, true);
             $totalChunks = ceil($totalSubscribers / static::EXPORT_CHUNK_SIZE);
@@ -823,7 +823,7 @@ class MailChimp extends Module
      */
     public function displayAjaxExportAllProducts()
     {
-        $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
+        $idShops = Tools::getValue('shops');
         $exportRemaining = (bool) Tools::isSubmit('remaining');
         if (Tools::isSubmit('start')) {
             $totalProducts = MailChimpProduct::getProducts($idShops, 0, 0, $exportRemaining, true);
@@ -862,7 +862,7 @@ class MailChimp extends Module
      */
     public function displayAjaxExportAllCarts()
     {
-        $idShops = \Shop::getContextListShopID(\Shop::SHARE_CUSTOMER);
+        $idShops = Tools::getValue('shops');
         $exportRemaining = (bool) Tools::isSubmit('remaining');
         if (Tools::isSubmit('start')) {
             $totalCarts = MailChimpCart::getCarts(null, 0, 0, $exportRemaining, true);
@@ -902,7 +902,7 @@ class MailChimp extends Module
      */
     public function displayAjaxExportAllOrders()
     {
-        $idShops = \Shop::getContextListShopID(\Shop::SHARE_ORDER);
+        $idShops = Tools::getValue('shops');
         $exportRemaining = (bool) Tools::isSubmit('remaining');
         if (Tools::isSubmit('start')) {
             $totalOrders = MailChimpOrder::getOrders($idShops, 0, 0, $exportRemaining, true);
@@ -940,12 +940,19 @@ class MailChimp extends Module
      */
     public function displayAjaxResetProducts()
     {
-        if ($idShop = (int) Tools::getValue('shop')) {
-            $this->processReset('products', $idShop, true);
+        $success = true;
+        if ($idShops = Tools::getValue('shops')) {
+            if (is_array($idShops)) {
+                foreach ($idShops as $idShop) {
+                    $success &= $this->processReset('products', $idShop, true);
+                }
+            }
+        } else {
+            $success = false;
         }
 
         die(json_encode([
-            'success' => false,
+            'success' => $success,
         ]));
     }
 
@@ -960,12 +967,19 @@ class MailChimp extends Module
      */
     public function displayAjaxResetCarts()
     {
-        if ($idShop = (int) Tools::getValue('shop')) {
-            $this->processReset('carts', $idShop, true);
+        $success = true;
+        if ($idShops = Tools::getValue('shops')) {
+            if (is_array($idShops)) {
+                foreach ($idShops as $idShop) {
+                    $success &= $this->processReset('carts', $idShop, true);
+                }
+            }
+        } else {
+            $success = false;
         }
 
         die(json_encode([
-            'success' => false,
+            'success' => $success,
         ]));
     }
 
@@ -980,12 +994,17 @@ class MailChimp extends Module
      */
     public function displayAjaxResetOrders()
     {
-        if ($idShop = (int) Tools::getValue('shop')) {
-            $this->processReset('orders', $idShop, true);
+        $success = false;
+        if ($idShops = Tools::getValue('shop')) {
+            if (is_array($idShops)) {
+                foreach ($idShops as $idShop) {
+                    $success &= $this->processReset('orders', $idShop, true);
+                }
+            }
         }
 
         die(json_encode([
-            'success' => false,
+            'success' => $success,
         ]));
     }
 
@@ -1023,6 +1042,7 @@ class MailChimp extends Module
             return false;
         }
 
+        $success = false;
         try {
             $success = Db::getInstance()->execute(
                 'DELETE mo

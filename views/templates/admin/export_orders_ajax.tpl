@@ -57,7 +57,7 @@
         var idShop = parseInt(elem.attr('data-shop'), 10);
         orderExportStatus(ORDER_IN_PROGRESS);
 
-        var jqXhr = $.get(exportUrl + '&ajax=true&action=exportAllOrders&shop=' + idShop +'&start' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax=true&action=exportAllOrders&shops[]=' + idShop +'&start' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           $('#export_orders_total').html(response.totalOrders);
           $('#export_orders_progressbar_done').width('0%');
@@ -86,7 +86,7 @@
           return;
         }
 
-        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllOrders&shop=' + idShop +'&next' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllOrders&shops[]=' + idShop +'&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           var remaining = parseInt(response.remaining, 10);
           var processed = (totalChunks - remaining) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
@@ -148,7 +148,7 @@
         });
 
         $('#reset-order-sync-data-btn-' + idShop).click(function () {
-          var jqXhr = $.get(exportUrl + '&ajax=true&action=resetOrders&shop=' + idShop, function (response) {
+          var jqXhr = $.get(exportUrl + '&ajax=true&action=resetOrders&shops[]=' + idShop, function (response) {
             if (response && JSON.parse(response).success) {
               swal({
                 icon: 'success',

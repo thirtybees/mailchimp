@@ -147,7 +147,7 @@
         });
 
         $('#reset-cart-sync-data-btn-' + idShop).click(function () {
-          var jqXhr = $.get(exportUrl + '&ajax=true&action=resetCarts&shop=' + idShop, function (response) {
+          var jqXhr = $.get(exportUrl + '&ajax=true&action=resetCarts&shops[]=' + idShop, function (response) {
             if (response && JSON.parse(response).success) {
               swal({
                 icon: 'success',
