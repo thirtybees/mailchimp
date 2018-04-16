@@ -56,85 +56,53 @@ class MailChimpProduct extends \ObjectModel
     // @codingStandardsIgnoreEnd
 
     /**
-     * Count products
-     *
-     * @param int|null $idShop    Shop ID
-     * @param bool     $remaining Unsynched only
-     *
-     * @return int
-     *
-     * @since 1.1.0
-     * @throws \PrestaShopException
-     */
-    public static function countProducts($idShop = null, $remaining = false)
-    {
-        if (!$idShop) {
-            $idShop = \Context::getContext()->shop->id;
-        }
-
-        $sql = new \DbQuery();
-        $sql->select('COUNT(ps.`id_product`)');
-        $sql->from('product_shop', 'ps');
-        $sql->where('ps.`id_shop` = '.(int) $idShop);
-        if ($remaining) {
-            $sql->leftJoin(bqSQL(self::$definition['table']), 'mp', 'mp.`id_product` = ps.`id_product`');
-            $productsLastSynced = \Configuration::get(\MailChimp::PRODUCTS_LAST_SYNC, null, null, $idShop);
-            if ($productsLastSynced) {
-                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < ps.`date_upd`');
-                $sql->where('STR_TO_DATE(ps.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
-            }
-        }
-
-        try {
-            return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
-        } catch (\PrestaShopException $e) {
-            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count products', 'mailchimp');
-
-            return 0;
-        }
-    }
-
-    /**
      * Get products
      *
-     * @param int|null $idShop
+     * @param int|null $idShops
      * @param int      $offset
      * @param int      $limit
      * @param bool     $remaining
+     * @param bool     $count
      *
      * @return array|false|int
      *
      * @since 1.1.0
      * @throws \PrestaShopException
      */
-    public static function getProducts($idShop = null, $offset = 0, $limit = 0, $remaining = false)
+    public static function getProducts($idShops = null, $offset = 0, $limit = 0, $remaining = false, $count = false)
     {
-        if (!$idShop) {
-            $idShop = \Context::getContext()->shop->id;
+        if (is_int($idShops)) {
+            $idShops = [$idShops];
+        } elseif (!is_array($idShops) || empty($idShops)) {
+            $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
         }
-
         $idLang = (int) \Configuration::get('PS_LANG_DEFAULT');
 
         $sql = new \DbQuery();
-        $sql->select('ps.*, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`, mp.`last_synced`');
+        if ($count) {
+            $sql->select('COUNT(*)');
+        } else {
+            $sql->select('ps.*, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`, mp.`last_synced`');
+        }
         $sql->from('product_shop', 'ps');
-        $sql->innerJoin('product_lang', 'pl', 'pl.`id_product` = ps.`id_product` AND pl.`id_lang` = '.(int) $idLang);
+        $sql->innerJoin('product_lang', 'pl', 'pl.`id_product` = ps.`id_product` AND pl.`id_lang` = '.(int) $idLang.' AND ps.`id_shop` = pl.`id_shop`');
         $sql->innerJoin('product', 'p', 'p.`id_product` = ps.`id_product`');
         $sql->leftJoin('manufacturer', 'm', 'm.`id_manufacturer` = p.`id_manufacturer`');
-        $sql->where('ps.`id_shop` = '.(int) $idShop);
-        $sql->leftJoin(bqSQL(self::$definition['table']), 'mp', 'mp.`id_product` = ps.`id_product`');
+        $sql->where('ps.`id_shop` IN ('.implode(',', array_map('intval', $idShops)).')');
+        $sql->leftJoin(bqSQL(self::$definition['table']), 'mp', 'mp.`id_product` = ps.`id_product` AND mp.`id_shop` = ps.`id_shop`');
+        $sql->where('ps.`active` = 1');
         if ($remaining) {
-            $productsLastSynced = \Configuration::get(\MailChimp::PRODUCTS_LAST_SYNC, null, null, $idShop);
-            if ($productsLastSynced) {
-                $sql->where('mp.`last_synced` IS NULL OR mp.`last_synced` < ps.`date_upd`');
-                $sql->where('STR_TO_DATE(ps.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
-            }
+            $sql->where('mp.`last_synced` IS NULL OR (mp.`last_synced` < ps.`date_upd` AND mp.`last_synced` > \'2000-01-01 00:00:00\')');
         }
         if ($limit) {
             $sql->limit($limit, $offset);
         }
 
         try {
+            if ($count) {
+                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+            }
+
             return (array) \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         } catch (\PrestaShopException $e) {
             \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count products', 'mailchimp');
@@ -146,19 +114,20 @@ class MailChimpProduct extends \ObjectModel
     /**
      * Set synced
      *
-     * @param array    $range
-     * @param int|null $idShop
+     * @param array          $range
+     * @param int[]|int|null $idShops
      *
      * @return bool
      * @since 1.1.0
      * @throws \PrestaShopException
      */
-    public static function setSynced($range, $idShop = null)
+    public static function setSynced($range, $idShops = null)
     {
-        if (!$idShop) {
-            $idShop = \Context::getContext()->shop->id;
+        if (is_int($idShops)) {
+            $idShops = [$idShops];
+        } elseif (!is_array($idShops) || empty($idShops)) {
+            $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
         }
-        $idShop = (int) $idShop;
 
         if (empty($range)) {
             return false;
@@ -167,17 +136,19 @@ class MailChimpProduct extends \ObjectModel
         $insert = [];
         $now = date('Y-m-d H:i:s');
         foreach ($range as &$item) {
-            $insert[] = [
-                'id_product'  => $item,
-                'id_shop'     => $idShop,
-                'last_synced' => $now,
-            ];
+            foreach ($idShops as $idShop) {
+                $insert[] = [
+                    'id_product'  => $item,
+                    'id_shop'     => $idShop,
+                    'last_synced' => $now,
+                ];
+            }
         }
 
         try {
             \Db::getInstance()->delete(
                 bqSQL(self::$definition['table']),
-                '`id_product` IN ('.implode(',', $range).') AND `id_shop` = '.(int) $idShop,
+                '`id_product` IN ('.implode(',', $range).') AND `id_shop` IN ('.implode(',', array_map('intval', $idShops)).')',
                 0,
                 false
             );
@@ -192,7 +163,8 @@ class MailChimpProduct extends \ObjectModel
                 bqSQL(self::$definition['table']),
                 $insert,
                 false,
-                false
+                false,
+                \Db::INSERT_IGNORE
             );
         } catch (\PrestaShopException $e) {
             \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');

@@ -120,4 +120,43 @@ class MailChimpShop extends \ObjectModel
 
         return $mcs;
     }
+
+    /**
+     * Get MailChimpShop by Shop ID
+     *
+     * @param int[] $idShops
+     * @param bool  $hasList Needs to have a list
+     *
+     * @return MailChimpShop[]
+     *
+     * @throws \Adapter_Exception
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
+     */
+    public static function getByShopIds($idShops)
+    {
+        $sql = new \DbQuery();
+        $sql->select('s.`'.bqSQL(\Shop::$definition['primary']).'`, ms.*');
+        $sql->from('shop', 's');
+        $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(\Shop::$definition['primary']).'` = ms.`'.bqSQL(\Shop::$definition['primary']).'`');
+        $sql->where('s.`id_shop` IN ('.(int) $idShops.')');
+
+        try {
+            $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        } catch (\PrestaShopException $e) {
+            return [];
+        }
+        if (!$results) {
+            return [];
+        }
+
+        $mcs = [];
+        foreach ($results as $result) {
+            $mc = new static();
+            $mc->hydrate($result);
+            $mcs[(int) $result['id_shop']] = $mc;
+        }
+
+        return $mcs;
+    }
 }

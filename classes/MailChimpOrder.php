@@ -53,83 +53,55 @@ class MailChimpOrder extends \ObjectModel
     // @codingStandardsIgnoreEnd
 
     /**
-     * @param int|null $idShop    Shop ID
-     * @param bool     $remaining Remaining orders only
-     *
-     * @return int
-     * @throws \PrestaShopException
-     */
-    public static function countOrders($idShop = null, $remaining = false)
-    {
-        if (!$idShop) {
-            $idShop = \Context::getContext()->shop->id;
-        }
-
-        $sql = new \DbQuery();
-        $sql->select('COUNT(o.`id_order`)');
-        $sql->from('orders', 'o');
-        $sql->where('o.`id_shop` = '.(int) $idShop);
-        if ($remaining) {
-            $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
-            $ordersLastSynced = \Configuration::get(\MailChimp::ORDERS_LAST_SYNC);
-            if ($ordersLastSynced) {
-                $sql->where('mo.`last_synced` IS NULL OR mo.`last_synced` < o.`date_upd`');
-                $sql->where('STR_TO_DATE(o.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
-            }
-        }
-
-        try {
-            return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
-        } catch (\PrestaShopException $e) {
-            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count orders', 'mailchimp');
-
-            return 0;
-        }
-    }
-
-    /**
      * Get orders
      *
-     * @param int|null $idShop
+     * @param int|null $idShops
      * @param int      $offset
      * @param int      $limit
      * @param bool     $remaining Remaining Orders only
+     * @param bool     $count
      *
-     * @return array|false|\mysqli_result|null|\PDOStatement|resource
+     * @return array|false|int|\mysqli_result|null|\PDOStatement|resource
      * @throws \PrestaShopDatabaseException
      * @throws \PrestaShopException
      * @throws \Adapter_Exception
      * @since 1.1.0
      */
-    public static function getOrders($idShop = null, $offset = 0, $limit = 0, $remaining = false)
+    public static function getOrders($idShops = null, $offset = 0, $limit = 0, $remaining = false, $count = false)
     {
-        if (!$idShop) {
-            $idShop = \Context::getContext()->shop->id;
+        if (is_int($idShops)) {
+            $idShops = [$idShops];
+        } elseif (!is_array($idShops) || empty($idShops)) {
+            $idShops = \Shop::getContextListShopID(\Shop::SHARE_CUSTOMER);
         }
 
         $sql = new \DbQuery();
-        $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
-        $sql->select('cu.`id_customer`, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`birthday`, cu.`newsletter`');
-        $sql->select('l.`language_code`');
+        if ($count) {
+            $sql->select('COUNT(*)');
+        } else {
+            $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
+            $sql->select('cu.`id_customer`, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`birthday`, cu.`newsletter`');
+            $sql->select('l.`language_code`');
+        }
         $sql->from('orders', 'o');
         $sql->innerJoin('customer', 'cu', 'cu.`id_customer` = o.`id_customer`');
         $sql->innerJoin('cart', 'c', 'c.`id_cart` = o.`id_cart`');
         $sql->innerJoin('lang', 'l', 'l.`id_lang` = cu.`id_lang`');
         $sql->leftJoin('mailchimp_tracking', 'mt', 'mt.`id_order` = o.`id_order`');
-        $sql->where('o.`id_shop` = '.(int) $idShop);
+        $sql->where('o.`id_shop` IN ('.implode(',', array_map('intval', $idShops)).')');
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
         if ($remaining) {
-            $ordersLastSynced = \Configuration::get(\MailChimp::ORDERS_LAST_SYNC);
-            if ($ordersLastSynced) {
-                $sql->where('mo.`last_synced` IS NULL OR mo.`last_synced` < o.`date_upd`');
-                $sql->where('STR_TO_DATE(o.`date_upd`, \'%Y-%m-%d %H:%i:%s\') IS NOT NULL');
-            }
+            $sql->where('mo.`last_synced` IS NULL OR (mo.`last_synced` < o.`date_upd` AND mo.`last_synced` > \'2000-01-01 00:00:00\')');
         }
         if ($limit) {
             $sql->limit($limit, $offset);
         }
 
         try {
+            if ($count) {
+                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+            }
+
             $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         } catch (\PrestaShopException $e) {
             \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count orders', 'mailchimp');
@@ -137,7 +109,7 @@ class MailChimpOrder extends \ObjectModel
             return false;
         }
 
-        $mailChimpShop = MailChimpShop::getByShopId($idShop);
+        $mailChimpShop = MailChimpShop::getByShopId($idShops);
         if (!\Validate::isLoadedObject($mailChimpShop)) {
             return false;
         }
@@ -220,7 +192,8 @@ class MailChimpOrder extends \ObjectModel
                 bqSQL(self::$definition['table']),
                 $insert,
                 false,
-                false
+                false,
+                \Db::INSERT_IGNORE
             );
         } catch (\PrestaShopException $e) {
             \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');

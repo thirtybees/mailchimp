@@ -37,12 +37,19 @@ class MailChimpSubscriber
     const SUBSCRIPTION_PENDING = 'pending';
     const SUBSCRIPTION_CLEANED = 'cleaned';
 
+    /** @var string $email */
     private $email;
+    /** @var string $subscription */
     private $subscription;
+    /** @var string $fname */
     private $fname;
+    /** @var string $lname */
     private $lname;
+    /** @var string $ipSignup */
     private $ipSignup;
-    private $language; // example: "de"
+    /** @var string $language */
+    private $language;         // example: "de"
+    /** @var string $timestampSignup */
     private $timestampSignup;  // example: "2013-01-18T16:48:09+00:00"
 
     /**
@@ -243,85 +250,26 @@ class MailChimpSubscriber
     }
 
     /**
-     * Count products
-     *
-     * @param int|null $idShop Shop ID
-     * @param bool     $customers
-     * @param bool     $optedIn
-     *
-     * @return int
-     *
-     * @since 1.1.0
-     * @throws \PrestaShopException
-     */
-    public static function countSubscribers($idShop = null, $customers = true, $optedIn = false)
-    {
-        if (!$idShop) {
-            $idShop = \Context::getContext()->shop->id;
-        }
-
-        $existingMailQuery = new \DbQuery();
-        $existingMailQuery->select('`email`');
-        $existingMailQuery->from('customer', 'c');
-        $existingMailQuery->where('c.`newsletter` = 1');
-        $existingMailQuery->where('c.`active` = 1');
-
-        $nlQuery = new \DbQuery();
-        $nlQuery->select('n.`email`');
-        $nlQuery->from('newsletter', 'n');
-        $nlQuery->innerJoin('lang',  'l', 'l.`id_lang` = '.(int) \Configuration::get('PS_LANG_DEFAULT'));
-        if ($optedIn) {
-            $nlQuery->where('n.`active` = 1');
-        }
-        $nlQuery->where('n.`id_shop` = '.(int) $idShop);
-        if ($customers) {
-            $nlQuery->where('n.`email` NOT IN ('.$existingMailQuery->build().')');
-        }
-
-        $customerQuery = new \DbQuery();
-        $customerQuery->select('c.`email`');
-        $customerQuery->from('customer', 'c');
-        $customerQuery->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
-        $customerQuery->where('c.`active` = 1 '.\Shop::addSqlRestriction(\Shop::SHARE_CUSTOMER, 'c'));
-        if ($optedIn) {
-            $customerQuery->where('c.`newsletter` = 1');
-        }
-
-        // Check if the module exists
-        if (\Module::isEnabled('blocknewsletter')) {
-            $sql = "SELECT COUNT(*) FROM (({$nlQuery->build()}) UNION ({$customerQuery->build()})) AS `u`";
-            try {
-                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
-            } catch (\PrestaShopException $e) {
-                return 0;
-            }
-        } elseif ($customers) {
-            try {
-                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue("SELECT COUNT(*) FROM ({$customerQuery->build()}) AS `u`");
-            } catch (\PrestaShopException $e) {
-                return 0;
-            }
-        }
-
-        return 0;
-    }
-
-    /**
-     * @param int|null $idShop
+     * @param int|null $idShops
      * @param int      $offset
      * @param int      $limit
      * @param bool     $customers
      * @param bool     $optedIn
      *
+     * @param bool     $count
+     *
      * @return array|false
      *
-     * @since 1.0.0
+     * @throws \PrestaShopDatabaseException
      * @throws \PrestaShopException
+     * @since 1.0.0
      */
-    public static function getSubscribers($idShop = null, $offset = 0, $limit = 0, $customers = true, $optedIn = false)
+    public static function getSubscribers($idShops = null, $offset = 0, $limit = 0, $customers = true, $optedIn = false, $count = false)
     {
-        if (!$idShop) {
-            $idShop = (int) \Context::getContext()->shop->id;
+        if (is_int($idShops)) {
+            $idShops = [$idShops];
+        } elseif (!is_array($idShops) || empty($idShops)) {
+            $idShops = \Shop::getContextListShopID(\Shop::SHARE_CUSTOMER);
         }
 
         $list = [];
@@ -333,25 +281,31 @@ class MailChimpSubscriber
         $existingMailQuery->where('c.`newsletter` = 1');
         $existingMailQuery->where('c.`active` = 1');
 
+
         $nlQuery = new \DbQuery();
         $nlQuery->select('n.`email`, \'\' AS `firstname`, \'\' AS `lastname`');
-        $nlQuery->select('\'\' AS `ip_registration_newsletter`, l.`iso_code`');
+        $nlQuery->select('\'\' AS `ip_registration_newsletter`, l.`iso_code`, n.`id_shop`');
         $nlQuery->select('n.`newsletter_date_add`, \'\' AS `company`, \'\' AS `website`, \'\' AS `birthday`');
         $nlQuery->from('newsletter', 'n');
         $nlQuery->innerJoin('lang',  'l', 'l.`id_lang` = '.(int) \Configuration::get('PS_LANG_DEFAULT'));
         if ($optedIn) {
             $nlQuery->where('n.`active` = 1');
         }
-        $nlQuery->where('n.`id_shop` = '.(int) $idShop);
+        $nlQuery->where('n.`id_shop` IN ('.implode(',', array_map('intval', $idShops)).')');
         if ($customers) {
             $nlQuery->where('n.`email` NOT IN ('.$existingMailQuery->build().')');
         }
 
         $customerQuery = new \DbQuery();
-        $customerQuery->select('c.`email`, c.`firstname`, c.`lastname`, c.`ip_registration_newsletter`');
-        $customerQuery->select('l.`iso_code`, c.`newsletter_date_add`, c.`company`, c.`website`, c.`birthday`');
+        if ($count && !\Module::isEnabled('blocknewsletter')) {
+            $customerQuery->select('COUNT(*)');
+        } else {
+            $customerQuery->select('c.`email`, c.`firstname`, c.`lastname`, c.`ip_registration_newsletter`, c.`id_shop`');
+            $customerQuery->select('l.`iso_code`, c.`newsletter_date_add`, c.`company`, c.`website`, c.`birthday`');
+        }
         $customerQuery->from('customer', 'c');
         $customerQuery->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
+        $customerQuery->where('c.`id_shop` IN ('.implode(',', array_map('intval', $idShops)).')');
         $customerQuery->where('c.`active` = 1 '.\Shop::addSqlRestriction(\Shop::SHARE_CUSTOMER, 'c'));
         if ($optedIn) {
             $customerQuery->where('c.`newsletter` = 1');
@@ -359,12 +313,17 @@ class MailChimpSubscriber
 
         // Check if the module exists
         if (\Module::isEnabled('blocknewsletter')) {
-            $sql = "({$nlQuery->build()}) UNION ({$customerQuery->build()})";
+            $sql = $count ? 'SELECT COUNT(*) FROM (' : '';
+            $sql .= "{$nlQuery->build()} UNION ALL {$customerQuery->build()}";
             if ($limit) {
                 $sql .= ' LIMIT '.(int) $limit;
             }
             if ($offset) {
                 $sql .= ', '.(int) $offset;
+            }
+            if ($count) {
+                $sql .= ') AS `x`';
+                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
             }
             try {
                 $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
@@ -375,6 +334,10 @@ class MailChimpSubscriber
             }
         } elseif ($customers) {
             try {
+                if ($count) {
+                    return \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($customerQuery);
+                }
+
                 $customerQuery->limit($limit, $offset);
                 $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($customerQuery);
             } catch (\PrestaShopException $e) {
@@ -404,6 +367,7 @@ class MailChimpSubscriber
                     'website'             => $row['website'] ?: '',
                     'birthday'            => $row['birthday'] ?: '',
                     'tbref'               => static::getTbRef($row['email']),
+                    'id_shop'             => $row['id_shop'],
                 ];
             }
         }
