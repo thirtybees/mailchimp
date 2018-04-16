@@ -65,7 +65,7 @@
           $('#export_subscribers_current').html(0);
 
           inProgress = true;
-          exportSubscribersNext(idShop, response.totalSubscribers, response.totalChunks, exportRemaining);
+          exportSubscribersNext(idShop, response.totalSubscribers, response.totalChunks, exportRemaining, 1);
         }).fail(function () {
           if (jqXhr.status === 504) {
             swal({
@@ -81,15 +81,14 @@
         });
       }
 
-      function exportSubscribersNext(idShop, totalSubscribers, totalChunks, exportRemaining) {
+      function exportSubscribersNext(idShop, totalSubscribers, totalChunks, exportRemaining, count) {
         if (!inProgress) {
           return;
         }
 
-        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllSubscribers&shops[]=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllSubscribers&count=' + count + 'shops[]=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
-          var remaining = parseInt(response.remaining, 10);
-          var processed = (totalChunks - remaining) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
+          var processed = (parseInt(response.count, 10) - 1) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
           var progress = (processed / totalSubscribers) * 100;
 
           // check max
@@ -108,8 +107,8 @@
           $('#export_subscribers_progression_done').html(parseInt(progress, 10));
           $('#export_subscribers_current').html(parseInt(processed, 10));
 
-          if (response.remaining && inProgress) {
-            return exportSubscribersNext(idShop, totalSubscribers, totalChunks, exportRemaining);
+          if (response.count && inProgress) {
+            return exportSubscribersNext(idShop, totalSubscribers, totalChunks, exportRemaining, response.count);
           }
 
           // finish

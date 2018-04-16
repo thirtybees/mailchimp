@@ -65,10 +65,10 @@
           $('#export_products_current').html(0);
 
           inProgress = true;
-          exportProductsNext(idShop, response.totalProducts, response.totalChunks, exportRemaining);
+          exportProductsNext(idShop, response.totalProducts, response.totalChunks, exportRemaining, 1);
         }).fail(function () {
           inProgress = true;
-          exportProductsNext(idShop, totalProducts, totalChunks, exportRemaining);
+          exportProductsNext(idShop, totalProducts, totalChunks, exportRemaining, 1);
         }).fail(function () {
           if (jqXhr.status === 504) {
             swal({
@@ -84,15 +84,14 @@
         });
       }
 
-      function exportProductsNext(idShop, totalProducts, totalChunks, exportRemaining) {
+      function exportProductsNext(idShop, totalProducts, totalChunks, exportRemaining, count) {
         if (!inProgress) {
           return;
         }
 
-        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllProducts&shops[]=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllProducts&count=' + count + '&shops[]=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
-          var remaining = parseInt(response.remaining, 10);
-          var processed = (totalChunks - remaining) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
+          var processed = (parseInt(response.count, 10) - 1) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
           var progress = (processed / totalProducts) * 100;
 
           // check max
@@ -111,8 +110,8 @@
           $('#export_products_progression_done').html(parseInt(progress, 10));
           $('#export_products_current').html(parseInt(processed, 10));
 
-          if (response.remaining && inProgress) {
-            return exportProductsNext(idShop, totalProducts, totalChunks, exportRemaining);
+          if (response.count && inProgress) {
+            return exportProductsNext(idShop, totalProducts, totalChunks, exportRemaining, response.count);
           }
 
           // finish

@@ -65,7 +65,7 @@
           $('#export_carts_current').html(0);
 
           inProgress = true;
-          exportAllCartsNext(idShop, response.totalCarts, response.totalChunks, exportRemaining);
+          exportAllCartsNext(idShop, response.totalCarts, response.totalChunks, exportRemaining, 1);
         }).fail(function () {
           if (jqXhr.status === 504) {
             swal({
@@ -81,15 +81,14 @@
         });
       }
 
-      function exportAllCartsNext(idShop, totalCarts, totalChunks, exportRemaining) {
+      function exportAllCartsNext(idShop, totalCarts, totalChunks, exportRemaining, count) {
         if (!inProgress) {
           return;
         }
 
-        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllCarts&shop' + idShop +'&next' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllCarts&count=' + count + '&shop' + idShop +'&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
-          var remaining = parseInt(response.remaining, 10);
-          var processed = (totalChunks - remaining) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
+          var processed = parseInt(response.count, 10) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
           var progress = (processed / totalCarts) * 100;
 
           // check max
@@ -108,8 +107,8 @@
           $('#export_carts_progression_done').html(parseInt(progress, 10));
           $('#export_carts_current').html(parseInt(processed, 10));
 
-          if (response.remaining && inProgress) {
-            return exportAllCartsNext(idShop, totalCarts, totalChunks, exportRemaining);
+          if (response.count && inProgress) {
+            return exportAllCartsNext(idShop, totalCarts, totalChunks, exportRemaining, response.count);
           }
 
           // finish

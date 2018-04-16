@@ -101,14 +101,14 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
     {
         if ($actionType === 'ExportAll') {
             $data = $this->module->cronExport($entityType, $idShop, false, 'start');
-            for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            for ($i = 1; $i < (int) $data['totalChunks']; $i++) {
                 $this->module->cronExport($entityType, $idShop, false, 'next');
             }
 
             die('OK');
         } elseif ($actionType === 'ExportRemaining') {
             $data = $this->module->cronExport($entityType, $idShop, true, 'start');
-            for ($i = 0; $i < (int) $data['totalChunks']; $i++) {
+            for ($i = 1; $i < (int) $data['totalChunks']; $i++) {
                 $this->module->cronExport($entityType, $idShop, true, 'next');
             }
 

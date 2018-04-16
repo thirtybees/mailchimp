@@ -61,15 +61,6 @@ class MailChimp extends Module
     const API_TIMEOUT = 20;
     const API_CONCURRENCY = 5;
 
-    const SUBSCRIBERS_SYNC_COUNT = 'MAILCHIMP_SUBSCRIBERS_SYNC_COUNT';
-    const SUBSCRIBERS_SYNC_TOTAL = 'MAILCHIMP_SUBSCRIBERS_SYNC_TOTAL';
-    const PRODUCTS_SYNC_COUNT = 'MAILCHIMP_PRODUCTS_SYNC_COUNT';
-    const PRODUCTS_SYNC_TOTAL = 'MAILCHIMP_PRODUCTS_SYNC_TOTAL';
-    const CARTS_SYNC_COUNT = 'MAILCHIMP_CARTS_SYNC_COUNT';
-    const CARTS_SYNC_TOTAL = 'MAILCHIMP_CARTS_SYNC_TOTAL';
-    const ORDERS_SYNC_COUNT = 'MAILCHIMP_ORDERS_SYNC_COUNT';
-    const ORDERS_SYNC_TOTAL = 'MAILCHIMP_ORDERS_SYNC_TOTAL';
-
     const EXPORT_CHUNK_SIZE = 10;
 
     const MENU_EXPORT = 1;
@@ -789,24 +780,24 @@ class MailChimp extends Module
             $totalSubscribers = MailChimpSubscriber::getSubscribers($idShops, 0, 0, true, false, true);
             $totalChunks = ceil($totalSubscribers / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(static::SUBSCRIBERS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(static::SUBSCRIBERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
-
             die(json_encode([
                 'totalChunks'      => $totalChunks,
                 'totalSubscribers' => $totalSubscribers,
+                'count'            => 0,
             ]));
         } elseif (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(static::SUBSCRIBERS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(static::SUBSCRIBERS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(static::SUBSCRIBERS_SYNC_COUNT, $count, null, 0, 0);
-            $remaining = $total - $count;
-
+            $count = (int) Tools::getValue('count');
+            if (!$count) {
+                die(json_encode([
+                    'success' => false,
+                    'error'   => 'Count param missing',
+                ]));
+            }
             $success = $this->exportSubscribers(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops);
 
             die(json_encode([
-                'success'   => $success,
-                'remaining' => $remaining,
+                'success' => $success,
+                'count'   => ++$count,
             ]));
         }
     }
@@ -829,24 +820,23 @@ class MailChimp extends Module
             $totalProducts = MailChimpProduct::getProducts($idShops, 0, 0, $exportRemaining, true);
             $totalChunks = ceil($totalProducts / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(static::PRODUCTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(static::PRODUCTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
-
             die(json_encode([
                 'totalChunks'   => $totalChunks,
                 'totalProducts' => $totalProducts,
             ]));
         } elseif (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(static::PRODUCTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(static::PRODUCTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(static::PRODUCTS_SYNC_COUNT, $count, null, 0, 0);
-            $remaining = $total - $count;
-
-            $success = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+            $count = (int) Tools::getValue('count');
+            if (!$count) {
+                die(json_encode([
+                    'success' => false,
+                    'error'   => 'Count param missing',
+                ]));
+            }
+            $success = $this->exportProducts(0, $idShops, $exportRemaining);
 
             die(json_encode([
-                'success'   => $success,
-                'remaining' => $remaining,
+                'success' => $success,
+                'count'   => ++$count,
             ]));
         }
     }
@@ -868,24 +858,18 @@ class MailChimp extends Module
             $totalCarts = MailChimpCart::getCarts(null, 0, 0, $exportRemaining, true);
             $totalChunks = ceil($totalCarts / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(static::CARTS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(static::CARTS_SYNC_TOTAL, $totalChunks, false, 0, 0);
-
             die(json_encode([
                 'totalChunks' => $totalChunks,
                 'totalCarts'  => $totalCarts,
             ]));
         } elseif (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(static::CARTS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(static::CARTS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(static::CARTS_SYNC_COUNT, $count, null, 0, 0);
-            $remaining = $total - $count;
+            $count = (int) Tools::getValue('count');
 
-            $success = $this->exportCarts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+            $success = $this->exportCarts(0, $idShops, $exportRemaining);
 
             die(json_encode([
-                'success'   => $success,
-                'remaining' => $remaining,
+                'success' => $success,
+                'count'   => ++$count,
             ]));
         }
     }
@@ -908,24 +892,23 @@ class MailChimp extends Module
             $totalOrders = MailChimpOrder::getOrders($idShops, 0, 0, $exportRemaining, true);
             $totalChunks = ceil($totalOrders / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(static::ORDERS_SYNC_COUNT, 0, false, 0, 0);
-            Configuration::updateValue(static::ORDERS_SYNC_TOTAL, $totalChunks, false, 0, 0);
-
             die(json_encode([
                 'totalChunks' => $totalChunks,
                 'totalOrders' => $totalOrders,
             ]));
         } elseif (Tools::isSubmit('next')) {
-            $count = (int) Configuration::get(static::ORDERS_SYNC_COUNT, null, 0, 0) + 1;
-            $total = (int) Configuration::get(static::ORDERS_SYNC_TOTAL, null, 0, 0);
-            Configuration::updateValue(static::ORDERS_SYNC_COUNT, $count, null, 0, 0);
-            $remaining = $total - $count;
-
-            $success = $this->exportOrders(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+            $count = (int) Tools::getValue('count');
+            if (!$count) {
+                die(json_encode([
+                    'success' => false,
+                    'error'   => 'Count param missing',
+                ]));
+            }
+            $success = $this->exportOrders(0, $idShops, $exportRemaining);
 
             die(json_encode([
-                'success'   => $success,
-                'remaining' => $remaining,
+                'success' => $success,
+                'count'   => ++$count,
             ]));
         }
     }
@@ -1084,24 +1067,15 @@ class MailChimp extends Module
             $totalItems = call_user_func('\\MailChimpModule\\MailChimp'.ucfirst(substr($type, 0, strlen($type) - 1)).'::get'.ucfirst($type), $idShop, 0, 0, $exportRemaining, true);
             $totalChunks = ceil($totalItems / static::EXPORT_CHUNK_SIZE);
 
-            Configuration::updateValue(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_COUNT'), 0, false, 0, 0);
-            Configuration::updateValue(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_TOTAL'), $totalChunks, false, 0, 0);
-
             return [
                 'totalChunks'          => $totalChunks,
                 'total'.ucfirst($type) => $totalItems,
             ];
         } elseif ($submit === 'next') {
-            $count = (int) Configuration::get(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_COUNT'), null, 0, 0) + 1;
-            $total = (int) Configuration::get(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_TOTAL'), null, 0, 0);
-            Configuration::updateValue(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_COUNT'), $count, null, 0, 0);
-            $remaining = $total - $count;
-
-            $this->{'export'.ucfirst($type)}(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShop, $exportRemaining);
+            $this->{'export'.ucfirst($type)}(0, $idShop, $exportRemaining);
 
             return [
                 'success'   => true,
-                'remaining' => $remaining,
             ];
         }
 
@@ -1241,12 +1215,6 @@ class MailChimp extends Module
                 } else {
                     Logger::addLog('MailChimp: Webhook saved to database, List ID: '.$idList.', URL: '.$callbackUrl);
                 }
-            } else {
-//                if (is_object($this->mailChimp)) {
-//                    Logger::addLog('Could not register webhook for list ID: '.$idList.', Error: '.$this->mailChimp->getLastError());
-//                } else {
-//                    Logger::addLog('Could not register webhook for list');
-//                }
             }
         }
 
@@ -2252,10 +2220,9 @@ class MailChimp extends Module
             }
         });
 
-        $success = true;
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
-            'rejected' => function ($reason) use (&$success, $client) {
+            'rejected' => function ($reason) use ($client) {
                 if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
                     preg_match("/tbstore_(?P<id_shop>[0-9]+)?\//", $reason->getRequest()->getUri(), $m);
                     $idProduct = json_decode((string) $reason->getRequest()->getBody())->id;
@@ -2306,7 +2273,7 @@ class MailChimp extends Module
 
         MailChimpProduct::setSynced(array_column($products, 'id_product'), $idShops);
 
-        return $success;
+        return true;
     }
 
     /**
@@ -2766,10 +2733,9 @@ class MailChimp extends Module
             }
         });
 
-        $success = true;
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
-            'rejected'    => function ($reason) use (&$success, $client) {
+            'rejected'    => function ($reason) use ($client) {
                 if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
                     preg_match("/tbstore_(?P<id_shop>[0-9]+)?\//", $reason->getRequest()->getUri(), $m);
                     if (strtoupper($reason->getRequest()->getMethod()) === 'DELETE') {
@@ -2820,7 +2786,7 @@ class MailChimp extends Module
 
         MailChimpOrder::setSynced(array_column($orders, 'id_order'));
 
-        return $success;
+        return true;
     }
 
     /**

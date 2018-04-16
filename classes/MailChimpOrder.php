@@ -89,6 +89,7 @@ class MailChimpOrder extends \ObjectModel
         $sql->innerJoin('lang', 'l', 'l.`id_lang` = cu.`id_lang`');
         $sql->leftJoin('mailchimp_tracking', 'mt', 'mt.`id_order` = o.`id_order`');
         $sql->where('o.`id_shop` IN ('.implode(',', array_map('intval', $idShops)).')');
+        $sql->where('o.`id_order` IN (SELECT `id_order` FROM `'._DB_PREFIX_.'order_detail`)');
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
         if ($remaining) {
             $sql->where('mo.`last_synced` IS NULL OR (mo.`last_synced` < o.`date_upd` AND mo.`last_synced` > \'2000-01-01 00:00:00\')');
