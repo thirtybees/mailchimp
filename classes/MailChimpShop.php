@@ -138,8 +138,8 @@ class MailChimpShop extends \ObjectModel
         $sql = new \DbQuery();
         $sql->select('s.`'.bqSQL(\Shop::$definition['primary']).'`, ms.*');
         $sql->from('shop', 's');
-        $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(\Shop::$definition['primary']).'` = ms.`'.bqSQL(\Shop::$definition['primary']).'`');
-        $sql->where('s.`id_shop` IN ('.(int) $idShops.')');
+        $sql->innerJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(\Shop::$definition['primary']).'` = ms.`'.bqSQL(\Shop::$definition['primary']).'`');
+        $sql->where('s.`'.bqSQL(\Shop::$definition['primary']).'` IN ('.(int) $idShops.')');
 
         try {
             $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
