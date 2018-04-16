@@ -1711,7 +1711,9 @@ class MailChimp extends Module
                         'label' => $this->l('Shops to sync'),
                         'name'  => 'mailchimp_shops',
                         'lists' => $lists,
-                        'shops' => MailChimpShop::getShops(true),
+                        'shops' => array_filter(MailChimpShop::getShops(true), function ($shop) {
+                            return in_Array($shop['id_shop'], Shop::getContextListShopID());
+                        }),
                         'taxes' => $taxes,
                     ],
                 ],
@@ -1776,7 +1778,9 @@ class MailChimp extends Module
                         'type'  => 'mailchimp_products',
                         'label' => $this->l('Products to sync'),
                         'name'  => 'mailchimp_products',
-                        'shops' => MailChimpShop::getShops(true),
+                        'shops' => array_filter(MailChimpShop::getShops(true), function ($shop) {
+                            return in_array($shop['id_shop'], Shop::getContextListShopID());
+                        }),
                     ],
                 ],
             ],
@@ -1835,7 +1839,9 @@ class MailChimp extends Module
                         'type'  => 'mailchimp_carts',
                         'label' => $this->l('Carts to sync'),
                         'name'  => 'mailchimp_carts',
-                        'shops' => MailChimpShop::getShops(true),
+                        'shops' => array_filter(MailChimpShop::getShops(true), function ($shop) {
+                            return in_array($shop['id_shop'], Shop::getContextListShopID());
+                        }),
                     ],
                 ],
             ],
@@ -1894,7 +1900,9 @@ class MailChimp extends Module
                         'type'  => 'mailchimp_orders',
                         'label' => $this->l('Orders to sync'),
                         'name'  => 'mailchimp_orders',
-                        'shops' => MailChimpShop::getShops(true),
+                        'shops' => array_filter(MailChimpShop::getShops(true), function ($shop) {
+                            return in_array($shop['id_shop'], Shop::getContextListShopID());
+                        }),
                     ],
                 ],
             ],
