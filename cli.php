@@ -21,7 +21,7 @@ require_once __DIR__.'/../../config/config.inc.php';
 require_once __DIR__.'/../../init.php';
 require_once __DIR__.'/mailchimp.php';
 
-if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_') || php_sapi_name() !== 'cli') {
+if (!defined('_TB_VERSION_') || php_sapi_name() !== 'cli') {
     die('no access');
 }
 
