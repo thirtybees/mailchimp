@@ -995,7 +995,7 @@ class MailChimp extends Module
     public function displayAjaxResetOrders()
     {
         $success = false;
-        if ($idShops = Tools::getValue('shop')) {
+        if ($idShops = Tools::getValue('shops')) {
             if (is_array($idShops)) {
                 foreach ($idShops as $idShop) {
                     $success &= $this->processReset('orders', $idShop, true);
