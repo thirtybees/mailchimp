@@ -21,8 +21,6 @@ if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
     exit;
 }
 
-use MailChimpModule\MailChimp\Webhook;
-
 /**
  * Class StripeHookModuleFrontController
  */
@@ -34,8 +32,10 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
     public $status = '0';
 
     /**
-     * StripeHookModuleFrontController constructor.
+     * MailChimpHookModuleFrontController constructor.
      *
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
     public function __construct()
@@ -50,15 +50,28 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         die($this->status);
     }
 
+
     /**
-     * Post process
+     * Process webhooks
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public function postProcess()
     {
-        Webhook::subscribe('subscribe', [$this, 'processSubscribe']);
-        Webhook::subscribe('unsubscribe', [$this, 'processUnsubscribe']);
-        Webhook::subscribe('cleaned', [$this, 'processUnsubscribe']);
-        Webhook::subscribe('upemail', [$this, 'processEmailChanged']);
+        $data = Tools::getAllValues();
+        switch ($data['type']) {
+            case 'subscribe':
+                $this->processSubscribe($data);
+                break;
+            case 'unsubscribe':
+            case 'cleaned':
+                $this->processSubscribe($data);
+                break;
+            case 'upemail':
+                $this->processEmailChanged($data);
+                break;
+        }
     }
 
     /**
@@ -72,7 +85,6 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      */
     public function processSubscribe($data)
     {
-        Logger::addLog('processSubscribe hook worked, json: '.json_encode($data));
         $this->status = '1';
         // Update customer table
         $customer = \Db::getInstance()->update(
@@ -113,7 +125,6 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      */
     public function processUnsubscribe($data)
     {
-        Logger::addLog('processUnsubscribe hook worked, json: '.json_encode($data));
         $this->status = '1';
 
         // Update customer table
@@ -153,7 +164,6 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      */
     public function processEmailChanged($data)
     {
-        Logger::addLog('processEmailChanged hook worked, json: '.json_encode($data));
         // Update customer table
         $customer = \Db::getInstance()->update(
             'customer',
