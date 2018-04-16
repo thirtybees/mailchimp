@@ -28,6 +28,7 @@ use MailChimpModule\MailChimpPromo;
 use MailChimpModule\MailChimpRegisteredWebhook;
 use MailChimpModule\MailChimpShop;
 use MailChimpModule\MailChimpSubscriber;
+use MailChimpModule\MailChimpTools;
 use MailChimpModule\MailChimpTracking;
 
 if (!defined('_TB_VERSION_')) {
@@ -69,7 +70,16 @@ class MailChimp extends Module
     const MENU_CARTS = 4;
     const MENU_ORDERS = 5;
 
+    const VALID_ORDER_STATUSES = 'MAILCHIMP_VALID_OSES';
+    const DATE_CUTOFF = 'MAILCHIMP_DATE_CUTOFF';
+
     const COOKIE_LIFETIME = 259200;
+
+    const IP_SERVICE_RATE_LIMIT = 60;
+    const IP_SERVICE_REQUESTS = 'MAILCHIMP_IP_REQUESTS';
+
+    const GDPR = 'MAILCHIMP_GDPR';
+    const EXPORT_COUNTRY = 'MAILCHIMP_EXPORT_COUNTRY';
 
     /** @var string $baseUrl */
     public $baseUrl;
@@ -242,7 +252,6 @@ class MailChimp extends Module
      */
     public function getContent()
     {
-        MailChimpPromo::duplicateCartRules(1065);
         if (Tools::isSubmit('ajax')) {
             $this->displayAjax();
 
@@ -1103,6 +1112,8 @@ class MailChimp extends Module
 
             if (Configuration::updateValue(static::CONFIRMATION_EMAIL, $confirmationEmail)
                 && Configuration::updateValue(static::EXPORT_OPT_IN, $importOptedIn)
+                && Configuration::updateValue(static::GDPR, (bool) Tools::getvalue(static::GDPR))
+                && Configuration::updateValue(static::EXPORT_COUNTRY, (bool) Tools::getvalue(static::EXPORT_COUNTRY))
             ) {
                 $this->addConfirmation($this->l('Settings updated.'));
             } else {
@@ -1182,6 +1193,13 @@ class MailChimp extends Module
                     }
                 }
             }
+        } elseif (Tools::isSubmit('submitOrders')) {
+            Configuration::updateValue(static::VALID_ORDER_STATUSES, serialize($this->getStatusesValue(static::VALID_ORDER_STATUSES)), false,0,0);
+            $date = Tools::getValue(static::DATE_CUTOFF);
+            if (!$date) {
+                $date = '2018-01-01';
+            }
+            Configuration::updateValue(static::DATE_CUTOFF, date('Y-m-d', strtotime($date)), false, 0, 0);
         }
     }
 
@@ -1449,6 +1467,46 @@ class MailChimp extends Module
                 ],
             ];
 
+            $inputs2[] = [
+                'type'   => 'switch',
+                'label'  => $this->l('GDPR mode'),
+                'name'   => static::GDPR,
+                'desc'   => $this->l('This will disable exporting sensitive data such as IP addresses.'),
+                'id'     => static::GDPR,
+                'values' => [
+                    [
+                        'id'    => static::GDPR.'_on',
+                        'value' => 1,
+                        'label' => $this->l('Enabled'),
+                    ],
+                    [
+                        'id'    => static::GDPR.'_off',
+                        'value' => 0,
+                        'label' => $this->l('Disabled'),
+                    ],
+                ],
+            ];
+
+            $inputs2[] = [
+                'type'   => 'switch',
+                'label'  => $this->l('Export country code'),
+                'name'   => static::EXPORT_COUNTRY,
+                'desc'   => $this->l('This will export the user\'s country code in a GDPR compliant way.'),
+                'id'     => static::EXPORT_COUNTRY,
+                'values' => [
+                    [
+                        'id'    => static::EXPORT_COUNTRY.'_on',
+                        'value' => 1,
+                        'label' => $this->l('Enabled'),
+                    ],
+                    [
+                        'id'    => static::EXPORT_COUNTRY.'_off',
+                        'value' => 0,
+                        'label' => $this->l('Disabled'),
+                    ],
+                ],
+            ];
+
             $fieldsForm2 = [
                 'form' => [
                     'legend' => [
@@ -1587,13 +1645,12 @@ class MailChimp extends Module
                     $idShop,
                     false
                 ),
-                'cron_all_products_cli'       => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportAllProducts",
-                'cron_remaining_products_cli' => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportRemainingProducts",
-                'cron_all_carts_cli'          => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportAllCarts",
-                'cron_remaining_carts_cli'    => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportRemainingCarts",
-                'cron_all_orders_cli'         => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportAllOrders",
-                'cron_remaining_orders_cli'   => PHP_BINARY.' '._PS_MODULE_DIR_."mailchimp/cli.php --shop=$idShop --action=ExportRemainingOrders",
-                'id_profile'                  => $this->context->employee->id_profile,
+                'cron_all_products_cli'       => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportAllProducts",
+                'cron_remaining_products_cli' => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportRemainingProducts",
+                'cron_all_carts_cli'          => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportAllCarts",
+                'cron_remaining_carts_cli'    => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportRemainingCarts",
+                'cron_all_orders_cli'         => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportAllOrders",
+                'cron_remaining_orders_cli'   => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportRemainingOrders",
             ]
         );
 
@@ -1631,11 +1688,23 @@ class MailChimp extends Module
      */
     protected function getConfigFieldsValues()
     {
-        return [
+        $configFields = [
             static::API_KEY            => static::getApiKey(),
             static::CONFIRMATION_EMAIL => Configuration::get(static::CONFIRMATION_EMAIL),
             static::EXPORT_OPT_IN      => Configuration::get(static::EXPORT_OPT_IN),
+            static::DATE_CUTOFF        => date('Y-m-d', strtotime(static::getOrderDateCutoff())),
+            static::GDPR               => (bool) Configuration::get(static::GDPR),
+            static::EXPORT_COUNTRY     => (bool) Configuration::get(static::EXPORT_COUNTRY),
         ];
+
+        $checkStatuses = [];
+        foreach (static::getValidOrderStatuses() as $conf) {
+            $checkStatuses[static::VALID_ORDER_STATUSES.'_'.(int) $conf] = true;
+        }
+
+        $configFields = array_merge($configFields, $checkStatuses);
+
+        return $configFields;
     }
 
     /**
@@ -1801,7 +1870,7 @@ class MailChimp extends Module
         $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
 
         $helper->identifier = $this->identifier;
-        $helper->submit_action = 'submitProducts';
+        $helper->submit_action = 'submitCarts';
         $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true)
             .'&configure='.$this->name.'&tab_module='.$this->tab
             .'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_CARTS;
@@ -1862,7 +1931,7 @@ class MailChimp extends Module
         $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
 
         $helper->identifier = $this->identifier;
-        $helper->submit_action = 'submitProducts';
+        $helper->submit_action = 'submitOrders';
         $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', true)
             .'&configure='.$this->name.'&tab_module='.$this->tab
             .'&module_name='.$this->name.'#mailchimp_tab_'.static::MENU_ORDERS;
@@ -1870,11 +1939,12 @@ class MailChimp extends Module
         $helper->token = '';
 
         $helper->tpl_vars = [
-            'languages'   => $this->context->controller->getLanguages(),
-            'id_language' => $this->context->language->id,
+            'languages'    => $this->context->controller->getLanguages(),
+            'id_language'  => $this->context->language->id,
+            'fields_value' => $this->getConfigFieldsValues(),
         ];
 
-        return $helper->generateForm([$this->getOrdersForm()]);
+        return $helper->generateForm($this->getOrdersForm());
     }
 
     /**
@@ -1883,20 +1953,76 @@ class MailChimp extends Module
      */
     protected function getOrdersForm()
     {
+        $this->context->controller->addJqueryUI('ui.datepicker');
+
+        $otherStatuses = array_map(function ($state) {
+            $state['name'] = "{$state['id_order_state']}. {$state['name']}";
+            return $state;
+        }, OrderState::getOrderStates($this->context->language->id));
+        usort($otherStatuses, function ($a, $b) {
+            return strcmp(
+                str_pad($a['id_order_state'], 3, '0', STR_PAD_LEFT),
+                str_pad($b['id_order_state'], 3, '0', STR_PAD_LEFT)
+            );
+        });
+
         return [
-            'form' => [
-                'legend' => [
-                    'title' => $this->l('Order export'),
-                    'icon'  => 'icon-money',
+            [
+                'form' => [
+                    'legend' => [
+                        'title' => $this->l('Order export'),
+                        'icon'  => 'icon-money',
+                    ],
+                    'input'  => [
+                        [
+                            'type'  => 'mailchimp_orders',
+                            'label' => $this->l('Orders to sync'),
+                            'name'  => 'mailchimp_orders',
+                            'shops' => array_filter(MailChimpShop::getShops(true), function ($shop) {
+                                return in_array($shop['id_shop'], Shop::getContextListShopID());
+                            }),
+                        ],
+                    ],
                 ],
-                'input'  => [
-                    [
-                        'type'  => 'mailchimp_orders',
-                        'label' => $this->l('Orders to sync'),
-                        'name'  => 'mailchimp_orders',
-                        'shops' => array_filter(MailChimpShop::getShops(true), function ($shop) {
-                            return in_array($shop['id_shop'], Shop::getContextListShopID());
-                        }),
+
+            ],
+            [
+                'form' => [
+                    'legend' => [
+                        'title' => $this->l('Order settings'),
+                        'icon'  => 'icon-cogs',
+                    ],
+                    'input'  => [
+                        [
+                            'type'     => 'date',
+                            'label'    => $this->l('Cutoff date'),
+                            'name'     => static::DATE_CUTOFF,
+                            'size'     => 10,
+                            'required' => true,
+                            'desc'     => $this->l('Do not process any orders before this date'),
+                        ],
+                        [
+                            'type'     => 'checkbox',
+                            'label'    => $this->l('Valid order states'),
+                            'desc'     => $this->l('If an order reaches one of these statuses it will be exported'),
+                            'name'     => static::VALID_ORDER_STATUSES,
+                            'multiple' => true,
+                            'values'   => [
+                                'query' => $otherStatuses,
+                                'id'    => 'id_order_state',
+                                'name'  => 'name',
+                            ],
+                            'expand'   => (count($otherStatuses) > 10) ? [
+                                'print_total' => count($otherStatuses),
+                                'default'     => 'show',
+                                'show'        => ['text' => $this->l('Show'), 'icon' => 'plus-sign-alt'],
+                                'hide'        => ['text' => $this->l('Hide'), 'icon' => 'minus-sign-alt'],
+                            ] : null,
+                        ],
+                    ],
+                    'submit' => [
+                        'title' => $this->l('Save'),
+                        'class' => 'btn btn-default pull-right',
                     ],
                 ],
             ],
@@ -2065,16 +2191,28 @@ class MailChimp extends Module
                 }
 
                 $subscriberHash = md5(mb_strtolower($subscriber['email']));
+                $subscriberBody = [
+                    'email_address' => mb_strtolower($subscriber['email']),
+                    'status_if_new' => $subscriber['subscription'],
+                    'merge_fields'  => $mergeFields,
+                    'language'      => static::getMailChimpLanguageByIso($subscriber['language_code']),
+                ];
+                if (!Configuration::get(static::GDPR)) {
+                    $subscriberBody['ip_signup'] = (string) ($subscriber['ip_address'] ?: '');
+                }
+                if (Configuration::get(static::EXPORT_COUNTRY) && $subscriber['ip_address']) {
+                    $coords = static::getUserLatLongByIp($subscriber['id_address']);
+                    if ($coords) {
+                        $subscriberBody['location'] = [
+                            'latitude'  => $coords['lat'],
+                            'longitude' => $coords['long'],
+                        ];
+                    }
+                }
                 yield $client->putAsync(
                     "lists/{$mailChimpShops[$subscriber['id_shop']]->list_id}/members/{$subscriberHash}",
                     [
-                        'body'    => json_encode([
-                            'email_address' => mb_strtolower($subscriber['email']),
-                            'status_if_new' => $subscriber['subscription'],
-                            'merge_fields'  => $mergeFields,
-                            'language'      => static::getMailChimpLanguageByIso($subscriber['language_code']),
-                            'ip_signup'     => (string) ($subscriber['ip_address'] ?: ''),
-                        ]),
+                        'body' => json_encode($subscriberBody),
                     ]
                 );
             }
@@ -2554,7 +2692,7 @@ class MailChimp extends Module
                 if ($cart['birthday'] && date('Y-m-d', strtotime($cart['birthday'])) > '1900-01-01') {
                     $mergeFields['BDAY'] = date('m/d', strtotime($cart['birthday']));
                 }
-
+                
                 yield $client->putAsync(
                     "lists/{$mailChimpShops[$cart['id_shop']]->list_id}/members/{$subscriberHash}",
                     [
@@ -2998,5 +3136,153 @@ class MailChimp extends Module
             Db::getInstance()->execute($sql);
         } catch (Exception $e) {
         }
+    }
+
+    /**
+     * Get all status values from the form.
+     *
+     * @param $key string The key that is used in the HelperForm
+     *
+     * @return array Array with statuses
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    protected function getStatusesValue($key)
+    {
+        $statesEnabled = [];
+        foreach (OrderState::getOrderStates($this->context->language->id) as $state) {
+            if (Tools::isSubmit($key.'_'.$state['id_order_state'])) {
+                $statesEnabled[] = $state['id_order_state'];
+            }
+        }
+
+        return $statesEnabled;
+    }
+
+    /**
+     * Get Order date cutoff
+     *
+     * @return string
+     *
+     * @throws PrestaShopException
+     */
+    public static function getOrderDateCutoff()
+    {
+        $cutoff = Configuration::get(static::DATE_CUTOFF, null, 0, 0);
+        if ($cutoff === false || !strtotime($cutoff)) {
+            $cutoff = '2018-01-01 00:00:00';
+        }
+
+        return date('Y-m-d H:i:s', strtotime($cutoff));
+    }
+
+    /**
+     * Get valid order statuses
+     *
+     * @return int[]
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public static function getValidOrderStatuses()
+    {
+        $statuses = Configuration::get(static::VALID_ORDER_STATUSES, null, 0, 0);
+        if ($statuses === false) {
+            return array_column(OrderState::getOrderStates(Context::getContext()->language->id), 'id_order_state');
+        } else {
+            $statuses = unserialize($statuses);
+        }
+
+        return array_map('intval', $statuses);
+    }
+
+    /**
+     * Get user lat long by IP
+     *
+     * @param string $ip
+     *
+     * @return array|false
+     * @throws PrestaShopException
+     */
+    public static function getUserLatLongByIp($ip)
+    {
+        static $cache = [];
+        $requests = static::getIpRequests();
+
+        if (array_key_exists($ip, $cache)) {
+            return $cache[$ip];
+        }
+
+        $cc = '';
+        if (@filemtime(_PS_GEOIP_DIR_._PS_GEOIP_CITY_FILE_)) {
+            $gi = geoip_open(realpath(_PS_GEOIP_DIR_._PS_GEOIP_CITY_FILE_), GEOIP_STANDARD);
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                $cc = strtoupper(geoip_country_code_by_addr_v6($gi, $ip));
+            } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                $cc = strtoupper(geoip_country_code_by_addr($gi, $ip));
+            }
+        } elseif (!$cc && isset($_SERVER['HTTP_CF_IPCOUNTRY'])) {
+            $cc = strtoupper($_SERVER['HTTP_CF_IPCOUNTRY']);
+        } elseif (!$cc) {
+            try {
+                while (count(array_filter($requests, function ($date) {
+                    return $date > date('Y-m-d H:i:s', strtotime("-1 min"));
+                })) > static::IP_SERVICE_RATE_LIMIT) {
+                    // Slow down, beautiful. We're going to get banned!
+                    sleep(1);
+                }
+                $requests = array_filter($requests, function ($date) {
+                    return $date > date('Y-m-d H:i:s', strtotime("-1 min"));
+                });
+                $requests[] = date('Y-m-d H:i:s');
+                static::saveIpRequests($requests);
+
+                $cc = trim(strtoupper((string) (new Client(['timeout' => 1]))->get("http://ip-api.com/line/{$ip}?fields=countryCode")->getBody()));
+            } catch (TransferException $e) {
+            }
+        }
+
+        if ($cc) {
+            $coords = MailChimpTools::getCountryCoordinates();
+            $idx = array_search($cc, array_column($coords, 'code'));
+            if ($idx === false) {
+                return false;
+            }
+
+            return $coords[$idx];
+        }
+
+        return false;
+    }
+
+    /**
+     * Get IP service requests
+     *
+     * @return string[]
+     *
+     * @throws PrestaShopException
+     */
+    protected static function getIpRequests()
+    {
+        $requests = json_decode(Configuration::get(static::IP_SERVICE_REQUESTS, null, 0, 0));
+        if (!is_array($requests)) {
+            $requests = [];
+        }
+
+        return $requests;
+    }
+
+    /**
+     * Save IP service requests
+     *
+     * @param string[] $requests
+     *
+     * @return bool
+     *
+     * @throws PrestaShopException
+     */
+    protected static function saveIpRequests($requests)
+    {
+        return Configuration::updateValue(static::IP_SERVICE_REQUESTS, json_encode($requests), false, 0, 0);
     }
 }

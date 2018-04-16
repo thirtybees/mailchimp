@@ -81,11 +81,14 @@ class MailChimpSubscriber
     }
 
     /**
+     * Get subscriber as array
+     *
      * @return array
+     * @throws \PrestaShopException
      */
     public function getAsArray()
     {
-        return [
+        $subscriber = [
             'email_address'    => $this->email,
             'status'           => $this->getSubscriptionStatus($this->subscription),
             'status_if_new'    => $this->getSubscriptionStatus($this->subscription),
@@ -94,14 +97,30 @@ class MailChimpSubscriber
                 'LNAME' => ($this->lname == '') ? '-' : $this->lname,
                 'TBREF' => static::getTbRef($this->email),
             ],
-            'ip_signup'        => ($this->ipSignup == '') ? '' : $this->ipSignup,
             'language'         => $this->language,
             'timestamp_signup' => $this->timestampSignup,
         ];
+        if (!\Configuration::get(\MailChimp::GDPR)) {
+            $subscriberBody['ip_signup'] = (string) ($this->ipSignup ?: '');
+        }
+        if (\Configuration::get(\MailChimp::EXPORT_COUNTRY) && $subscriber['ip_address']) {
+            $coords = \MailChimp::getUserLatLongByIp($this->ipSignup);
+            if ($coords) {
+                $subscriberBody['location'] = [
+                    'latitude'  => $coords['lat'],
+                    'longitude' => $coords['long'],
+                ];
+            }
+        }
+
+        return $subscriber;
     }
 
     /**
+     * Get subscriber as json
+     *
      * @return string
+     * @throws \PrestaShopException
      */
     public function getAsJSON()
     {

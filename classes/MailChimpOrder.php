@@ -19,7 +19,7 @@
 
 namespace MailChimpModule;
 
-if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
+if (!defined('_TB_VERSION_')) {
     exit;
 }
 
@@ -90,6 +90,8 @@ class MailChimpOrder extends \ObjectModel
         $sql->leftJoin('mailchimp_tracking', 'mt', 'mt.`id_order` = o.`id_order`');
         $sql->where('o.`id_shop` IN ('.implode(',', array_map('intval', $idShops)).')');
         $sql->where('o.`id_order` IN (SELECT `id_order` FROM `'._DB_PREFIX_.'order_detail`)');
+        $sql->where('o.`current_state` IN ('.implode(',', array_map('intval', \MailChimp::getValidOrderStatuses())).')');
+        $sql->where('o.`date_add` > \''.pSQL(\MailChimp::getOrderDateCutoff()).'\'');
         $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
         if ($remaining) {
             $sql->where('mo.`last_synced` IS NULL OR (mo.`last_synced` < o.`date_upd` AND mo.`last_synced` > \'2000-01-01 00:00:00\')');
