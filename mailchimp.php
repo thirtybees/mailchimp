@@ -1142,63 +1142,68 @@ class MailChimp extends Module
                 foreach ($shopLists as $idShop => $idList) {
                     if ($idList) {
                         $this->checkMergeFields($idList);
-                        $shop = new Shop($idShop);
-                        $defaultIdCurrency = (int) Configuration::get('PS_CURRENCY_DEFAULT', null, $shop->id_shop_group, $shop->id);
-                        $currency = new Currency($defaultIdCurrency);
+                    }
+                    $shop = new Shop($idShop);
+                    $defaultIdCurrency = (int) Configuration::get('PS_CURRENCY_DEFAULT', null, $shop->id_shop_group, $shop->id);
+                    $currency = new Currency($defaultIdCurrency);
 
-                        $mailChimpShop = MailChimpShop::getByShopId($idShop);
-                        if (!Validate::isLoadedObject($mailChimpShop)) {
-                            $mailChimpShop = new MailChimpShop();
-                        }
+                    $mailChimpShop = MailChimpShop::getByShopId($idShop);
+                    if (!Validate::isLoadedObject($mailChimpShop)) {
+                        $mailChimpShop = new MailChimpShop();
+                    }
 
-                        if ($idList && $mailChimpShop->list_id !== $idList || !$idList) {
-                            try {
-                                $client->delete('ecommerce/stores/tbstore_'.(int) $idShop);
-                            } catch (TransferException $e){
-                            }
-                            if ($idList) {
-                                try {
-                                    $client->post(
-                                        'ecommerce/stores',
-                                        [
-                                            'body' => json_encode([
-                                                'id'            => 'tbstore_'.(int) $idShop,
-                                                'list_id'       => $idList,
-                                                'name'          => $shop->name,
-                                                'domain'        => $shop->domain_ssl,
-                                                'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
-                                                'currency_code' => strtoupper($currency->iso_code),
-                                            ]),
-                                        ]
-                                    );
-                                } catch (ClientException $reason) {
-                                    $response = (string) $reason->getResponse()->getBody();
-                                    Logger::addLog("MailChimp store error: {$response}");
-                                } catch (TransferException $e) {
-                                }
-                            }
-                            MailChimpProduct::resetShop($idShop);
-                            MailChimpCart::resetShop($idShop);
-                            MailChimpOrder::resetShop($idShop);
-                        }
-
-                        $mailChimpShop->list_id = $idList;
-                        $mailChimpShop->id_shop = $idShop;
-                        $mailChimpShop->id_tax = (int) $shopTaxes[$idShop];
-                        $mailChimpShop->synced = true;
-
+                    if ($idList && $mailChimpShop->list_id !== $idList || !$idList) {
                         try {
-                            $mailChimpShop->save();
-                        } catch (PrestaShopException $e) {
-                            $this->addError($this->l('Shop info could not be saved'));
+                            $client->delete('ecommerce/stores/tbstore_'.(int) $idShop);
+                        } catch (TransferException $e){
                         }
-
-                        // Create MailChimp side webhooks
-                        if ($mailChimpShop->list_id) {
-                            $register = $this->registerWebhookForList($mailChimpShop->list_id);
-                            if (!$register) {
-                                $this->addError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
+                        if ($idList) {
+                            try {
+                                $client->post(
+                                    'ecommerce/stores',
+                                    [
+                                        'body' => json_encode([
+                                            'id'            => 'tbstore_'.(int) $idShop,
+                                            'list_id'       => $idList,
+                                            'name'          => $shop->name,
+                                            'domain'        => $shop->domain_ssl,
+                                            'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
+                                            'currency_code' => strtoupper($currency->iso_code),
+                                        ]),
+                                    ]
+                                );
+                            } catch (ClientException $reason) {
+                                $response = (string) $reason->getResponse()->getBody();
+                                Logger::addLog("MailChimp store error: {$response}");
+                            } catch (TransferException $e) {
                             }
+                        }
+                        MailChimpProduct::resetShop($idShop);
+                        MailChimpCart::resetShop($idShop);
+                        MailChimpOrder::resetShop($idShop);
+                    }
+
+                    $mailChimpShop->list_id = $idList;
+                    $mailChimpShop->id_shop = $idShop;
+                    $mailChimpShop->id_tax = (int) $shopTaxes[$idShop];
+                    $mailChimpShop->synced = true;
+
+                    try {
+                        $mailChimpShop->save();
+                    } catch (PrestaShopException $e) {
+                        $this->addError($this->l('Shop info could not be saved'));
+                    }
+
+                    // Create MailChimp side webhooks
+                    if ($mailChimpShop->list_id) {
+                        $register = $this->registerWebhookForList($mailChimpShop->list_id);
+                        if (!$register) {
+                            $this->addError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
+                        }
+                    } else {
+                        try {
+                            $client->delete('ecommerce/stores/tbstore_'.(int) $idShop);
+                        } catch (TransferException $e){
                         }
                     }
                 }
