@@ -114,16 +114,17 @@ class MailChimpProduct extends \ObjectModel
     /**
      * Get products
      *
-     * @param int|int[]      $range   Product IDs
-     * @param int|int[]|null $idShops
-     * @param bool           $remaining
+     * @param int|int[]      $range       Product IDs
+     * @param int|int[]|null $idShops     Shop IDs
+     * @param bool           $remaining   Only grab the products that have yet to be synced
+     * @param bool           $orderDetail Use the order detail table to find missing pieces
      *
      * @return array
      *
      * @since 1.1.0
      * @throws \PrestaShopException
      */
-    public static function getProductRange($range, $idShops = null, $remaining = false)
+    public static function getProductRange($range, $idShops = null, $remaining = false, $orderDetail = false)
     {
         if (is_int($idShops)) {
             $idShops = [$idShops];
@@ -138,7 +139,8 @@ class MailChimpProduct extends \ObjectModel
         }
 
         $sql = new \DbQuery();
-        $sql->select('ps.*, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`, mp.`last_synced`');
+        $sql->select('ps.`id_product`, ps.`id_shop`, ps.`id_tax_rules_group`, ps.`price`, ps.`active`');
+        $sql->select('ps.`date_add`, ps.`date_upd`, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`, mp.`last_synced`');
         $sql->from('product_shop', 'ps');
         $sql->innerJoin('product_lang', 'pl', 'pl.`id_product` = ps.`id_product` AND pl.`id_lang` = '.(int) $idLang.' AND ps.`id_shop` = pl.`id_shop`');
         $sql->innerJoin('product', 'p', 'p.`id_product` = ps.`id_product`');
@@ -152,7 +154,25 @@ class MailChimpProduct extends \ObjectModel
         }
 
         try {
-            return (array) \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            if (is_array($results)) {
+                $missingIds = array_diff(array_map('intval', $range), array_map('intval', array_column($results, 'id_product')));
+                if (!empty($missingIds)) {
+                    $orderDetails = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+                        (new \DbQuery())
+                            ->select('od.`product_id` AS `id_product`, od.`product_attribute_id` AS `id_product_attribute`, od.`id_order_detail`')
+                            ->select('od.`id_shop`, od.`product_name` AS `name`, od.`product_quantity` AS `quantity`, od.`product_price` AS `price`')
+                            ->select('od.`tax_rate`, od.`unit_price_tax_excl`, od.`unit_price_tax_incl`, \'1970-01-01 00:00:00\' AS `last_synced`')
+                            ->from('order_detail', 'od')
+                            ->where('od.`product_id` IN ('.implode(',', array_map('intval', $missingIds)).')')
+                    );
+                    $results = array_merge($results, $orderDetails);
+                }
+            } else {
+                return [];
+            }
+
+            return $results;
         } catch (\PrestaShopException $e) {
             \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count products', 'mailchimp');
 

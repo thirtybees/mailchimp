@@ -2150,15 +2150,15 @@ class MailChimp extends Module
             foreach ($products as &$product) {
                 $productObj = new Product();
                 $productObj->hydrate($product);
-                $allImages = $productObj->getImages($idLang);
+                $allImages = array_values($productObj->getImages($idLang));
                 $rate = $taxes[$product['id_shop']];
                 $idShop = $product['id_shop'];
 
+                $variants = [];
                 if ($productObj->hasAttributes()) {
                     $allCombinations = $productObj->getAttributeCombinations($idLang);
                     $allCombinationImages = $productObj->getCombinationImages($idLang);
 
-                    $variants = [];
                     foreach ($allCombinations as $combination) {
                         if (!isset($combination['quantity']) || !isset($combination['reference'])) {
                             continue;
@@ -2175,17 +2175,15 @@ class MailChimp extends Module
                         }
                         $variants[] = $variant;
                     }
-                } else {
-                    $variants = [
-                        [
-                            'id'                 => (string) $product['id_product'],
-                            'title'              => (string) $product['name'],
-                            'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
-                            'price'              => (float) ($product['price'] * $rate),
-                            'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
-                        ],
-                    ];
                 }
+
+                $variants[] = [
+                    'id'                 => (string) $product['id_product'],
+                    'title'              => (string) $product['name'],
+                    'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
+                    'price'              => (float) ($product['price'] * $rate),
+                    'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
+                ];
 
                 try {
                     $payload = [
@@ -2202,7 +2200,7 @@ class MailChimp extends Module
 
                     continue;
                 }
-                if ($product['last_synced'] && $product['last_synced'] > '2000-01-01 00:00:00') {
+                if (!empty($product['last_synced']) && $product['last_synced'] > '2000-01-01 00:00:00') {
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
                         [
@@ -2279,18 +2277,23 @@ class MailChimp extends Module
     /**
      * Export products
      *
-     * @param int[] $range   Product IDs
-     * @param int   $idShops
+     * @param int[] $range       Product IDs
+     * @param int   $idShops     Shop IDs
+     * @param bool  $orderDetail Use the order detail table to find the missing pieces
      *
-     * @return bool Success
+     * @return bool Status
      *
      * @throws Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
      */
-    protected function exportProductRange($range, $idShops = null)
+    protected function exportProductRange($range, $idShops = null, $orderDetail = false)
     {
+        if (empty($range)) {
+            return true;
+        }
+
         if (is_int($idShops)) {
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
@@ -2308,7 +2311,7 @@ class MailChimp extends Module
             return false;
         }
 
-        $products = MailChimpProduct::getProductRange($range, $idShops);
+        $products = MailChimpProduct::getProductRange($range, $idShops, true, $orderDetail);
         if (empty($products)) {
             return true;
         }
@@ -2326,62 +2329,97 @@ class MailChimp extends Module
         $link = \Context::getContext()->link;
 
         $promises = call_user_func(function () use (&$products, $idLang, $client, $link, $taxes) {
-            foreach ($products as &$product) {
-                $productObj = new Product();
-                $productObj->hydrate($product);
-                $allImages = $productObj->getImages($idLang);
-                $rate = $taxes[$product['id_shop']];
-                $idShop = $product['id_shop'];
-
-                if ($productObj->hasAttributes()) {
-                    $allCombinations = $productObj->getAttributeCombinations($idLang);
-                    $allCombinationImages = $productObj->getCombinationImages($idLang);
+            foreach (array_unique(array_map('intval', array_column($products, 'id_product'))) as $idProduct) {
+                $product = $products[array_search((int) $idProduct, array_map('intval', array_column($products, 'id_product')))];
+                if (!isset($product['id_order_detail'])) {
+                    $productObj = new Product($idProduct);
+                    // Work with an existing product
+                    $allImages = array_values($productObj->getImages($idLang));
+                    $rate = $taxes[$product['id_shop']];
+                    $idShop = $product['id_shop'];
 
                     $variants = [];
-                    foreach ($allCombinations as $combination) {
-                        if (!isset($combination['quantity']) || !isset($combination['reference'])) {
-                            continue;
+                    if ($productObj->hasAttributes()) {
+                        $allCombinations = $productObj->getAttributeCombinations($idLang);
+                        $allCombinationImages = $productObj->getCombinationImages($idLang);
+
+                        foreach ($allCombinations as $combination) {
+                            if (!isset($combination['quantity']) || !isset($combination['reference'])) {
+                                continue;
+                            }
+                            $variant = [
+                                'id'                 => (string) $product['id_product'].'-'.(string) $combination['id_product_attribute'],
+                                'title'              => (string) $product['name'],
+                                'sku'                => $combination['reference'],
+                                'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
+                                'inventory_quantity' => (int) $combination['quantity'],
+                            ];
+                            if (isset($allCombinationImages[$combination['id_product_attribute']])) {
+                                $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
+                            }
+                            $variants[] = $variant;
                         }
-                        $variant = [
-                            'id'                 => (string) $product['id_product'].'-'.(string) $combination['id_product_attribute'],
-                            'title'              => (string) $product['name'],
-                            'sku'                => $combination['reference'],
-                            'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
-                            'inventory_quantity' => (int) $combination['quantity'],
+                    }
+                    $variants[] = [
+                        'id'                 => (string) $product['id_product'],
+                        'title'              => (string) $product['name'],
+                        'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
+                        'price'              => (float) ($product['price'] * $rate),
+                        'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
+                    ];
+
+                    try {
+                        $payload = [
+                            'id'          => (string) $product['id_product'],
+                            'title'       => (string) $product['name'],
+                            'url'         => (string) $link->getProductLink($product['id_product']),
+                            'description' => (string) $product['description_short'],
+                            'vendor'      => (string) $product['manufacturer'] ?: '',
+                            'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
+                            'variants'    => $variants,
                         ];
-                        if (isset($allCombinationImages[$combination['id_product_attribute']])) {
-                            $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
-                        }
-                        $variants[] = $variant;
+                    } catch (PrestaShopException $e) {
+                        $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
+
+                        continue;
                     }
                 } else {
-                    $variants = [
-                        [
-                            'id'                 => (string) $product['id_product'],
+                    // Work with an order detail row
+                    $orderDetails = array_filter($products, function ($product) use ($idProduct) {
+                        return (int) $product['id_product'] === $idProduct;
+                    });
+                    $idShop = $product['id_shop'];
+                    $variants = [];
+                    foreach ($orderDetails as $orderDetail) {
+                        if (empty($orderDetail['id_product_attribute']) || in_array($orderDetail['id_product_attribute'], array_filter(array_map(function ($item) {
+                                return array_pad(explode('-', $item), 2, null)[1];
+                            }, array_column($variants, 'id'))))) {
+                            continue;
+                        }
+                        $variants[] = [
+                            'id'                 => (string) $orderDetail['id_product'].'-'.(string) $orderDetail['id_product_attribute'],
+                            'title'              => (string) $orderDetail['name'],
+                            'sku'                => (string) $orderDetail['reference'],
+                            'price'              => (float) $orderDetail['unit_price_tax_incl'],
+                            'inventory_quantity' => (int) $orderDetail['quantity'],
+                        ];
+                    }
+                    $product = array_values($orderDetails)[0];
+                    $variants[] = [
+                            'id'                 => (string) $idProduct,
                             'title'              => (string) $product['name'],
                             'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
-                            'price'              => (float) ($product['price'] * $rate),
+                            'price'              => (float) $product['unit_price_tax_incl'],
                             'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
-                        ],
                     ];
-                }
-
-                try {
                     $payload = [
-                        'id'          => (string) $product['id_product'],
+                        'id'          => (string) $idProduct,
                         'title'       => (string) $product['name'],
-                        'url'         => (string) $link->getProductLink($product['id_product']),
-                        'description' => (string) $product['description_short'],
-                        'vendor'      => (string) $product['manufacturer'] ?: '',
-                        'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
                         'variants'    => $variants,
                     ];
-                } catch (PrestaShopException $e) {
-                    $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
-
-                    continue;
                 }
-                if ($product['last_synced'] && $product['last_synced'] > '2000-01-01 00:00:00') {
+
+                if (!empty($product['last_synced']) && $product['last_synced'] > '2000-01-01 00:00:00') {
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
                         [
@@ -2433,13 +2471,16 @@ class MailChimp extends Module
                             );
                             return;
                         } catch (\GuzzleHttp\Exception\TransferException $e) {
+                            Logger::addLog($e->getMessage());
                         } catch (\Exception $e) {
+                            Logger::addLog($e->getMessage());
                         }
                     }
 
                     $responseBody = (string) $reason->getResponse()->getBody();
+                    $requestBody = (string) $reason->getRequest()->getBody();
                     Logger::addLog(
-                        "MailChimp client error: {$responseBody}",
+                        "MailChimp client error: {$requestBody} - {$reason->getRequest()->getMethod()}",
                         2,
                         $reason->getResponse()->getStatusCode(),
                         'MailChimpProduct',
@@ -2499,7 +2540,7 @@ class MailChimp extends Module
                 if (empty($cart['lines'])) {
                     continue;
                 }
-                $this->exportProductRange(array_column($cart['lines'], 'id_product'));
+                $this->exportProductRange(array_column($cart['lines'], 'product_id', $idShops, true));
                 $subscriberHash = md5(mb_strtolower($cart['email']));
                 $mergeFields = [
                     'FNAME' => $cart['firstname'],
@@ -2536,7 +2577,7 @@ class MailChimp extends Module
                     'lines'         => $cart['lines'],
                 ];
 
-                if ($cart['last_synced'] && $cart['last_synced'] > '2000-01-01 00:00:00') {
+                if (!empty($cart['last_synced']) && $cart['last_synced'] > '2000-01-01 00:00:00') {
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$cart['id_shop']}/carts/{$cart['id_cart']}",
                         [
@@ -2661,7 +2702,7 @@ class MailChimp extends Module
                 if (empty($order['lines'])) {
                     continue;
                 }
-                $this->exportProductRange(array_column($order['lines'], 'id_product'));
+                $this->exportProductRange(array_column($order['lines'], 'product_id'), $idShops, true);
                 $subscriberHash = md5(mb_strtolower($order['email']));
                 $mergeFields = [
                     'FNAME' => $order['firstname'],
@@ -2714,7 +2755,7 @@ class MailChimp extends Module
                     $payload['tracking_code'] = $order['mc_tc'];
                 }
 
-                if ($order['last_synced'] && $order['last_synced'] > '2000-01-01 00:00:00') {
+                if (!empty($order['last_synced']) && $order['last_synced'] > '2000-01-01 00:00:00') {
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$mailChimpShops[$order['id_shop']]->id_shop}/orders/{$order['id_order']}",
                         [
@@ -2771,8 +2812,9 @@ class MailChimp extends Module
                     }
 
                     $responseBody = (string) $reason->getResponse()->getBody();
+                    $requestBody = (string) $reason->getRequest()->getBody();
                     Logger::addLog(
-                        "MailChimp client error: {$responseBody}",
+                        "MailChimp client error: {$responseBody} -- {$requestBody}",
                         2,
                         $reason->getResponse()->getStatusCode(),
                         'MailChimpOrder',
