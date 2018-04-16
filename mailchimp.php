@@ -2341,7 +2341,7 @@ class MailChimp extends Module
             return false;
         }
 
-        $products = MailChimpProduct::getProducts($range, $idShops);
+        $products = MailChimpProduct::getProductRange($range, $idShops);
         if (empty($products)) {
             return true;
         }
