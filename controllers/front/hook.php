@@ -45,11 +45,19 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         $this->ssl = \Tools::usingSecureMode();
 
         header('Content-Type: text/plain');
-        $this->postProcess();
+        $this->init();
 
         die($this->status);
     }
 
+    /**
+     * Prevent displaying the maintenance page
+     *
+     * @return void
+     */
+    protected function displayMaintenancePage()
+    {
+    }
 
     /**
      * Process webhooks
@@ -57,7 +65,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
-    public function postProcess()
+    public function init()
     {
         $data = Tools::getAllValues();
         switch ($data['type']) {
