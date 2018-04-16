@@ -2367,7 +2367,7 @@ class MailChimp extends Module
                     $variants[] = [
                         'id'                 => (string) $product['id_product'],
                         'title'              => (string) $product['name'],
-                        'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
+                        'sku'                => (string) $product['reference'],
                         'price'              => (float) ($product['price'] * $rate),
                         'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
                     ];
@@ -2412,7 +2412,7 @@ class MailChimp extends Module
                     $variants[] = [
                             'id'                 => (string) $idProduct,
                             'title'              => (string) $product['name'],
-                            'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
+                            'sku'                => (string) $product['reference'],
                             'price'              => (float) $product['unit_price_tax_incl'],
                             'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
                     ];
@@ -2702,7 +2702,7 @@ class MailChimp extends Module
             return false;
         }
         $client = static::getGuzzle();
-        $promises = call_user_func(function () use (&$orders, $client, $mailChimpShops) {
+        $promises = call_user_func(function () use (&$orders, $client, $mailChimpShops, $idShops) {
             foreach ($orders as &$order) {
                 if (empty($order['lines'])) {
                     continue;

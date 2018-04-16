@@ -139,7 +139,7 @@ class MailChimpProduct extends \ObjectModel
         }
 
         $sql = new \DbQuery();
-        $sql->select('ps.`id_product`, ps.`id_shop`, ps.`id_tax_rules_group`, ps.`price`, ps.`active`');
+        $sql->select('ps.`id_product`, ps.`id_shop`, ps.`id_tax_rules_group`, ps.`price`, ps.`active`, IFNULL(p.`reference`, p.`supplier_reference`) AS `reference`');
         $sql->select('ps.`date_add`, ps.`date_upd`, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`, mp.`last_synced`');
         $sql->from('product_shop', 'ps');
         $sql->innerJoin('product_lang', 'pl', 'pl.`id_product` = ps.`id_product` AND pl.`id_lang` = '.(int) $idLang.' AND ps.`id_shop` = pl.`id_shop`');
@@ -163,6 +163,7 @@ class MailChimpProduct extends \ObjectModel
                             ->select('od.`product_id` AS `id_product`, od.`product_attribute_id` AS `id_product_attribute`, od.`id_order_detail`')
                             ->select('od.`id_shop`, od.`product_name` AS `name`, od.`product_quantity` AS `quantity`, od.`product_price` AS `price`')
                             ->select('od.`tax_rate`, od.`unit_price_tax_excl`, od.`unit_price_tax_incl`, \'1970-01-01 00:00:00\' AS `last_synced`')
+                            ->select('od.`product_reference` AS `reference`')
                             ->from('order_detail', 'od')
                             ->where('od.`product_id` IN ('.implode(',', array_map('intval', $missingIds)).')')
                     );
