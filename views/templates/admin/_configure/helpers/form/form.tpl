@@ -119,7 +119,7 @@
                     <span>{$shop['name']|escape:'htmlall':'UTF-8'}</span>
                   </td>
                   <td>
-                    <span>{$shop['list_id']|escape:'htmlall':'UTF-8'}</span>
+                    <span>{if $shop['list_id']}{$shop['list_id']|escape:'htmlall':'UTF-8'}{else}{l s='N/A' mod='mailchimp'}{/if}</span>
                   </td>
                   <td>
                     {if $shop['list_id']}
@@ -183,7 +183,7 @@
                     <span>{$shop['name']|escape:'htmlall':'UTF-8'}</span>
                   </td>
                   <td>
-                    <span>{$shop['list_id']|escape:'htmlall':'UTF-8'}</span>
+                    <span>{if $shop['list_id']}{$shop['list_id']|escape:'htmlall':'UTF-8'}{else}{l s='N/A' mod='mailchimp'}{/if}</span>
                   </td>
                   <td>
                     {if $shop['list_id']}
@@ -193,9 +193,12 @@
                   </td>
                   <td>
                     {if $shop['list_id']}
-                    <div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-carts-btn-{$shop['id_shop']|intval}">
-                      <i class="icon icon-upload"></i>
-                      {l s='Upload all carts' mod='mailchimp'}</div>{else}{l s='N/A' mod='mailchimp'}{/if}
+                      <div class="btn btn-default" data-shop="{$shop['id_shop']|intval}" id="sync-all-carts-btn-{$shop['id_shop']|intval}">
+                        <i class="icon icon-upload"></i>
+                        {l s='Upload all carts' mod='mailchimp'}</div>
+                    {else}
+                      {l s='N/A' mod='mailchimp'}
+                    {/if}
                   </td>
                   <td>
                     {if $shop['list_id']}
@@ -247,7 +250,7 @@
                     <span>{$shop['name']|escape:'htmlall':'UTF-8'}</span>
                   </td>
                   <td>
-                    <span>{$shop['list_id']|escape:'htmlall':'UTF-8'}</span>
+                    <span>{if $shop['list_id']}{$shop['list_id']|escape:'htmlall':'UTF-8'}{else}{l s='N/A' mod='mailchimp'}{/if}</span>
                   </td>
                   <td>
                     {if $shop['list_id']}
