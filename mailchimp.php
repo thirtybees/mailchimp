@@ -2310,6 +2310,186 @@ class MailChimp extends Module
     }
 
     /**
+     * Export products
+     *
+     * @param int[] $range   Product IDs
+     * @param int   $idShops
+     *
+     * @return bool Success
+     *
+     * @throws Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @since 1.0.0
+     */
+    protected function exportProductRange($range, $idShops = null)
+    {
+        if (is_int($idShops)) {
+        } elseif (!is_array($idShops) || empty($idShops)) {
+            $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
+        }
+
+        $idLang = (int) Configuration::get('PS_LANG_DEFAULT');
+        $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mcs) {
+            /** @var MailChimpShop $mcs */
+            return $mcs->list_id;
+        });
+        $idShops = array_filter($idShops, function ($idShop) use ($mailChimpShops) {
+            return in_array($idShop, array_keys($mailChimpShops));
+        });
+        if (empty($mailChimpShops) || empty($idShops)) {
+            return false;
+        }
+
+        $products = MailChimpProduct::getProducts($range, $idShops);
+        if (empty($products)) {
+            return true;
+        }
+
+        $taxes = [];
+        foreach ($mailChimpShops as $mailChimpShop) {
+            $rate = 1;
+            $tax = new Tax($mailChimpShop->id_tax);
+            if (Validate::isLoadedObject($tax) && $tax->active) {
+                $rate = 1 + ($tax->rate / 100);
+            }
+            $taxes[(int) $mailChimpShop->id_shop] = $rate;
+        }
+        $client = static::getGuzzle();
+        $link = \Context::getContext()->link;
+
+        $promises = call_user_func(function () use (&$products, $idLang, $client, $link, $taxes) {
+            foreach ($products as &$product) {
+                $productObj = new Product();
+                $productObj->hydrate($product);
+                $allImages = $productObj->getImages($idLang);
+                $rate = $taxes[$product['id_shop']];
+                $idShop = $product['id_shop'];
+
+                if ($productObj->hasAttributes()) {
+                    $allCombinations = $productObj->getAttributeCombinations($idLang);
+                    $allCombinationImages = $productObj->getCombinationImages($idLang);
+
+                    $variants = [];
+                    foreach ($allCombinations as $combination) {
+                        if (!isset($combination['quantity']) || !isset($combination['reference'])) {
+                            continue;
+                        }
+                        $variant = [
+                            'id'                 => (string) $product['id_product'].'-'.(string) $combination['id_product_attribute'],
+                            'title'              => (string) $product['name'],
+                            'sku'                => $combination['reference'],
+                            'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
+                            'inventory_quantity' => (int) $combination['quantity'],
+                        ];
+                        if (isset($allCombinationImages[$combination['id_product_attribute']])) {
+                            $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
+                        }
+                        $variants[] = $variant;
+                    }
+                } else {
+                    $variants = [
+                        [
+                            'id'                 => (string) $product['id_product'],
+                            'title'              => (string) $product['name'],
+                            'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
+                            'price'              => (float) ($product['price'] * $rate),
+                            'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
+                        ],
+                    ];
+                }
+
+                try {
+                    $payload = [
+                        'id'          => (string) $product['id_product'],
+                        'title'       => (string) $product['name'],
+                        'url'         => (string) $link->getProductLink($product['id_product']),
+                        'description' => (string) $product['description_short'],
+                        'vendor'      => (string) $product['manufacturer'] ?: '',
+                        'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
+                        'variants'    => $variants,
+                    ];
+                } catch (PrestaShopException $e) {
+                    $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
+
+                    continue;
+                }
+                if ($product['last_synced'] && $product['last_synced'] > '2000-01-01 00:00:00') {
+                    yield $client->patchAsync(
+                        "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
+                        [
+                            'body' => json_encode($payload),
+                        ]
+                    );
+                } else {
+                    yield $client->postAsync(
+                        "ecommerce/stores/tbstore_{$idShop}/products",
+                        [
+                            'body' => json_encode($payload),
+                        ]
+                    );
+                }
+            }
+        });
+
+        $success = true;
+        (new EachPromise($promises, [
+            'concurrency' => static::API_CONCURRENCY,
+            'rejected' => function ($reason) use (&$success, $client) {
+                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                    preg_match("/tbstore_(?P<id_shop>[0-9]+)?\//", $reason->getRequest()->getUri(), $m);
+                    $idProduct = json_decode((string) $reason->getRequest()->getBody())->id;
+                    if (strtoupper($reason->getRequest()->getMethod()) === 'DELETE') {
+                        // We don't care about the DELETEs, those are fire-and-forget
+                        return;
+                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'POST'
+                        && strpos(json_decode((string) $reason->getResponse()->getBody())->detail, 'A product with the provided ID') !== false
+                    ) {
+                        try {
+                            $client->patch("ecommerce/stores/tbstore_{$m['id_shop']}/products/{$idProduct}",
+                                [
+                                    'body' => (string) $reason->getRequest()->getBody(),
+                                ]
+                            );
+                            return;
+                        } catch (\GuzzleHttp\Exception\TransferException $e) {
+                        } catch (\Exception $e) {
+                        }
+                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
+                        && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
+                    ) {
+                        try {
+                            $client->post("ecommerce/stores/tbstore_{$m['id_shop']}/products",
+                                [
+                                    'body' => (string) $reason->getRequest()->getBody(),
+                                ]
+                            );
+                            return;
+                        } catch (\GuzzleHttp\Exception\TransferException $e) {
+                        } catch (\Exception $e) {
+                        }
+                    }
+
+                    $responseBody = (string) $reason->getResponse()->getBody();
+                    Logger::addLog(
+                        "MailChimp client error: {$responseBody}",
+                        2,
+                        $reason->getResponse()->getStatusCode(),
+                        'MailChimpProduct',
+                        json_decode((string) $reason->getRequest()->getBody())->id
+                    );
+                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
+                }
+            },
+        ]))->promise()->wait();
+
+        MailChimpProduct::setSynced(array_column($products, 'id_product'), $idShops);
+
+        return $success;
+    }
+
+    /**
      * Export all carts
      *
      * @param int            $offset
@@ -2352,6 +2532,7 @@ class MailChimp extends Module
                 if (empty($cart['lines'])) {
                     continue;
                 }
+                $this->exportProductRange(array_column($cart['lines'], 'id_product'));
                 $subscriberHash = md5(mb_strtolower($cart['email']));
                 $mergeFields = [
                     'FNAME' => $cart['firstname'],
@@ -2513,6 +2694,7 @@ class MailChimp extends Module
                 if (empty($order['lines'])) {
                     continue;
                 }
+                $this->exportProductRange(array_column($order['lines'], 'id_product'));
                 $subscriberHash = md5(mb_strtolower($order['email']));
                 $mergeFields = [
                     'FNAME' => $order['firstname'],

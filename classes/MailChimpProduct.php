@@ -112,6 +112,55 @@ class MailChimpProduct extends \ObjectModel
     }
 
     /**
+     * Get products
+     *
+     * @param int|int[]      $range   Product IDs
+     * @param int|int[]|null $idShops
+     * @param bool           $remaining
+     *
+     * @return array
+     *
+     * @since 1.1.0
+     * @throws \PrestaShopException
+     */
+    public static function getProductRange($range, $idShops = null, $remaining = false)
+    {
+        if (is_int($idShops)) {
+            $idShops = [$idShops];
+        } elseif (!is_array($idShops) || empty($idShops)) {
+            $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
+        }
+        $idLang = (int) \Configuration::get('PS_LANG_DEFAULT');
+        if (is_int($range)) {
+            $range = [$range];
+        } elseif (!is_array($range) || empty($range)) {
+            return [];
+        }
+
+        $sql = new \DbQuery();
+        $sql->select('ps.*, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`, mp.`last_synced`');
+        $sql->from('product_shop', 'ps');
+        $sql->innerJoin('product_lang', 'pl', 'pl.`id_product` = ps.`id_product` AND pl.`id_lang` = '.(int) $idLang.' AND ps.`id_shop` = pl.`id_shop`');
+        $sql->innerJoin('product', 'p', 'p.`id_product` = ps.`id_product`');
+        $sql->leftJoin('manufacturer', 'm', 'm.`id_manufacturer` = p.`id_manufacturer`');
+        $sql->where('ps.`id_shop` IN ('.implode(',', array_map('intval', $idShops)).')');
+        $sql->leftJoin(bqSQL(self::$definition['table']), 'mp', 'mp.`id_product` = ps.`id_product` AND mp.`id_shop` = ps.`id_shop`');
+        $sql->where('ps.`active` = 1');
+        $sql->where('ps.`id_product` IN ('.implode(',', array_map('intval', $range)).')');
+        if ($remaining) {
+            $sql->where('mp.`last_synced` IS NULL OR (mp.`last_synced` < ps.`date_upd` AND mp.`last_synced` > \'2000-01-01 00:00:00\')');
+        }
+
+        try {
+            return (array) \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        } catch (\PrestaShopException $e) {
+            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count products', 'mailchimp');
+
+            return [];
+        }
+    }
+
+    /**
      * Set synced
      *
      * @param array          $range
