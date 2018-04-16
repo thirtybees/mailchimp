@@ -1061,7 +1061,7 @@ class MailChimp extends Module
     public function cronExport($type = 'products', $idShop, $exportRemaining, $submit)
     {
         if ($submit === 'start') {
-            $totalItems = call_user_func('\\MailChimpModule\\MailChimp'.ucfirst(substr($type, 0, strlen($type) - 1)).'::count'.ucfirst($type), $idShop, $exportRemaining);
+            $totalItems = call_user_func('\\MailChimpModule\\MailChimp'.ucfirst(substr($type, 0, strlen($type) - 1)).'::get'.ucfirst($type), $idShop, 0, 0, $exportRemaining, true);
             $totalChunks = ceil($totalItems / static::EXPORT_CHUNK_SIZE);
 
             Configuration::updateValue(constant(__CLASS__.'::'.strtoupper($type).'_SYNC_COUNT'), 0, false, 0, 0);
@@ -2201,7 +2201,7 @@ class MailChimp extends Module
 
                     continue;
                 }
-                if ($product['last_synced'] && $product['last_synced'] !== '1970-01-01 00:00:00') {
+                if ($product['last_synced'] && $product['last_synced'] > '2000-01-01 00:00:00') {
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
                         [
@@ -2355,7 +2355,7 @@ class MailChimp extends Module
                     'lines'         => $cart['lines'],
                 ];
 
-                if ($cart['last_synced'] && $cart['last_synced'] !== '1970-01-01 00:00:00') {
+                if ($cart['last_synced'] && $cart['last_synced'] > '2000-01-01 00:00:00') {
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$cart['id_shop']}/carts/{$cart['id_cart']}",
                         [
@@ -2532,7 +2532,7 @@ class MailChimp extends Module
                     $payload['tracking_code'] = $order['mc_tc'];
                 }
 
-                if ($order['last_synced'] && $order['last_synced'] !== '1970-01-01 00:00:00') {
+                if ($order['last_synced'] && $order['last_synced'] > '2000-01-01 00:00:00') {
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$mailChimpShops[$order['id_shop']]->id_shop}/orders/{$order['id_order']}",
                         [
