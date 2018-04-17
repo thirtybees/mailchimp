@@ -128,8 +128,9 @@ class MailChimpOrder extends \ObjectModel
             $orderObj = new \Order($order['id_order']);
 
             $order['currency_code'] = $defaultCurrencyCode;
-            $order['order_total'] = $orderObj->getTotalPaid();
-            $order['shipping_total'] = (float) ($orderObj->total_shipping_tax_incl * $rate);
+            $order['order_total'] = $orderObj->total_paid_tax_incl;
+            $order['shipping_total'] = (float) $orderObj->total_shipping_tax_incl;
+            $order['tax_total'] = (float) $orderObj->total_paid_tax_incl - $orderObj->total_paid_tax_excl;
 
             $orderProducts = $orderObj->getOrderDetailList();
             if (!$orderProducts) {

@@ -124,16 +124,11 @@ class MailChimpCart extends \ObjectModel
         if (!\Validate::isLoadedObject($mailChimpShop)) {
             return false;
         }
-        $rate = 1;
-        $tax = new \Tax($mailChimpShop->id_tax);
-        if (\Validate::isLoadedObject($tax) && $tax->active) {
-            $rate = 1 + ($tax->rate / 100);
-        }
         foreach ($results as &$cart) {
             $cartObject = new \Cart($cart['id_cart']);
 
             $cart['currency_code'] = $defaultCurrencyCode;
-            $cart['order_total'] = (float) ($cartObject->getOrderTotal(false) * $rate);
+            $cart['order_total'] = (float) $cartObject->getOrderTotal(false);
             $cart['checkout_url'] = \Context::getContext()->link->getPageLink(
                 'order',
                 false,
@@ -150,7 +145,7 @@ class MailChimpCart extends \ObjectModel
                     'product_id'         => (string) $cartProduct['id_product'],
                     'product_variant_id' => (string) $cartProduct['id_product_attribute'] ? $cartProduct['id_product'].'-'.$cartProduct['id_product_attribute'] : $cartProduct['id_product'],
                     'quantity'           => (int) $cartProduct['cart_quantity'],
-                    'price'              => (float) ($cartProduct['price'] * $rate),
+                    'price'              => (float) $cartProduct['price_wt'],
                 ];
             }
         }
