@@ -452,14 +452,14 @@ class MailChimp extends Module
     }
 
     /**
-     * Action update customer after
+     * Action add customer after
      *
      * @param array $params
      *
      * @throws Exception
      * @throws PrestaShopException
      */
-    public function hookActionObjectCustomerUpdateAfter($params)
+    public function hookActionObjectCustomerAddAfter($params)
     {
         /** @var Customer $customer */
         $customer = $params['object'];
@@ -478,19 +478,20 @@ class MailChimp extends Module
     }
 
     /**
-     * Action add customer after
+     * Action update customer after
      *
      * @param array $params
      *
      * @throws Exception
      * @throws PrestaShopException
      */
-    public function hookActionObjectCustomerAddAfter($params)
+    public function hookActionObjectCustomerUpdateAfter($params)
     {
         /** @var Customer $customer */
         $customer = $params['object'];
-
-        $subscription = (string) $customer->newsletter ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+        $subscription = (string) $customer->newsletter
+            ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED
+            : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
         $iso = LanguageCore::getIsoById($customer->id_lang);
         $customerMC = new MailChimpSubscriber(
             $customer->email,
