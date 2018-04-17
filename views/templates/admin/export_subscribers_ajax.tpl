@@ -86,7 +86,7 @@
           return;
         }
 
-        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllSubscribers&count=' + count + 'shops[]=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
+        var jqXhr = $.get(exportUrl + '&ajax&action=exportAllSubscribers&count=' + count + '&shops[]=' + idShop + '&next' + (exportRemaining ? '&remaining' : ''), function (response) {
           response = JSON.parse(response);
           var processed = (parseInt(response.count, 10) - 1) * {MailChimp::EXPORT_CHUNK_SIZE|intval};
           var progress = (processed / totalSubscribers) * 100;
