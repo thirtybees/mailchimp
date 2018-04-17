@@ -68,7 +68,6 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
     public function init()
     {
         $data = json_decode(file_get_contents('php://input'), true);
-        Logger::addLog(json_encode($data));
         switch ($data['type']) {
             case 'subscribe':
                 $this->processSubscribe($data);
