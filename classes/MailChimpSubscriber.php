@@ -314,18 +314,22 @@ class MailChimpSubscriber
         if ($customers) {
             $nlQuery->where('n.`email` NOT IN ('.$existingMailQuery->build().')');
         }
+        $nlQuery->where('n.`email` != \'\'');
+        $nlQuery->where('n.`email` IS NOT NULL');
 
         $customerQuery = new \DbQuery();
         if ($count && !\Module::isEnabled('blocknewsletter')) {
             $customerQuery->select('COUNT(*)');
         } else {
-            $customerQuery->select('c.`email`, c.`firstname`, c.`lastname`, c.`ip_registration_newsletter`, c.`id_shop`');
-            $customerQuery->select('l.`iso_code`, c.`newsletter_date_add`, c.`company`, c.`website`, c.`birthday`');
+            $customerQuery->select('c.`email`, c.`firstname`, c.`lastname`, c.`ip_registration_newsletter`');
+            $customerQuery->select('l.`iso_code`, c.`id_shop`, c.`newsletter_date_add`, c.`company`, c.`website`, c.`birthday`');
         }
         $customerQuery->from('customer', 'c');
         $customerQuery->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
         $customerQuery->where('c.`id_shop` IN ('.implode(',', array_map('intval', $idShops)).')');
         $customerQuery->where('c.`active` = 1');
+        $customerQuery->where('c.`email` != \'\'');
+        $customerQuery->where('c.`email` IS NOT NULL');
         if ($optedIn) {
             $customerQuery->where('c.`newsletter` = 1');
         }
