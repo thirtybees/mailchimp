@@ -101,12 +101,14 @@ class MailChimpSubscriber
             'timestamp_signup' => $this->timestampSignup,
         ];
         if (!\Configuration::get(\MailChimp::GDPR)) {
-            $subscriberBody['ip_signup'] = (string) ($this->ipSignup ?: '');
+            $subscriber['ip_signup'] = (string) ($this->ipSignup ?: '');
+        } else {
+
         }
-        if (\Configuration::get(\MailChimp::EXPORT_COUNTRY) && $subscriber['ip_address']) {
+        if (\Configuration::get(\MailChimp::EXPORT_COUNTRY) && !empty($subscriber['ip_signup'])) {
             $coords = \MailChimp::getUserLatLongByIp($this->ipSignup);
             if ($coords) {
-                $subscriberBody['location'] = [
+                $subscriber['location'] = [
                     'latitude'  => $coords['lat'],
                     'longitude' => $coords['long'],
                 ];
@@ -327,6 +329,7 @@ class MailChimpSubscriber
         $customerQuery->innerJoin('lang', 'l', 'l.`id_lang` = c.`id_lang`');
         $customerQuery->where('c.`id_shop` IN ('.implode(',', array_map('intval', $idShops)).')');
         $customerQuery->where('c.`active` = 1');
+        $customerQuery->where('c.`newsletter` = 1');
         $customerQuery->where('c.`email` != \'\'');
         $customerQuery->where('c.`email` IS NOT NULL');
         if ($optedIn) {
