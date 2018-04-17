@@ -274,10 +274,9 @@ class MailChimpSubscriber
      * @param int      $limit
      * @param bool     $customers
      * @param bool     $optedIn
-     *
      * @param bool     $count
      *
-     * @return array|false
+     * @return array|int|false
      *
      * @throws \PrestaShopDatabaseException
      * @throws \PrestaShopException
@@ -336,17 +335,13 @@ class MailChimpSubscriber
 
         // Check if the module exists
         if (\Module::isEnabled('blocknewsletter')) {
-            $sql = $count ? 'SELECT COUNT(*) FROM (' : '';
-            $sql .= "{$nlQuery->build()} UNION ALL {$customerQuery->build()}";
-            if ($limit) {
-                $sql .= ' LIMIT '.(int) $limit;
-            }
-            if ($offset) {
-                $sql .= ', '.(int) $offset;
-            }
+            $sql = $count ? 'SELECT COUNT(*) FROM ' : 'SELECT * FROM ';
+            $sql .= "({$nlQuery->build()} UNION ALL {$customerQuery->build()}) AS `x` ";
             if ($count) {
-                $sql .= ') AS `x`';
                 return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+            } else {
+                $sql .= ' LIMIT '.(int) $offset;
+                $sql .= ', '.(int) $limit;
             }
             try {
                 $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
