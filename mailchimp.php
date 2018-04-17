@@ -2682,7 +2682,7 @@ class MailChimp extends Module
                 if (empty($cart['lines'])) {
                     continue;
                 }
-                $this->exportProductRange(array_column($cart['lines'], 'product_id', $idShops, true));
+                $this->exportProductRange(array_column($cart['lines'], 'product_id'), $idShops, true);
                 $subscriberHash = md5(mb_strtolower($cart['email']));
                 $mergeFields = [
                     'FNAME' => $cart['firstname'],
