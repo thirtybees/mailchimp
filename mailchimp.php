@@ -2615,6 +2615,7 @@ class MailChimp extends Module
         }
 
         if (is_int($idShops)) {
+            $idShops = [$idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
         }
