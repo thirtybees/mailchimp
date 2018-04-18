@@ -301,7 +301,6 @@ class MailChimpSubscriber
         $existingMailQuery->where('c.`newsletter` = 1');
         $existingMailQuery->where('c.`active` = 1');
 
-
         $nlQuery = new \DbQuery();
         $nlQuery->select('n.`email`, \'\' AS `firstname`, \'\' AS `lastname`');
         $nlQuery->select('\'\' AS `ip_registration_newsletter`, l.`iso_code`, n.`id_shop`');
