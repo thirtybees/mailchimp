@@ -2431,6 +2431,7 @@ class MailChimp extends Module
     protected function exportProducts($offset, $idShops = null, $remaining = false)
     {
         if (is_int($idShops)) {
+            $idShops = [$idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
         }

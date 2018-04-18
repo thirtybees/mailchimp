@@ -37,6 +37,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      * @return void
      *
      * @since 1.1.0
+     * @throws PrestaShopException
      */
     public function initContent()
     {
@@ -74,15 +75,15 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
         if (in_array($action, [
             'ExportAllProducts',
             'ExportRemainingProducts',
-            'ResetProducts',
             'ExportAllCarts',
             'ExportRemainingCarts',
-            'ResetCarts',
             'ExportAllOrders',
             'ExportRemainingOrders',
+            'ResetCarts',
+            'ResetProducts',
             'ResetOrders',
         ])) {
-            $this->{'process'.$action}($entityType, $actionType, $idShop);
+            $this->processCron($entityType, $actionType, $idShop);
         }
 
         die('KO');
@@ -97,7 +98,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      *
      * @throws PrestaShopException
      */
-    protected function processCron($actionType, $entityType, $idShop)
+    protected function processCron($entityType, $actionType, $idShop)
     {
         if ($actionType === 'ExportAll') {
             $data = $this->module->cronExport($entityType, $idShop, false, 'start');
@@ -115,7 +116,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
             die('OK');
         } elseif ($actionType === 'Reset') {
             if ($this->module->processReset($entityType, $idShop, false)) {
-                die('ok');
+                die('OK');
             }
 
             die('OK');
