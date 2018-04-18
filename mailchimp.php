@@ -646,21 +646,25 @@ class MailChimp extends Module
             if (static::$apiKey && !static::$uuid) {
                 $apiKey = static::$apiKey;
                 $dc = static::getDc();
-                $response = json_decode((string) (new Client([
-                    'timeout'         => static::API_TIMEOUT,
-                    'connect_timeout' => static::API_TIMEOUT,
-                    'verify'          => _PS_TOOL_DIR_.'cacert.pem',
-                    'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
-                    'headers'         => [
-                        'Accept'        => 'application/json',
-                        'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                        'Content-Type'  => 'application/json;charset=UTF-8',
-                        'User-Agent'    => static::getUserAgent(),
-                    ],
-                ]))->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
-                if (!empty($response->account_id)) {
-                    static::$uuid = $response->account_id;
-                    Configuration::updateValue(static::UUID, static::$uuid, false, 0, 0);
+                try {
+                    $response = json_decode((string) (new Client([
+                        'timeout'         => static::API_TIMEOUT,
+                        'connect_timeout' => static::API_TIMEOUT,
+                        'verify'          => _PS_TOOL_DIR_.'cacert.pem',
+                        'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
+                        'headers'         => [
+                            'Accept'        => 'application/json',
+                            'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                            'Content-Type'  => 'application/json;charset=UTF-8',
+                            'User-Agent'    => static::getUserAgent(),
+                        ],
+                    ]))->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
+                    if (!empty($response->account_id)) {
+                        static::$uuid = $response->account_id;
+                        Configuration::updateValue(static::UUID, static::$uuid, false, 0, 0);
+                    }
+                } catch (TransferException $e) {
+
                 }
             }
         }
@@ -671,14 +675,19 @@ class MailChimp extends Module
     /**
      * Get data center
      *
-     * @return mixed
+     * @return string|false
      *
      * @throws Adapter_Exception
      * @throws PrestaShopException
      */
     public static function getDc()
     {
-        return array_pad(explode('-', static::getApiKey()), 2, '')[1];
+        $dc = array_pad(explode('-', static::getApiKey()), 2, '')[1];
+        if (!preg_match('/^[a-zA-Z][a-zA-Z][0-9]+$/', $dc)) {
+            return false;
+        }
+
+        return $dc;
     }
 
     /**
@@ -700,21 +709,24 @@ class MailChimp extends Module
         if (static::$apiKey) {
             $apiKey = static::$apiKey;
             $dc = static::getDc();
-            $response = json_decode((string) (new Client([
-                'timeout'         => static::API_TIMEOUT,
-                'connect_timeout' => static::API_TIMEOUT,
-                'verify'          => _PS_TOOL_DIR_.'cacert.pem',
-                'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
-                'headers'         => [
-                    'Accept'        => 'application/json',
-                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
-                    'Content-Type'  => 'application/json;charset=UTF-8',
-                    'User-Agent'    => static::getUserAgent(),
-                ],
-            ]))->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
-            if (!empty($response->account_id)) {
-                static::$uuid = $response->account_id;
-                Configuration::updateValue(static::UUID, static::$uuid, false, 0, 0);
+            try {
+                $response = json_decode((string) (new Client([
+                    'timeout'         => static::API_TIMEOUT,
+                    'connect_timeout' => static::API_TIMEOUT,
+                    'verify'          => _PS_TOOL_DIR_.'cacert.pem',
+                    'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
+                    'headers'         => [
+                        'Accept'        => 'application/json',
+                        'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                        'Content-Type'  => 'application/json;charset=UTF-8',
+                        'User-Agent'    => static::getUserAgent(),
+                    ],
+                ]))->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
+                if (!empty($response->account_id)) {
+                    static::$uuid = $response->account_id;
+                    Configuration::updateValue(static::UUID, static::$uuid, false, 0, 0);
+                }
+            } catch (TransferException $e) {
             }
         }
 
