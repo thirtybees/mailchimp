@@ -52,6 +52,7 @@ class MailChimp extends Module
 {
     // Always store this key for the first store and the first shop group
     const API_KEY = 'MAILCHIMP_API_KEY';
+    const UUID = 'MAILCHIMP_UUID';
     const API_KEY_VALID = 'MAILCHIMP_API_KEY_VALID';
     const CONFIRMATION_EMAIL = 'MAILCHIMP_CONFIRMATION_EMAIL';
     const UPDATE_EXISTING = 'MAILCHIMP_UPDATE_EXISTING';
@@ -142,8 +143,10 @@ class MailChimp extends Module
         'vi' => 'vi',
         'gb' => 'en',
     ];
-    /** @var string $apiKey */
+    /** @var string $apiKey MailChimp API key */
     protected static $apiKey;
+    /** @var string $uuid MailChimp account ID */
+    protected static $uuid;
     /** @var Client $guzzle */
     protected static $guzzle;
 
@@ -306,11 +309,13 @@ class MailChimp extends Module
     /**
      * Hook to display header
      *
-     * @return void
+     * @return string
      *
      * @since 1.1.0
      *
      * @throws PrestaShopException
+     * @throws SmartyException
+     * @throws Adapter_Exception
      */
     public function hookDisplayHeader()
     {
@@ -322,6 +327,23 @@ class MailChimp extends Module
             $cookie->setExpire(static::COOKIE_LIFETIME);
             $cookie->write();
         }
+
+        if (static::getApiKey() && static::$uuid) {
+            $shop = MailChimpShop::getByShopId($this->context->shop->id);
+            if (!Validate::isLoadedObject($shop)) {
+                return '';
+            }
+
+            $this->context->smarty->assign([
+                'mc_dc'   => substr(static::$apiKey, -4),
+                'mc_uuid' => static::$uuid,
+                'mc_lid'  => $shop->list_id,
+            ]);
+
+            return $this->display(__FILE__, 'popup.tpl');
+        }
+
+        return '';
     }
 
     /**
@@ -575,7 +597,7 @@ class MailChimp extends Module
     {
         if (!static::$guzzle) {
             // Initialize Guzzle and the retry middleware, include the default options
-            $apiKey = Configuration::get(static::API_KEY, null, null, (int) Configuration::get('PS_SHOP_DEFAULT'));
+            $apiKey = Configuration::get(static::API_KEY, null, 0, 0);
             $dc = substr($apiKey, -4);
             $guzzle = new Client(array_merge(
                 [
@@ -609,13 +631,20 @@ class MailChimp extends Module
     /**
      * @return string
      * @throws PrestaShopException
+     * @throws Adapter_Exception
      */
     public static function getApiKey()
     {
         if (!static::$apiKey) {
-            $idShop = (int) Configuration::get('PS_SHOP_DEFAULT');
-            $idShopGroup = (int) Shop::getGroupFromShop($idShop, true);
-            static::$apiKey = Configuration::get(static::API_KEY, null ,$idShopGroup, $idShop);
+            static::$apiKey = Configuration::get(static::API_KEY, null, 0, 0);
+            static::$uuid = Configuration::get(static::UUID, null, 0, 0);
+            if (static::$apiKey && !static::$uuid) {
+                $response = json_decode((string) static::getGuzzle()->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
+                if (!empty($response->account_id)) {
+                    static::$uuid = $response->account_id;
+                    Configuration::updateValue(static::UUID, static::$uuid, false, 0, 0);
+                }
+            }
         }
 
         return static::$apiKey;
@@ -628,17 +657,24 @@ class MailChimp extends Module
      *
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
+     * @throws Adapter_Exception
      */
     public static function setApiKey($apiKey)
     {
-        $idShop = (int) Configuration::get('PS_SHOP_DEFAULT');
-        $idShopGroup = (int) Shop::getGroupFromShop($idShop, true);
-
         // Reset the internal Guzzle
         static::$guzzle = null;
         // Change the internal API key
         static::$apiKey = $apiKey;
-        return Configuration::updateValue(static::API_KEY, $apiKey, false, $idShopGroup, $idShop);
+        static::$uuid = '';
+        if (static::$apiKey) {
+            $response = json_decode((string) static::getGuzzle()->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
+            if (!empty($response->account_id)) {
+                static::$uuid = $response->account_id;
+                Configuration::updateValue(static::UUID, static::$uuid, false, 0, 0);
+            }
+        }
+
+        return Configuration::updateValue(static::API_KEY, $apiKey, false, 0, 0);
     }
 
     /**
@@ -1103,11 +1139,10 @@ class MailChimp extends Module
      */
     protected function postProcess()
     {
-        $idShopDefault = (int) Configuration::get('PS_SHOP_DEFAULT');
         if (Tools::isSubmit('submitApiKey')) {
             // Check if MailChimp API key is valid
             static::setApiKey(Tools::getValue(static::API_KEY));
-            Configuration::updateValue(static::API_KEY_VALID, false, false, null, $idShopDefault);
+            Configuration::updateValue(static::API_KEY_VALID, false, false, 0, 0);
             $this->checkApiKey();
         } elseif (Tools::isSubmit('submitSettings')) {
             // Update all the configuration
@@ -1115,10 +1150,10 @@ class MailChimp extends Module
             $confirmationEmail = (bool) Tools::getvalue(static::CONFIRMATION_EMAIL);
             $importOptedIn = (bool) Tools::getvalue(static::EXPORT_OPT_IN);
 
-            if (Configuration::updateValue(static::CONFIRMATION_EMAIL, $confirmationEmail)
-                && Configuration::updateValue(static::EXPORT_OPT_IN, $importOptedIn)
-                && Configuration::updateValue(static::GDPR, (bool) Tools::getvalue(static::GDPR))
-                && Configuration::updateValue(static::EXPORT_COUNTRY, (bool) Tools::getvalue(static::EXPORT_COUNTRY))
+            if (Configuration::updateValue(static::CONFIRMATION_EMAIL, $confirmationEmail, false, 0 ,0)
+                && Configuration::updateValue(static::EXPORT_OPT_IN, $importOptedIn, false, 0, 0)
+                && Configuration::updateValue(static::GDPR, (bool) Tools::getvalue(static::GDPR, false), false, 0 ,0)
+                && Configuration::updateValue(static::EXPORT_COUNTRY, (bool) Tools::getvalue(static::EXPORT_COUNTRY), false, 0, 0)
             ) {
                 $this->addConfirmation($this->l('Settings updated.'));
             } else {
@@ -1699,11 +1734,11 @@ class MailChimp extends Module
     {
         $configFields = [
             static::API_KEY            => static::getApiKey(),
-            static::CONFIRMATION_EMAIL => Configuration::get(static::CONFIRMATION_EMAIL),
-            static::EXPORT_OPT_IN      => Configuration::get(static::EXPORT_OPT_IN),
+            static::CONFIRMATION_EMAIL => Configuration::get(static::CONFIRMATION_EMAIL, null, 0, 0),
+            static::EXPORT_OPT_IN      => Configuration::get(static::EXPORT_OPT_IN, null, 0, 0),
             static::DATE_CUTOFF        => date('Y-m-d', strtotime(static::getOrderDateCutoff())),
-            static::GDPR               => (bool) Configuration::get(static::GDPR),
-            static::EXPORT_COUNTRY     => (bool) Configuration::get(static::EXPORT_COUNTRY),
+            static::GDPR               => (bool) Configuration::get(static::GDPR, false, 0, 0),
+            static::EXPORT_COUNTRY     => (bool) Configuration::get(static::EXPORT_COUNTRY, false, 0, 0),
         ];
 
         $paidStatuses = [];
@@ -2207,7 +2242,7 @@ class MailChimp extends Module
      */
     protected function checkApiKey()
     {
-        if (static::getApiKey() && Configuration::get(static::API_KEY_VALID)) {
+        if (static::getApiKey() && Configuration::get(static::API_KEY_VALID, false, 0, 0)) {
             return true;
         }
 
@@ -2231,7 +2266,7 @@ class MailChimp extends Module
                 ])->getBody(), true);
                 if ($getLists) {
                     $validKey = true;
-                    Configuration::updateValue(static::API_KEY_VALID, true);
+                    Configuration::updateValue(static::API_KEY_VALID, true, false, 0 ,0);
                 }
             } catch (\GuzzleHttp\Exception\ClientException $e) {
                 $responseBody = (string) $e->getResponse()->getBody();
@@ -2301,10 +2336,10 @@ class MailChimp extends Module
                     'merge_fields'  => $mergeFields,
                     'language'      => static::getMailChimpLanguageByIso($subscriber['language_code']),
                 ];
-                if (!Configuration::get(static::GDPR)) {
+                if (!Configuration::get(static::GDPR, false, 0, 0)) {
                     $subscriberBody['ip_signup'] = (string) ($subscriber['ip_address'] ?: '');
                 }
-                if (Configuration::get(static::EXPORT_COUNTRY) && $subscriber['ip_address']) {
+                if (Configuration::get(static::EXPORT_COUNTRY, false, 0, 0) && $subscriber['ip_address']) {
                     $coords = static::getUserLatLongByIp($subscriber['id_address']);
                     if ($coords) {
                         $subscriberBody['location'] = [
