@@ -85,6 +85,7 @@ class MailChimp extends Module
 
     const GDPR = 'MAILCHIMP_GDPR';
     const EXPORT_COUNTRY = 'MAILCHIMP_EXPORT_COUNTRY';
+    const DISABLE_POPUP = 'MAILCHIMP_DISABLE_POPUP';
 
     /** @var string $baseUrl */
     public $baseUrl;
@@ -328,7 +329,7 @@ class MailChimp extends Module
             $cookie->write();
         }
 
-        if (static::getApiKey() && static::$uuid) {
+        if (static::getApiKey() && static::$uuid && !Configuration::get(static::DISABLE_POPUP)) {
             $shop = MailChimpShop::getByShopId($this->context->shop->id);
             if (!Validate::isLoadedObject($shop)) {
                 return '';
@@ -1154,6 +1155,7 @@ class MailChimp extends Module
                 && Configuration::updateValue(static::EXPORT_OPT_IN, $importOptedIn, false, 0, 0)
                 && Configuration::updateValue(static::GDPR, (bool) Tools::getvalue(static::GDPR, false), false, 0 ,0)
                 && Configuration::updateValue(static::EXPORT_COUNTRY, (bool) Tools::getvalue(static::EXPORT_COUNTRY), false, 0, 0)
+                && Configuration::updateValue(static::DISABLE_POPUP, (bool) Tools::getvalue(static::DISABLE_POPUP), false, 0, 0)
             ) {
                 $this->addConfirmation($this->l('Settings updated.'));
             } else {
@@ -1551,7 +1553,7 @@ class MailChimp extends Module
                 ],
             ];
 
-            $fieldsForm2 = [
+            $fields[] = [
                 'form' => [
                     'legend' => [
                         'title' => $this->l('Export Settings'),
@@ -1566,7 +1568,40 @@ class MailChimp extends Module
                 ],
             ];
 
-            $fields[] = $fieldsForm2;
+            $fields[] = [
+                'form' => [
+                    'legend' => [
+                        'title' => $this->l('Miscellaneous'),
+                        'icon'  => 'icon-cogs',
+                    ],
+                    'input'  => [
+                        [
+                            'type'   => 'switch',
+                            'label'  => $this->l('Disable MailChimp popup'),
+                            'name'   => static::DISABLE_POPUP,
+                            'desc'   => $this->l('For privacy purposes you can prevent the popup script from loading'),
+                            'id'     => 'importOptedIn',
+                            'values' => [
+                                [
+                                    'id'    => static::DISABLE_POPUP.'_on',
+                                    'value' => 1,
+                                    'label' => $this->l('Enabled'),
+                                ],
+                                [
+                                    'id'    => static::DISABLE_POPUP.'_off',
+                                    'value' => 0,
+                                    'label' => $this->l('Disabled'),
+                                ],
+                            ],
+                        ],
+                    ],
+                    'submit' => [
+                        'title' => $this->l('Save'),
+                        'class' => 'btn btn-default pull-right',
+                        'name'  => 'submitSettings',
+                    ],
+                ],
+            ];
         }
 
         $helper = new HelperForm();
@@ -1729,6 +1764,7 @@ class MailChimp extends Module
      *
      * @since 1.0.0
      * @throws PrestaShopException
+     * @throws Adapter_Exception
      */
     protected function getConfigFieldsValues()
     {
@@ -1739,6 +1775,7 @@ class MailChimp extends Module
             static::DATE_CUTOFF        => date('Y-m-d', strtotime(static::getOrderDateCutoff())),
             static::GDPR               => (bool) Configuration::get(static::GDPR, false, 0, 0),
             static::EXPORT_COUNTRY     => (bool) Configuration::get(static::EXPORT_COUNTRY, false, 0, 0),
+            static::DISABLE_POPUP      => (bool) Configuration::get(static::DISABLE_POPUP, false, 0, 0),
         ];
 
         $paidStatuses = [];
@@ -2239,6 +2276,7 @@ class MailChimp extends Module
      *
      * @return bool Indicates whether the API key is valid
      * @throws PrestaShopException
+     * @throws Adapter_Exception
      */
     protected function checkApiKey()
     {
