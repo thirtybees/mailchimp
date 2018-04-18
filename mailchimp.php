@@ -281,8 +281,12 @@ class MailChimp extends Module
      */
     public function getLists($prepare = false)
     {
+        $client = static::getGuzzle();
+        if (!$client) {
+            return false;
+        }
         try {
-            $lists = json_decode((string) static::getGuzzle()->get(
+            $lists = json_decode((string) $client->get(
                 'lists',
                 [
                     'headers' => [
@@ -598,10 +602,10 @@ class MailChimp extends Module
     {
         if (!static::$guzzle) {
             // Initialize Guzzle and the retry middleware, include the default options
-            $apiKey = Configuration::get(static::API_KEY, null, 0, 0);
+            $apiKey = static::getApiKey();
             $dc = substr($apiKey, -4);
-            $guzzle = new Client(array_merge(
-                [
+            if ($apiKey && $dc) {
+                $guzzle = new Client([
                     'timeout'         => static::API_TIMEOUT,
                     'connect_timeout' => static::API_TIMEOUT,
                     'verify'          => _PS_TOOL_DIR_.'cacert.pem',
@@ -612,10 +616,10 @@ class MailChimp extends Module
                         'Content-Type'  => 'application/json;charset=UTF-8',
                         'User-Agent'    => static::getUserAgent(),
                     ],
-                ]
-            ));
+                ]);
 
-            static::$guzzle = $guzzle;
+                static::$guzzle = $guzzle;
+            }
         }
 
         return static::$guzzle;
@@ -640,7 +644,20 @@ class MailChimp extends Module
             static::$apiKey = Configuration::get(static::API_KEY, null, 0, 0);
             static::$uuid = Configuration::get(static::UUID, null, 0, 0);
             if (static::$apiKey && !static::$uuid) {
-                $response = json_decode((string) static::getGuzzle()->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
+                $apiKey = static::$apiKey;
+                $dc = substr($apiKey, -4);
+                $response = json_decode((string) (new Client([
+                    'timeout'         => static::API_TIMEOUT,
+                    'connect_timeout' => static::API_TIMEOUT,
+                    'verify'          => _PS_TOOL_DIR_.'cacert.pem',
+                    'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
+                    'headers'         => [
+                        'Accept'        => 'application/json',
+                        'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                        'Content-Type'  => 'application/json;charset=UTF-8',
+                        'User-Agent'    => static::getUserAgent(),
+                    ],
+                ]))->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
                 if (!empty($response->account_id)) {
                     static::$uuid = $response->account_id;
                     Configuration::updateValue(static::UUID, static::$uuid, false, 0, 0);
@@ -668,7 +685,20 @@ class MailChimp extends Module
         static::$apiKey = $apiKey;
         static::$uuid = '';
         if (static::$apiKey) {
-            $response = json_decode((string) static::getGuzzle()->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
+            $apiKey = static::$apiKey;
+            $dc = substr($apiKey, -4);
+            $response = json_decode((string) (new Client([
+                'timeout'         => static::API_TIMEOUT,
+                'connect_timeout' => static::API_TIMEOUT,
+                'verify'          => _PS_TOOL_DIR_.'cacert.pem',
+                'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
+                'headers'         => [
+                    'Accept'        => 'application/json',
+                    'Authorization' => 'Basic '.base64_encode("anystring:$apiKey"),
+                    'Content-Type'  => 'application/json;charset=UTF-8',
+                    'User-Agent'    => static::getUserAgent(),
+                ],
+            ]))->get('', ['timeout' => 2, 'connect_timeout' => 2])->getBody());
             if (!empty($response->account_id)) {
                 static::$uuid = $response->account_id;
                 Configuration::updateValue(static::UUID, static::$uuid, false, 0, 0);
@@ -1165,6 +1195,9 @@ class MailChimp extends Module
             $shopLists = Tools::getValue('shop_list_id');
             $shopTaxes = Tools::getValue('shop_tax');
             $client = static::getGuzzle();
+            if (!$client) {
+                return false;
+            }
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
                     if ($idList) {
@@ -1325,6 +1358,9 @@ class MailChimp extends Module
 
         $success = true;
         $client = static::getGuzzle();
+        if (!$client) {
+            return false;
+        }
         $promise = $client->postAsync(
             "lists/{$idList}/webhooks",
             [
@@ -1376,6 +1412,9 @@ class MailChimp extends Module
         $success = true;
         // Append subscribers to batch operation request using PUT method (to enable update existing)
         $client = static::getGuzzle();
+        if (!$client) {
+            return false;
+        }
         $promises = call_user_func(function () use ($list, $client) {
             for ($i = 0; $i < count($list); $i++) {
                 /** @var MailChimpSubscriber $subscriber */
@@ -2356,6 +2395,9 @@ class MailChimp extends Module
         }
 
         $client = static::getGuzzle();
+        if (!$client) {
+            return false;
+        }
         $promises = call_user_func(function () use (&$subscribers, $mailChimpShops, $client) {
             foreach ($subscribers as &$subscriber) {
                 $mergeFields = [
@@ -2463,6 +2505,9 @@ class MailChimp extends Module
             $taxes[(int) $mailChimpShop->id_shop] = $rate;
         }
         $client = static::getGuzzle();
+        if (!$client) {
+            return false;
+        }
         $link = \Context::getContext()->link;
 
         $promises = call_user_func(function () use (&$products, $idLang, $client, $link, $taxes) {
@@ -2647,6 +2692,9 @@ class MailChimp extends Module
             $taxes[(int) $mailChimpShop->id_shop] = $rate;
         }
         $client = static::getGuzzle();
+        if (!$client) {
+            return false;
+        }
         $link = \Context::getContext()->link;
 
         $promises = call_user_func(function () use (&$products, $idLang, $client, $link, $taxes) {
@@ -2856,6 +2904,9 @@ class MailChimp extends Module
         }
 
         $client = static::getGuzzle();
+        if (!$client) {
+            return false;
+        }
         $promises = call_user_func(function () use (&$carts, $client, $mailChimpShops, $idShops) {
             foreach ($carts as &$cart) {
                 if (empty($cart['lines'])) {
@@ -3019,6 +3070,9 @@ class MailChimp extends Module
             return false;
         }
         $client = static::getGuzzle();
+        if (!$client) {
+            return false;
+        }
         $promises = call_user_func(function () use (&$orders, $client, $mailChimpShops, $idShops) {
             foreach ($orders as &$order) {
                 if (empty($order['lines'])) {
@@ -3186,6 +3240,10 @@ class MailChimp extends Module
         }
 
         $client = static::getGuzzle();
+        if (!$client) {
+            return false;
+        }
+
         try {
             $result = json_decode((string) $client->get("lists/{$idList}/merge-fields")->getBody(), true);
         } catch (ClientException $e) {
