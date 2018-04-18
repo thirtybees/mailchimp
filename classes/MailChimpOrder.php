@@ -122,15 +122,28 @@ class MailChimpOrder extends \ObjectModel
             $rate = 1 + ($tax->rate / 100);
         }
 
+        $orderHistories = static::getOrderHistories(array_column($results, 'id_order'));
         $defaultCurrency = \Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
         foreach ($results as &$order) {
             $orderObj = new \Order($order['id_order']);
+            $orderHistory = isset($orderHistories[$order['id_order']]) ? $orderHistories[$order['id_order']] : [];
 
             $order['currency_code'] = $defaultCurrencyCode;
             $order['order_total'] = $orderObj->total_paid_tax_incl;
             $order['shipping_total'] = (float) $orderObj->total_shipping_tax_incl;
             $order['tax_total'] = (float) $orderObj->total_paid_tax_incl - $orderObj->total_paid_tax_excl;
+            if (count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', \MailChimp::getOrderRefundedStatuses()))) >= 1) {
+                $order['financial_status'] = 'refunded';
+            } elseif (count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', \MailChimp::getOrderCanceledStatuses()))) >= 1) {
+                $order['financial_status'] = 'canceled';
+            } elseif (count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', \MailChimp::getOrderPaidStatuses()))) >= 1) {
+                $order['financial_status'] = 'paid';
+            } else {
+                $order['financial_status'] = 'pending';
+            }
+
+            $order['shipped'] = count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', \MailChimp::getOrderShippedStatuses()))) >= 1;
 
             $orderProducts = $orderObj->getOrderDetailList();
             if (!$orderProducts) {
@@ -152,6 +165,44 @@ class MailChimpOrder extends \ObjectModel
         }
 
         return $results;
+    }
+
+    /**
+     * Get order history
+     *
+     * @param int|int[] $range
+     *
+     * @return array|bool|false|null|\PDOStatement
+     * @throws \PrestaShopDatabaseException
+     * @throws \PrestaShopException
+     */
+    protected static function getOrderHistories($range)
+    {
+        if (is_int($range)) {
+            $range = [$range];
+        } elseif (!is_array($range) || empty($range)) {
+            return false;
+        }
+
+        $results =  \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+            (new \DbQuery())
+                ->select('`id_order`, `id_order_state`')
+                ->from('order_history')
+                ->where('`id_order` IN ('.implode(',', array_map('intval', $range)).')')
+        );
+        if (!is_array($results)) {
+            return false;
+        }
+
+        $histories = [];
+        foreach ($results as $result) {
+            if (!array_key_exists($result['id_order'], $histories)) {
+                $histories[$result['id_order']] = [];
+            }
+            $histories[$result['id_order']][] = $result;
+        }
+
+        return $histories;
     }
 
     /**

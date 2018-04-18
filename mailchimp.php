@@ -71,6 +71,10 @@ class MailChimp extends Module
     const MENU_ORDERS = 5;
 
     const VALID_ORDER_STATUSES = 'MAILCHIMP_VALID_OSES';
+    const ORDER_STATUS_PAID = 'MAILCHIMP_OS_PAID';
+    const ORDER_STATUS_REFUNDED = 'MAILCHIMP_OS_REFUNDED';
+    const ORDER_STATUS_CANCELED = 'MAILCHIMP_OS_CANCELED';
+    const ORDER_STATUS_SHIPPED = 'MAILCHIMP_OS_SHIPPED';
     const DATE_CUTOFF = 'MAILCHIMP_DATE_CUTOFF';
 
     const COOKIE_LIFETIME = 259200;
@@ -1196,6 +1200,10 @@ class MailChimp extends Module
             }
         } elseif (Tools::isSubmit('submitOrders')) {
             Configuration::updateValue(static::VALID_ORDER_STATUSES, serialize($this->getStatusesValue(static::VALID_ORDER_STATUSES)), false,0,0);
+            Configuration::updateValue(static::ORDER_STATUS_PAID, serialize($this->getStatusesValue(static::ORDER_STATUS_PAID)), false,0,0);
+            Configuration::updateValue(static::ORDER_STATUS_CANCELED, serialize($this->getStatusesValue(static::ORDER_STATUS_CANCELED)), false,0,0);
+            Configuration::updateValue(static::ORDER_STATUS_REFUNDED, serialize($this->getStatusesValue(static::ORDER_STATUS_REFUNDED)), false,0,0);
+            Configuration::updateValue(static::ORDER_STATUS_SHIPPED, serialize($this->getStatusesValue(static::ORDER_STATUS_SHIPPED)), false,0,0);
             $date = Tools::getValue(static::DATE_CUTOFF);
             if (!$date) {
                 $date = '2018-01-01';
@@ -1698,12 +1706,35 @@ class MailChimp extends Module
             static::EXPORT_COUNTRY     => (bool) Configuration::get(static::EXPORT_COUNTRY),
         ];
 
-        $checkStatuses = [];
+        $paidStatuses = [];
+        foreach (static::getOrderPaidStatuses() as $conf) {
+            $paidStatuses[static::ORDER_STATUS_PAID.'_'.(int) $conf] = true;
+        }
+        $canceledStatuses = [];
+        foreach (static::getOrderCanceledStatuses() as $conf) {
+            $canceledStatuses[static::ORDER_STATUS_CANCELED.'_'.(int) $conf] = true;
+        }
+        $refundedStatuses = [];
+        foreach (static::getOrderRefundedStatuses() as $conf) {
+            $refundedStatuses[static::ORDER_STATUS_REFUNDED.'_'.(int) $conf] = true;
+        }
+        $shippedStatuses = [];
+        foreach (static::getOrderShippedStatuses() as $conf) {
+            $shippedStatuses[static::ORDER_STATUS_SHIPPED.'_'.(int) $conf] = true;
+        }
+        $exportableStatuses = [];
         foreach (static::getValidOrderStatuses() as $conf) {
-            $checkStatuses[static::VALID_ORDER_STATUSES.'_'.(int) $conf] = true;
+            $exportableStatuses[static::VALID_ORDER_STATUSES.'_'.(int) $conf] = true;
         }
 
-        $configFields = array_merge($configFields, $checkStatuses);
+        $configFields = array_merge(
+            $configFields,
+            $paidStatuses,
+            $canceledStatuses,
+            $refundedStatuses,
+            $shippedStatuses,
+            $exportableStatuses
+        );
 
         return $configFields;
     }
@@ -2004,8 +2035,80 @@ class MailChimp extends Module
                         ],
                         [
                             'type'     => 'checkbox',
-                            'label'    => $this->l('Valid order states'),
-                            'desc'     => $this->l('If an order reaches one of these statuses it will be exported'),
+                            'label'    => $this->l('Paid order statuses'),
+                            'desc'     => $this->l('Orders with these statuses are marked as paid'),
+                            'name'     => static::ORDER_STATUS_PAID,
+                            'multiple' => true,
+                            'values'   => [
+                                'query' => $otherStatuses,
+                                'id'    => 'id_order_state',
+                                'name'  => 'name',
+                            ],
+                            'expand'   => (count($otherStatuses) > 20) ? [
+                                'print_total' => count($otherStatuses),
+                                'default'     => 'show',
+                                'show'        => ['text' => $this->l('Show'), 'icon' => 'plus-sign-alt'],
+                                'hide'        => ['text' => $this->l('Hide'), 'icon' => 'minus-sign-alt'],
+                            ] : null,
+                        ],
+                        [
+                            'type'     => 'checkbox',
+                            'label'    => $this->l('Refunded order statuses'),
+                            'desc'     => $this->l('Orders with at least one of these statuses are marked as refunded'),
+                            'name'     => static::ORDER_STATUS_REFUNDED,
+                            'multiple' => true,
+                            'values'   => [
+                                'query' => $otherStatuses,
+                                'id'    => 'id_order_state',
+                                'name'  => 'name',
+                            ],
+                            'expand'   => (count($otherStatuses) > 20) ? [
+                                'print_total' => count($otherStatuses),
+                                'default'     => 'show',
+                                'show'        => ['text' => $this->l('Show'), 'icon' => 'plus-sign-alt'],
+                                'hide'        => ['text' => $this->l('Hide'), 'icon' => 'minus-sign-alt'],
+                            ] : null,
+                        ],
+                        [
+                            'type'     => 'checkbox',
+                            'label'    => $this->l('Canceled order statuses'),
+                            'desc'     => $this->l('Orders with at least one of these statuses are marked as canceled'),
+                            'name'     => static::ORDER_STATUS_CANCELED,
+                            'multiple' => true,
+                            'values'   => [
+                                'query' => $otherStatuses,
+                                'id'    => 'id_order_state',
+                                'name'  => 'name',
+                            ],
+                            'expand'   => (count($otherStatuses) > 20) ? [
+                                'print_total' => count($otherStatuses),
+                                'default'     => 'show',
+                                'show'        => ['text' => $this->l('Show'), 'icon' => 'plus-sign-alt'],
+                                'hide'        => ['text' => $this->l('Hide'), 'icon' => 'minus-sign-alt'],
+                            ] : null,
+                        ],
+                        [
+                            'type'     => 'checkbox',
+                            'label'    => $this->l('Shipped order statuses'),
+                            'desc'     => $this->l('Orders with at least one of these statuses are marked as shipped.'),
+                            'name'     => static::ORDER_STATUS_SHIPPED,
+                            'multiple' => true,
+                            'values'   => [
+                                'query' => $otherStatuses,
+                                'id'    => 'id_order_state',
+                                'name'  => 'name',
+                            ],
+                            'expand'   => (count($otherStatuses) > 20) ? [
+                                'print_total' => count($otherStatuses),
+                                'default'     => 'show',
+                                'show'        => ['text' => $this->l('Show'), 'icon' => 'plus-sign-alt'],
+                                'hide'        => ['text' => $this->l('Hide'), 'icon' => 'minus-sign-alt'],
+                            ] : null,
+                        ],
+                        [
+                            'type'     => 'checkbox',
+                            'label'    => $this->l('Exportable order statuses'),
+                            'desc'     => $this->l('Uncheck an order status to ignore it.').'<br>'.$this->l('NOTE: MailChimp can handle unpaid, canceled or refunded orders perfectly well. Only use this option to ignore orders if you really have to.'),
                             'name'     => static::VALID_ORDER_STATUSES,
                             'multiple' => true,
                             'values'   => [
@@ -2013,7 +2116,7 @@ class MailChimp extends Module
                                 'id'    => 'id_order_state',
                                 'name'  => 'name',
                             ],
-                            'expand'   => (count($otherStatuses) > 10) ? [
+                            'expand'   => (count($otherStatuses) > 20) ? [
                                 'print_total' => count($otherStatuses),
                                 'default'     => 'show',
                                 'show'        => ['text' => $this->l('Show'), 'icon' => 'plus-sign-alt'],
@@ -2683,7 +2786,7 @@ class MailChimp extends Module
                 if (empty($cart['lines'])) {
                     continue;
                 }
-                $this->exportProductRange(array_column($cart['lines'], 'product_id'), $idShops, true);
+                $this->exportProductRange(array_unique(array_column($cart['lines'], 'product_id')), $idShops, true);
                 $subscriberHash = md5(mb_strtolower($cart['email']));
                 $mergeFields = [
                     'FNAME' => $cart['firstname'],
@@ -2846,7 +2949,8 @@ class MailChimp extends Module
                 if (empty($order['lines'])) {
                     continue;
                 }
-                $this->exportProductRange(array_column($order['lines'], 'product_id'), $idShops, true);
+
+                $this->exportProductRange(array_unique(array_column($order['lines'], 'product_id')), $idShops, true);
                 $subscriberHash = md5(mb_strtolower($order['email']));
                 $mergeFields = [
                     'FNAME' => $order['firstname'],
@@ -2869,34 +2973,30 @@ class MailChimp extends Module
                     ]
                 );
 
-                if (empty($order['lines'])) {
-                    unset($order);
-                    continue;
-                }
-
                 $payload = [
-                    'id'            => (string) $order['id_order'],
-                    'customer'      => [
+                    'id'               => (string) $order['id_order'],
+                    'customer'         => [
                         'id'            => (string) $order['id_customer'],
                         'email_address' => (string) $order['email'],
                         'first_name'    => (string) $order['firstname'],
                         'last_name'     => (string) $order['lastname'],
                         'opt_in_status' => false,
                     ],
-                    'currency_code' => (string) $order['currency_code'],
-                    'order_total'   => (string) $order['order_total'],
-                    'lines'         => $order['lines'],
+                    'financial_status' => (string) $order['financial_status'],
+                    'currency_code'    => (string) $order['currency_code'],
+                    'order_total'      => (string) $order['order_total'],
+                    'lines'            => $order['lines'],
                 ];
-
-                if (static::validateDate($order['date_add'], 'Y-m-d H:i:s')) {
-                    $payload['processed_at_foreign'] = date('m/d', strtotime($order['date_add']));
+                if ($order['shipped']) {
+                    $payload['fulfillment_status'] = 'shipped';
                 }
-                if (static::validateDate($order['date_upd'], 'Y-m-d H:i:s')) {
-                    $payload['updated_at_foreign'] = date('m/d', strtotime($order['date_add']));
-                }
-
+                $payload['processed_at_foreign'] = date('c', strtotime($order['date_add']));
+                $payload['updated_at_foreign'] = date('c', strtotime($order['date_upd']));
                 if ($order['mc_tc'] && ctype_xdigit($order['mc_tc']) && strlen($order['mc_tc']) === 10) {
                     $payload['tracking_code'] = $order['mc_tc'];
+                }
+                if ($order['mc_cid']) {
+                    $payload['campaign_id'] = $order['mc_cid'];
                 }
 
                 if (!empty($order['last_synced']) && $order['last_synced'] > '2000-01-01 00:00:00') {
@@ -2940,7 +3040,8 @@ class MailChimp extends Module
                         } catch (\GuzzleHttp\Exception\TransferException $e) {
                         } catch (\Exception $e) {
                         }
-                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
+                    }
+                    elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
                     ) {
                         try {
@@ -3190,6 +3291,96 @@ class MailChimp extends Module
         $statuses = Configuration::get(static::VALID_ORDER_STATUSES, null, 0, 0);
         if ($statuses === false) {
             return array_column(OrderState::getOrderStates(Context::getContext()->language->id), 'id_order_state');
+        } else {
+            $statuses = unserialize($statuses);
+        }
+
+        return array_map('intval', $statuses);
+    }
+
+    /**
+     * Get paid order statuses
+     *
+     * @return int[]
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public static function getOrderPaidStatuses()
+    {
+        $statuses = Configuration::get(static::ORDER_STATUS_PAID, null, 0, 0);
+        if ($statuses === false) {
+            return array_column(Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+                (new DbQuery())
+                    ->select('`id_order_state`')
+                    ->from('order_state')
+                    ->where('`paid` = 1')
+            ) ?: [], 'id_order_state');
+        } else {
+            $statuses = unserialize($statuses);
+        }
+
+        return array_map('intval', $statuses);
+    }
+
+    /**
+     * Get canceled order statuses
+     *
+     * @return int[]
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public static function getOrderCanceledStatuses()
+    {
+        $statuses = Configuration::get(static::ORDER_STATUS_CANCELED, null, 0, 0);
+        if ($statuses === false) {
+            return [(int) Configuration::get('PS_OS_CANCELED')];
+        } else {
+            $statuses = unserialize($statuses);
+        }
+
+        return array_map('intval', $statuses);
+    }
+
+    /**
+     * Get refunded order statuses
+     *
+     * @return int[]
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public static function getOrderRefundedStatuses()
+    {
+        $statuses = Configuration::get(static::ORDER_STATUS_REFUNDED, null, 0, 0);
+        if ($statuses === false) {
+            return [(int) Configuration::get('PS_OS_REFUND')];
+        } else {
+            $statuses = unserialize($statuses);
+        }
+
+        return array_map('intval', $statuses);
+    }
+
+    /**
+     * Get shipped order statuses
+     *
+     * @return int[]
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public static function getOrderShippedStatuses()
+    {
+        $statuses = Configuration::get(static::ORDER_STATUS_SHIPPED, null, 0, 0);
+        if ($statuses === false) {
+            return array_column(Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+                (new DbQuery())
+                    ->select('`id_order_state`')
+                    ->from('order_state')
+                    ->where('`shipped` = 1')
+            ) ?: [], 'id_order_state');
         } else {
             $statuses = unserialize($statuses);
         }
