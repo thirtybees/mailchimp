@@ -340,7 +340,7 @@ class MailChimp extends Module
             }
 
             $this->context->smarty->assign([
-                'mc_dc'   => substr(static::$apiKey, -4),
+                'mc_dc'   => static::getDc(),
                 'mc_uuid' => static::$uuid,
                 'mc_lid'  => $shop->list_id,
             ]);
@@ -603,7 +603,7 @@ class MailChimp extends Module
         if (!static::$guzzle) {
             // Initialize Guzzle and the retry middleware, include the default options
             $apiKey = static::getApiKey();
-            $dc = substr($apiKey, -4);
+            $dc = static::getDc();
             if ($apiKey && $dc) {
                 $guzzle = new Client([
                     'timeout'         => static::API_TIMEOUT,
@@ -645,7 +645,7 @@ class MailChimp extends Module
             static::$uuid = Configuration::get(static::UUID, null, 0, 0);
             if (static::$apiKey && !static::$uuid) {
                 $apiKey = static::$apiKey;
-                $dc = substr($apiKey, -4);
+                $dc = static::getDc();
                 $response = json_decode((string) (new Client([
                     'timeout'         => static::API_TIMEOUT,
                     'connect_timeout' => static::API_TIMEOUT,
@@ -669,6 +669,19 @@ class MailChimp extends Module
     }
 
     /**
+     * Get data center
+     *
+     * @return mixed
+     *
+     * @throws Adapter_Exception
+     * @throws PrestaShopException
+     */
+    public static function getDc()
+    {
+        return array_pad(explode('-', static::getApiKey()), 2, '')[1];
+    }
+
+    /**
      * @param string $apiKey
      *
      * @return bool
@@ -686,7 +699,7 @@ class MailChimp extends Module
         static::$uuid = '';
         if (static::$apiKey) {
             $apiKey = static::$apiKey;
-            $dc = substr($apiKey, -4);
+            $dc = static::getDc();
             $response = json_decode((string) (new Client([
                 'timeout'         => static::API_TIMEOUT,
                 'connect_timeout' => static::API_TIMEOUT,
@@ -2325,7 +2338,7 @@ class MailChimp extends Module
 
         // Show settings form only if API key is set and working
         $apiKey = static::getApiKey();
-        $dc = substr($apiKey, -4);
+        $dc = static::getDc();
         $validKey = false;
         if (isset($apiKey) && $apiKey) {
             // Check if API key is valid
@@ -3609,5 +3622,22 @@ class MailChimp extends Module
     protected static function saveIpRequests($requests)
     {
         return Configuration::updateValue(static::IP_SERVICE_REQUESTS, json_encode($requests), false, 0, 0);
+    }
+
+    /**
+     * Check if the newsletter table exists and has the required columns
+     *
+     * @return bool
+     * @throws PrestaShopException
+     */
+    public static function newsletterTableExists()
+    {
+        return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('SELECT COUNT(*)
+FROM information_schema.COLUMNS
+WHERE
+  TABLE_SCHEMA = \''._DB_NAME_.'\'
+  AND TABLE_NAME = \''._DB_PREFIX_.'newsletter\'
+  AND COLUMN_NAME IN(\'email\', \'id_shop\', \'newsletter_date_add\', \'ip_registration_newsletter\', \'active\')
+') === 5;
     }
 }

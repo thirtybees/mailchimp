@@ -318,7 +318,7 @@ class MailChimpSubscriber
         $nlQuery->where('n.`email` IS NOT NULL');
 
         $customerQuery = new \DbQuery();
-        if ($count && !\Module::isEnabled('blocknewsletter') && !\Module::isEnabled('stnewsletter')) {
+        if ($count && !\MailChimp::newsletterTableExists()) {
             $customerQuery->select('COUNT(*)');
         } else {
             $customerQuery->select('c.`email`, c.`firstname`, c.`lastname`, c.`ip_registration_newsletter`');
@@ -336,7 +336,7 @@ class MailChimpSubscriber
         }
 
         // Check if the module exists
-        if (\Module::isEnabled('blocknewsletter') || \Module::isEnabled('stnewsletter')) {
+        if (\MailChimp::newsletterTableExists()) {
             $sql = $count ? 'SELECT COUNT(*) FROM ' : 'SELECT * FROM ';
             $sql .= "({$nlQuery->build()} UNION ALL {$customerQuery->build()}) AS `x` ";
             if ($count) {
