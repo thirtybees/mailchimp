@@ -161,7 +161,7 @@ class MailChimp extends Module
     {
         $this->name = 'mailchimp';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.2.1';
+        $this->version = '1.2.2';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -278,6 +278,7 @@ class MailChimp extends Module
      *
      * @return array|bool
      * @throws PrestaShopException
+     * @throws Adapter_Exception
      */
     public function getLists($prepare = false)
     {
