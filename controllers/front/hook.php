@@ -108,7 +108,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             [
                 'email'                      => pSQL($data['email']),
                 'newsletter_date_add'        => date('Y-m-d H:i:s'),
-                'ip_registration_newsletter' => $_SERVER['REMOTE_ADDR'],
+                'ip_registration_newsletter' => pSQL($_SERVER['REMOTE_ADDR']),
                 'active'                     => 1,
             ]
         );
@@ -190,7 +190,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         $newsletter = \Db::getInstance()->update(
             'newsletter',
             [
-                'email' => $data['new_email'],
+                'email' => pSQL($data['new_email']),
             ],
             '`email` = \''.pSQL($data['old_email']).'\''
         );

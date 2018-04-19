@@ -65,8 +65,8 @@ class MailChimpRegisteredWebhook extends \ObjectModel
             return \Db::getInstance()->insert(
                 bqSQL(self::$definition['table']),
                 [
-                    'url'       => $url,
-                    'id_list'   => $idList,
+                    'url'       => pSQL($url),
+                    'id_list'   => pSQL($idList),
                     'date_recv' => date('Y-m-d H:i:s'),
                 ]
             );
