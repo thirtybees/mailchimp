@@ -1359,7 +1359,7 @@ class MailChimp extends Module
         $shops = Shop::getShops(true);
         $idShop = $shops[key($shops)]['id_shop'];
 
-        return Context::getContext()->link->getModuleLink($this->name, 'hook', [], $idLang, $idShop, false);
+        return Context::getContext()->link->getModuleLink($this->name, 'hook', [], true, $idLang, $idShop, false);
     }
 
     /**
@@ -1415,6 +1415,9 @@ class MailChimp extends Module
             if ($reason instanceof ClientException) {
                 $response = json_decode((string) $reason->getResponse()->getBody(), true);
                 if (!empty($response['errors'][0]['message']) && $response['errors'][0]['message'] !== 'Sorry, you can\'t set up multiple WebHooks for one URL') {
+                    $requestBody = (string) $reason->getRequest()->getBody();
+                    $responseBody = (string) $reason->getResponse()->getBody();
+                    Logger::addLog("MailChimp module client error: {$requestBody} -- {$responseBody}");
                     $success = false;
                 }
             }
