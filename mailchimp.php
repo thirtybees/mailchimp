@@ -215,6 +215,8 @@ class MailChimp extends Module
         $this->registerHook('actionAdminCustomersControllerSaveAfter'); // back office update customer
         $this->registerHook('actionValidateOrder'); // validate order
         $this->registerHook('actionAdminCartRulesListingFieldsModifier');
+        
+        Configuration::updateValue(static::DISABLE_POPUP, true, false, 0, 0);
 
         return true;
     }
