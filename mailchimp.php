@@ -20,7 +20,9 @@
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\TransferException;
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Promise\EachPromise;
+use GuzzleHttp\Psr7\Response;
 use MailChimpModule\MailChimpCart;
 use MailChimpModule\MailChimpOrder;
 use MailChimpModule\MailChimpProduct;
@@ -550,7 +552,9 @@ class MailChimp extends Module
     {
         if (Tools::isSubmit('newsletter')) {
             $object = $params['return'];
-            $subscription = (string) Tools::getValue('newsletter') ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+            $subscription = (string) Tools::getValue('newsletter')
+                ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED
+                : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
             $iso = Language::getIsoById($object->id_lang);
             $customer = new MailChimpSubscriber(
                 $object->email,
@@ -1411,7 +1415,7 @@ class MailChimp extends Module
             ]
         );
         $promise->then(function ($response) use (&$success) {
-            $success = $response instanceof \GuzzleHttp\Psr7\Response && $response->getStatusCode() === 200;
+            $success = $response instanceof Response && $response->getStatusCode() === 200;
         });
         $promise->otherwise(function ($reason) use (&$success, $client) {
             if ($reason instanceof ClientException) {
@@ -1464,11 +1468,11 @@ class MailChimp extends Module
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected'    => function ($reason) use (&$success) {
-                if ($reason instanceof \GuzzleHttp\Exception\RequestException) {
+                if ($reason instanceof RequestException) {
                     $responseBody = (string) $reason->getResponse()->getBody();
                     $requestBody = (string) $reason->getRequest()->getBody();
                     Logger::addLog("MailChimp client error: {$requestBody} -- {$responseBody}", 2);
-                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
+                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
                 $success = false;
@@ -1698,7 +1702,7 @@ class MailChimp extends Module
     protected function displayCronForm()
     {
         $context = Context::getContext();
-        $token = Tools::substr(Tools::encrypt($this->name.'/cron'), 0, 10);
+        $token = substr(Tools::encrypt($this->name.'/cron'), 0, 10);
 
         $idShop = array_values(Shop::getShops(true, null, true));
         if (is_array($idShop) && !empty($idShop)) {
@@ -2376,11 +2380,11 @@ class MailChimp extends Module
                     $validKey = true;
                     Configuration::updateValue(static::API_KEY_VALID, true, false, 0 ,0);
                 }
-            } catch (\GuzzleHttp\Exception\ClientException $e) {
+            } catch (ClientException $e) {
                 $responseBody = (string) $e->getResponse()->getBody();
                 $requestBody = (string) $e->getRequest()->getBody();
                 $this->addError("MailChimp client error: {$requestBody} -- {$responseBody}");
-            } catch (\GuzzleHttp\Exception\TransferException $e) {
+            } catch (TransferException $e) {
                 $this->addError("MailChimp connection error: {$e->getMessage()}");
             } catch (Exception $e) {
                 $this->addError("MailChimp generic error: {$e->getMessage()}");
@@ -2407,7 +2411,7 @@ class MailChimp extends Module
         if (is_int($idShops)) {
             $idShops = [$idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
-            $idShops = \Shop::getContextListShopID(\Shop::SHARE_CUSTOMER);
+            $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
 
         $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mcs) {
@@ -2472,11 +2476,11 @@ class MailChimp extends Module
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use (&$success) {
-                if ($reason instanceof \GuzzleHttp\Exception\RequestException) {
+                if ($reason instanceof RequestException) {
                     $responseBody = (string) $reason->getResponse()->getBody();
                     $requestBody = (string) $reason->getRequest()->getBody();
                     Logger::addLog("MailChimp client error: {$requestBody} -- {$responseBody}", 2);
-                } elseif ($reason instanceof \GuzzleHttp\Exception\TransferException) {
+                } elseif ($reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
 
@@ -2506,7 +2510,7 @@ class MailChimp extends Module
         if (is_int($idShops)) {
             $idShops = [$idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
-            $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
+            $idShops = Shop::getContextListShopID(Shop::SHARE_STOCK);
         }
 
         $idLang = (int) Configuration::get('PS_LANG_DEFAULT');
@@ -2539,7 +2543,7 @@ class MailChimp extends Module
         if (!$client) {
             return false;
         }
-        $link = \Context::getContext()->link;
+        $link = Context::getContext()->link;
 
         $promises = call_user_func(function () use (&$products, $idLang, $client, $link, $taxes) {
             foreach ($products as &$product) {
@@ -2616,7 +2620,7 @@ class MailChimp extends Module
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use ($client) {
-                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                if ($reason instanceof ClientException) {
                     preg_match("/tbstore_(?P<id_shop>[0-9]+)?\//", $reason->getRequest()->getUri(), $m);
                     $idProduct = json_decode((string) $reason->getRequest()->getBody())->id;
                     if (strtoupper($reason->getRequest()->getMethod()) === 'DELETE') {
@@ -2632,8 +2636,8 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (\GuzzleHttp\Exception\TransferException $e) {
-                        } catch (\Exception $e) {
+                        } catch (TransferException $e) {
+                        } catch (Exception $e) {
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
@@ -2645,8 +2649,8 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (\GuzzleHttp\Exception\TransferException $e) {
-                        } catch (\Exception $e) {
+                        } catch (TransferException $e) {
+                        } catch (Exception $e) {
                         }
                     }
 
@@ -2659,7 +2663,7 @@ class MailChimp extends Module
                         'MailChimpProduct',
                         json_decode((string) $reason->getRequest()->getBody())->id
                     );
-                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
+                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -2693,7 +2697,7 @@ class MailChimp extends Module
         if (is_int($idShops)) {
             $idShops = [$idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
-            $idShops = \Shop::getContextListShopID(\Shop::SHARE_STOCK);
+            $idShops = Shop::getContextListShopID(Shop::SHARE_STOCK);
         }
 
         $idLang = (int) Configuration::get('PS_LANG_DEFAULT');
@@ -2726,7 +2730,7 @@ class MailChimp extends Module
         if (!$client) {
             return false;
         }
-        $link = \Context::getContext()->link;
+        $link = Context::getContext()->link;
 
         $promises = call_user_func(function () use (&$products, $idLang, $client, $link, $taxes) {
             foreach (array_unique(array_map('intval', array_column($products, 'id_product'))) as $idProduct) {
@@ -2841,7 +2845,7 @@ class MailChimp extends Module
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use (&$success, $client) {
-                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                if ($reason instanceof ClientException) {
                     preg_match("/tbstore_(?P<id_shop>[0-9]+)?\//", $reason->getRequest()->getUri(), $m);
                     $idProduct = json_decode((string) $reason->getRequest()->getBody())->id;
                     if (strtoupper($reason->getRequest()->getMethod()) === 'DELETE') {
@@ -2857,8 +2861,8 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (\GuzzleHttp\Exception\TransferException $e) {
-                        } catch (\Exception $e) {
+                        } catch (TransferException $e) {
+                        } catch (Exception $e) {
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
@@ -2870,9 +2874,9 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (\GuzzleHttp\Exception\TransferException $e) {
+                        } catch (TransferException $e) {
                             Logger::addLog($e->getMessage());
-                        } catch (\Exception $e) {
+                        } catch (Exception $e) {
                             Logger::addLog($e->getMessage());
                         }
                     }
@@ -2886,7 +2890,7 @@ class MailChimp extends Module
                         'MailChimpProduct',
                         json_decode((string) $reason->getRequest()->getBody())->id
                     );
-                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
+                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -2916,7 +2920,7 @@ class MailChimp extends Module
         if (is_int($idShops)) {
             $idShops = [$idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
-            $idShops = \Shop::getContextListShopID(\Shop::SHARE_CUSTOMER);
+            $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
         $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mc) {
             /** @var MailChimpShop $mc */
@@ -3001,7 +3005,7 @@ class MailChimp extends Module
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use (&$success, $client) {
-                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                if ($reason instanceof ClientException) {
                     preg_match("/tbstore_(?P<id_shop>[0-9]+)?\//", $reason->getRequest()->getUri(), $m);
                     if (strtoupper($reason->getRequest()->getMethod()) === 'DELETE') {
                         // We don't care about the DELETEs, those are fire-and-forget
@@ -3020,8 +3024,8 @@ class MailChimp extends Module
                                 MailChimpPromo::duplicateCartRules($response['customer']['id']);
                             }
                             return;
-                        } catch (\GuzzleHttp\Exception\TransferException $e) {
-                        } catch (\Exception $e) {
+                        } catch (TransferException $e) {
+                        } catch (Exception $e) {
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
@@ -3036,8 +3040,8 @@ class MailChimp extends Module
                                 MailChimpPromo::duplicateCartRules($response['customer']['id']);
                             }
                             return;
-                        } catch (\GuzzleHttp\Exception\TransferException $e) {
-                        } catch (\Exception $e) {
+                        } catch (TransferException $e) {
+                        } catch (Exception $e) {
                         }
                     }
 
@@ -3050,7 +3054,7 @@ class MailChimp extends Module
                         'MailChimpCart',
                         json_decode((string) $reason->getRequest()->getBody())->id
                     );
-                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
+                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -3086,7 +3090,7 @@ class MailChimp extends Module
         if (is_int($idShops)) {
             $idShops = [$idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
-            $idShops = \Shop::getContextListShopID(\Shop::SHARE_ORDER);
+            $idShops = Shop::getContextListShopID(Shop::SHARE_ORDER);
         }
         $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mcs) {
             /** @var MailChimpShop $mcs */
@@ -3181,7 +3185,7 @@ class MailChimp extends Module
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected'    => function ($reason) use ($client) {
-                if ($reason instanceof \GuzzleHttp\Exception\ClientException) {
+                if ($reason instanceof ClientException) {
                     preg_match("/tbstore_(?P<id_shop>[0-9]+)?\//", $reason->getRequest()->getUri(), $m);
                     if (strtoupper($reason->getRequest()->getMethod()) === 'DELETE') {
                         // We don't care about the DELETEs, those are fire-and-forget
@@ -3197,8 +3201,8 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (\GuzzleHttp\Exception\TransferException $e) {
-                        } catch (\Exception $e) {
+                        } catch (TransferException $e) {
+                        } catch (Exception $e) {
                         }
                     }
                     elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
@@ -3211,8 +3215,8 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (\GuzzleHttp\Exception\TransferException $e) {
-                        } catch (\Exception $e) {
+                        } catch (TransferException $e) {
+                        } catch (Exception $e) {
                         }
                     }
 
@@ -3225,7 +3229,7 @@ class MailChimp extends Module
                         'MailChimpOrder',
                         json_decode((string) $reason->getRequest()->getBody())->id
                     );
-                } elseif ($reason instanceof Exception || $reason instanceof \GuzzleHttp\Exception\TransferException) {
+                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -3260,8 +3264,8 @@ class MailChimp extends Module
      *
      * @throws Exception
      * @throws PrestaShopException
-     * @throws \GuzzleHttp\Exception\ClientException
-     * @throws \GuzzleHttp\Exception\TransferException
+     * @throws ClientException
+     * @throws TransferException
      * @since 1.1.0
      */
     protected function checkMergeFields($idList)
@@ -3334,7 +3338,7 @@ class MailChimp extends Module
                     if (preg_match("/A Merge Field with the tag \"(?P<tag>.*)?\" already exists for this list./", json_decode((string) $reason->getResponse()->getBody())->detail, $m)) {
                         $request = $reason->getRequest();
                         $client->getAsync("lists/{$idList}/merge-fields")->then(function ($response) use ($client, $idList, $request, $m) {
-                            /** @var \GuzzleHttp\Psr7\Response $response */
+                            /** @var Response $response */
                             $mergeFields = json_decode((string) $response->getBody(), true);
                             $idMerge = null;
                             foreach ($mergeFields['merge_fields'] as $mergeField) {
@@ -3346,7 +3350,7 @@ class MailChimp extends Module
                             if ($idMerge) {
                                 try {
                                     $client->patch("lists/{$idList}/merge-fields/{$idMerge}", ['body' => (string) $request->getBody()]);
-                                } catch (\GuzzleHttp\Exception\TransferException $e) {
+                                } catch (TransferException $e) {
                                     Logger::addLog("MailChimp merge field error: {$e->getMessage()}");
                                 }
                             }
