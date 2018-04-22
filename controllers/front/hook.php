@@ -42,8 +42,6 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
     {
         parent::__construct();
 
-        $this->ssl = \Tools::usingSecureMode();
-
         header('Content-Type: text/plain');
         $this->init();
 
@@ -67,14 +65,14 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      */
     public function init()
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        switch ($data['type']) {
+        $data = Tools::getValue('data');
+        switch (Tools::getValue('type')) {
             case 'subscribe':
                 $this->processSubscribe($data);
                 break;
             case 'unsubscribe':
             case 'cleaned':
-                $this->processSubscribe($data);
+                $this->processUnsubscribe($data);
                 break;
             case 'upemail':
                 $this->processEmailChanged($data);
@@ -85,9 +83,8 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
     /**
      * Process subscribe list
      *
-     * @param array $data
+     * @return void
      *
-     * @return bool Indicates whether the customer was successfully subscribed
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -95,31 +92,37 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
     {
         $this->status = '1';
         // Update customer table
-        $customer = \Db::getInstance()->update(
-            'customer',
-            [
-                'newsletter' => 1,
-            ],
-            'email = \''.pSQL($data['email']).'\''
-        );
-        // Update newsletter table
-        $newsletter = \Db::getInstance()->insert(
-            'newsletter',
-            [
-                'email'                      => pSQL($data['email']),
-                'newsletter_date_add'        => date('Y-m-d H:i:s'),
-                'ip_registration_newsletter' => pSQL($_SERVER['REMOTE_ADDR']),
-                'active'                     => 1,
-            ]
-        );
-        if (!$customer) {
-            Logger::addLog('processSubscribe hook failed for customer table.');
+        if (Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+            (new DbQuery())
+                ->select('`id_customer`')
+                ->from('customer')
+                ->where('`email` LIKE \''.pSQL($data['email']).'\'')
+        )) {
+            $customer = \Db::getInstance()->update(
+                'customer',
+                [
+                    'newsletter' => 1,
+                ],
+                'email LIKE \''.pSQL($data['email']).'\''
+            );
+            if (!$customer) {
+                Logger::addLog('processSubscribe hook failed for customer table.');
+            }
+        } else {
+            // Update newsletter table
+            $newsletter = \Db::getInstance()->insert(
+                'newsletter',
+                [
+                    'email'                      => pSQL($data['email']),
+                    'newsletter_date_add'        => date('Y-m-d H:i:s'),
+                    'ip_registration_newsletter' => pSQL($_SERVER['REMOTE_ADDR']),
+                    'active'                     => 1,
+                ]
+            );
+            if (!$newsletter) {
+                Logger::addLog('processSubscribe hook failed for newsletter table.');
+            }
         }
-        if (!$newsletter) {
-            Logger::addLog('processSubscribe hook failed for newsletter table.');
-        }
-
-        return $customer && $newsletter;
     }
 
     /**
@@ -127,7 +130,8 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      *
      * @param array $data
      *
-     * @return bool Indicates whether the customer was successfully unsubscribed
+     * @return void
+     *
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -141,7 +145,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             [
                 'newsletter' => 0,
             ],
-            '`email` = \''.pSQL($data['email']).'\''
+            '`email` LIKE \''.pSQL($data['email']).'\''
         );
         // Update newsletter table
         $newsletter = \Db::getInstance()->update(
@@ -149,7 +153,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             [
                 'active' => 0,
             ],
-            '`email` = \''.pSQL($data['email']).'\''
+            '`email` LIKE \''.pSQL($data['email']).'\''
         );
         if (!$customer) {
             Logger::addLog('processUnsubscribe hook failed for customer table.');
@@ -157,8 +161,6 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         if (!$newsletter) {
             Logger::addLog('processUnsubscribe hook failed for newsletter table.');
         }
-
-        return $customer && $newsletter;
     }
 
     /**
@@ -166,7 +168,8 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
      *
      * @param array $data
      *
-     * @return bool Indicates whether the event was successfully processed
+     * @return void
+     *
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -200,7 +203,5 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         if (!$newsletter) {
             Logger::addLog('processUnsubscribe hook failed for newsletter table.');
         }
-
-        return $customer && $newsletter;
     }
 }
