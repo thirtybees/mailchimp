@@ -2559,7 +2559,7 @@ class MailChimp extends Module
                             continue;
                         }
                         $variant = [
-                            'id'                 => (string) $product['id_product'].'-'.(string) $combination['id_product_attribute'],
+                            'id'                 => (string) $combination['id_product_attribute'],
                             'title'              => (string) $product['name'],
                             'sku'                => $combination['reference'],
                             'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
@@ -2573,7 +2573,7 @@ class MailChimp extends Module
                 }
 
                 $variants[] = [
-                    'id'                 => (string) $product['id_product'],
+                    'id'                 => '0',
                     'title'              => (string) $product['name'],
                     'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
                     'price'              => (float) ($product['price'] * $rate),
@@ -2748,7 +2748,7 @@ class MailChimp extends Module
                                 continue;
                             }
                             $variant = [
-                                'id'                 => (string) $product['id_product'].'-'.(string) $combination['id_product_attribute'],
+                                'id'                 => (string) $combination['id_product_attribute'],
                                 'title'              => (string) $product['name'],
                                 'sku'                => $combination['reference'],
                                 'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
@@ -2761,7 +2761,7 @@ class MailChimp extends Module
                         }
                     }
                     $variants[] = [
-                        'id'                 => (string) $product['id_product'],
+                        'id'                 => '0',
                         'title'              => (string) $product['name'],
                         'sku'                => (string) $product['reference'],
                         'price'              => (float) ($product['price'] * $rate),
