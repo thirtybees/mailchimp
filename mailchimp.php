@@ -1708,13 +1708,14 @@ class MailChimp extends Module
             if (Shop::getContext() === Shop::CONTEXT_ALL) {
                 $idShop = 'all';
             } elseif (Shop::getContext() === Shop::CONTEXT_GROUP) {
-                $idShop = implode(',', Shop::getContextListShopID());
+                $idShop = array_map('intval', Shop::getContextListShopID());
             } else {
                 $idShop = $context->shop->id;
             }
         } else {
             $idShop = $context->shop->id;
         }
+        $idShopString = is_array($idShop) ? implode(',', $idShop) : (string) $idShop;
 
         $idLang = array_values(Language::getLanguages(true, false, true));
         if (is_array($idLang) && !empty($idLang)) {
@@ -1803,12 +1804,12 @@ class MailChimp extends Module
                     $context->shop->id,
                     false
                 ),
-                'cron_all_products_cli'       => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportAllProducts",
-                'cron_remaining_products_cli' => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportRemainingProducts",
-                'cron_all_carts_cli'          => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportAllCarts",
-                'cron_remaining_carts_cli'    => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportRemainingCarts",
-                'cron_all_orders_cli'         => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportAllOrders",
-                'cron_remaining_orders_cli'   => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportRemainingOrders",
+                'cron_all_products_cli'       => "php modules/mailchimp/cli.php --shop=$idShopString --action=ExportAllProducts",
+                'cron_remaining_products_cli' => "php modules/mailchimp/cli.php --shop=$idShopString --action=ExportRemainingProducts",
+                'cron_all_carts_cli'          => "php modules/mailchimp/cli.php --shop=$idShopString --action=ExportAllCarts",
+                'cron_remaining_carts_cli'    => "php modules/mailchimp/cli.php --shop=$idShopString --action=ExportRemainingCarts",
+                'cron_all_orders_cli'         => "php modules/mailchimp/cli.php --shop=$idShopString --action=ExportAllOrders",
+                'cron_remaining_orders_cli'   => "php modules/mailchimp/cli.php --shop=$idShopString --action=ExportRemainingOrders",
             ]
         );
 

@@ -48,16 +48,13 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
 
         $action = ucfirst(Tools::getValue('action'));
         $idShops = Tools::getValue('id_shop');
-        if ($idShops === 'all') {
-            $idShops = Shop::getShops(true, null, true);
-        } elseif (strpos($idShops, ',') !== false) {
-            $idShops = explode(',', $idShops);
+        if (is_array($idShops)) {
+            $idShops = array_filter(array_map('intval', $idShops));
         } else {
-            $idShops = [(int) $idShops];
+            $idShops = (int) $idShops;
         }
-        $idShops = array_filter(array_map('intval', $idShops));
         if (empty($idShops)) {
-            $idShops = [(int) Context::getContext()->shop->id];
+            die('KO');
         }
 
         if (substr($action, -5)  === 'Carts') {
