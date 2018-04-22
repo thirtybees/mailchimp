@@ -1704,9 +1704,14 @@ class MailChimp extends Module
         $context = Context::getContext();
         $token = substr(Tools::encrypt($this->name.'/cron'), 0, 10);
 
-        $idShop = array_values(Shop::getShops(true, null, true));
-        if (is_array($idShop) && !empty($idShop)) {
-            $idShop = $idShop[0];
+        if (Shop::isFeatureActive()) {
+            if (Shop::getContext() === Shop::CONTEXT_ALL) {
+                $idShop = 'all';
+            } elseif (Shop::getContext() === Shop::CONTEXT_GROUP) {
+                $idShop = implode(',', Shop::getContextListShopID());
+            } else {
+                $idShop = $context->shop->id;
+            }
         } else {
             $idShop = $context->shop->id;
         }
@@ -1730,7 +1735,7 @@ class MailChimp extends Module
                     ],
                     true,
                     $idLang,
-                    $idShop,
+                    $context->shop->id,
                     false
                 ),
                 'cron_remaining_products'     => $context->link->getModuleLink(
@@ -1743,7 +1748,7 @@ class MailChimp extends Module
                     ],
                     true,
                     $idLang,
-                    $idShop,
+                    $context->shop->id,
                     false
                 ),
                 'cron_all_carts'              => $context->link->getModuleLink(
@@ -1756,7 +1761,7 @@ class MailChimp extends Module
                     ],
                     true,
                     $idLang,
-                    $idShop,
+                    $context->shop->id,
                     false
                 ),
                 'cron_remaining_carts'        => $context->link->getModuleLink(
@@ -1769,7 +1774,7 @@ class MailChimp extends Module
                     ],
                     true,
                     $idLang,
-                    $idShop,
+                    $context->shop->id,
                     false
                 ),
                 'cron_all_orders'             => $context->link->getModuleLink(
@@ -1782,7 +1787,7 @@ class MailChimp extends Module
                     ],
                     true,
                     $idLang,
-                    $idShop,
+                    $context->shop->id,
                     false
                 ),
                 'cron_remaining_orders'       => $context->link->getModuleLink(
@@ -1795,7 +1800,7 @@ class MailChimp extends Module
                     ],
                     true,
                     $idLang,
-                    $idShop,
+                    $context->shop->id,
                     false
                 ),
                 'cron_all_products_cli'       => "php modules/mailchimp/cli.php --shop=$idShop --action=ExportAllProducts",

@@ -42,14 +42,22 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
     public function initContent()
     {
         $token = Tools::getValue('token');
-        if ($token !== Tools::substr(Tools::encrypt($this->module->name.'/cron'), 0, 10)) {
+        if ($token !== substr(Tools::encrypt($this->module->name.'/cron'), 0, 10)) {
             die('invalid token');
         }
 
         $action = ucfirst(Tools::getValue('action'));
-        $idShop = (int) Tools::getValue('id_shop');
-        if (!$idShop) {
-            $idShop = (int) Context::getContext()->shop->id;
+        $idShops = Tools::getValue('id_shop');
+        if ($idShops === 'all') {
+            $idShops = Shop::getShops(true, null, true);
+        } elseif (strpos($idShops, ',') !== false) {
+            $idShops = explode(',', $idShops);
+        } else {
+            $idShops = [(int) $idShops];
+        }
+        $idShops = array_filter(array_map('intval', $idShops));
+        if (empty($idShops)) {
+            $idShops = [(int) Context::getContext()->shop->id];
         }
 
         if (substr($action, -5)  === 'Carts') {
@@ -83,7 +91,7 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
             'ResetProducts',
             'ResetOrders',
         ])) {
-            $this->processCron($entityType, $actionType, $idShop);
+            $this->processCron($entityType, $actionType, $idShops);
         }
 
         die('KO');
@@ -94,28 +102,28 @@ class MailChimpCronModuleFrontController extends ModuleFrontController
      * 
      * @param string $actionType
      * @param string $entityType
-     * @param int    $idShop
+     * @param int    $idShops
      *
      * @throws PrestaShopException
      */
-    protected function processCron($entityType, $actionType, $idShop)
+    protected function processCron($entityType, $actionType, $idShops)
     {
         if ($actionType === 'ExportAll') {
-            $data = $this->module->cronExport($entityType, $idShop, false, 'start');
+            $data = $this->module->cronExport($entityType, $idShops, false, 'start');
             for ($i = 1; $i < (int) $data['totalChunks']; $i++) {
-                $this->module->cronExport($entityType, $idShop, false, 'next');
+                $this->module->cronExport($entityType, $idShops, false, 'next');
             }
 
             die('OK');
         } elseif ($actionType === 'ExportRemaining') {
-            $data = $this->module->cronExport($entityType, $idShop, true, 'start');
+            $data = $this->module->cronExport($entityType, $idShops, true, 'start');
             for ($i = 1; $i < (int) $data['totalChunks']; $i++) {
-                $this->module->cronExport($entityType, $idShop, true, 'next');
+                $this->module->cronExport($entityType, $idShops, true, 'next');
             }
 
             die('OK');
         } elseif ($actionType === 'Reset') {
-            if ($this->module->processReset($entityType, $idShop, false)) {
+            if ($this->module->processReset($entityType, $idShops, false)) {
                 die('OK');
             }
 

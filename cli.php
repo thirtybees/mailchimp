@@ -211,9 +211,17 @@ if (!array_key_exists('shop', $params) || !array_key_exists('action', $params)) 
 }
 
 $action = $params['action'];
-$idShop = $params['shop'];
-if (!$idShop) {
-    $idShop = (int) Context::getContext()->shop->id;
+$idShops = $params['shop'];
+if ($idShops === 'all') {
+    $idShops = Shop::getShops(true, null, true);
+} elseif (strpos($idShops, ',') !== false) {
+    $idShops = explode(',', $idShops);
+} else {
+    $idShops = [(int) $idShops];
+}
+$idShops = array_filter(array_map('intval', $idShops));
+if (empty($idShops)) {
+    $idShops = [(int) Context::getContext()->shop->id];
 }
 
 if (in_array($action, [
@@ -227,7 +235,7 @@ if (in_array($action, [
     'ExportRemainingOrders',
     'ResetOrders',
 ])) {
-    call_user_func('process'.$action, $idShop, $module);
+    call_user_func('process'.$action, $idShops, $module);
 }
 
 die('fail');
