@@ -163,7 +163,7 @@ class MailChimp extends Module
     {
         $this->name = 'mailchimp';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.3.0';
+        $this->version = '1.2.3';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -291,13 +291,7 @@ class MailChimp extends Module
             return false;
         }
         try {
-            $lists = json_decode((string) $client->get(
-                'lists',
-                [
-                    'headers' => [
-
-                    ],
-                ])->getBody(), true);
+            $lists = json_decode((string) $client->get('lists')->getBody(), true);
 
             if ($prepare) {
                 $preparedList = [];
