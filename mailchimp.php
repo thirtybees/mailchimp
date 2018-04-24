@@ -2559,11 +2559,14 @@ class MailChimp extends Module
                     $allCombinationImages = $productObj->getCombinationImages($idLang);
 
                     foreach ($allCombinations as $combination) {
-                        if (!isset($combination['quantity']) || !isset($combination['reference'])) {
+                        if (!isset($combination['quantity'])
+                            || !isset($combination['reference'])
+                            || !$combination['id_product_attribute']
+                        ) {
                             continue;
                         }
                         $variant = [
-                            'id'                 => (string) $combination['id_product_attribute'],
+                            'id'                 => "{$product['id_product']}-{$combination['id_product_attribute']}",
                             'title'              => (string) $product['name'],
                             'sku'                => $combination['reference'],
                             'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
@@ -2577,7 +2580,7 @@ class MailChimp extends Module
                 }
 
                 $variants[] = [
-                    'id'                 => '0',
+                    'id'                 => "{$product['id_product']}-0",
                     'title'              => (string) $product['name'],
                     'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
                     'price'              => (float) ($product['price'] * $rate),
@@ -2752,7 +2755,7 @@ class MailChimp extends Module
                                 continue;
                             }
                             $variant = [
-                                'id'                 => (string) $combination['id_product_attribute'],
+                                'id'                 => "{$product['id_product']}-{$combination['id_product_attribute']}",
                                 'title'              => (string) $product['name'],
                                 'sku'                => $combination['reference'],
                                 'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
@@ -2765,7 +2768,7 @@ class MailChimp extends Module
                         }
                     }
                     $variants[] = [
-                        'id'                 => '0',
+                        'id'                 => "{$product['id_product']}-0",
                         'title'              => (string) $product['name'],
                         'sku'                => (string) $product['reference'],
                         'price'              => (float) ($product['price'] * $rate),
@@ -2801,7 +2804,7 @@ class MailChimp extends Module
                             continue;
                         }
                         $variants[] = [
-                            'id'                 => (string) $orderDetail['id_product'].'-'.(string) $orderDetail['id_product_attribute'],
+                            'id'                 => "{$orderDetail['id_product']}-{$orderDetail['id_product_attribute']}",
                             'title'              => (string) $orderDetail['name'],
                             'sku'                => (string) $orderDetail['reference'],
                             'price'              => (float) $orderDetail['unit_price_tax_incl'],
@@ -2810,7 +2813,7 @@ class MailChimp extends Module
                     }
                     $product = array_values($orderDetails)[0];
                     $variants[] = [
-                            'id'                 => (string) $idProduct,
+                            'id'                 => "{$idProduct}-0",
                             'title'              => (string) $product['name'],
                             'sku'                => (string) $product['reference'],
                             'price'              => (float) $product['unit_price_tax_incl'],
