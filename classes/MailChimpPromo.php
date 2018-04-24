@@ -60,6 +60,8 @@ class MailChimpPromo extends \ObjectModel
     // @codingStandardsIgnoreStart
     /** @var int $id_cart_rule */
     public $id_cart_rule;
+    /** @var bool $locked */
+    public $locked;
     /** @var bool $enabled */
     public $enabled;
     // @codingStandardsIgnoreEnd
