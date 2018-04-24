@@ -19,6 +19,17 @@
 
 namespace MailChimpModule;
 
+use Adapter_Exception;
+use CartRule;
+use Context;
+use Customer;
+use Db;
+use DbQuery;
+use Module;
+use PrestaShopDatabaseException;
+use PrestaShopException;
+use SmartyException;
+
 if (!defined('_TB_VERSION_')) {
     exit;
 }
@@ -41,9 +52,9 @@ class MailChimpPromo extends \ObjectModel
         'table'   => 'mailchimp_promo',
         'primary' => 'id_mailchimp_promo',
         'fields'  => [
-            'id_cart_rule' => ['type' => self::TYPE_INT, 'validate' => 'isInt',  'required' => true,                    'db_type' => 'INT(11) UNSIGNED'   ],
-            'enabled'      => ['type' => self::TYPE_INT, 'validate' => 'isBool', 'required' => true, 'default' => '0', 'db_type' => 'TINYINT(1) UNSIGNED'],
-            'locked'       => ['type' => self::TYPE_INT, 'validate' => 'isBool', 'required' => true, 'default' => '0', 'db_type' => 'TINYINT(1) UNSIGNED'],
+            'id_cart_rule' => ['type' => self::TYPE_INT, 'validate' => 'isInt',  'required' => true,                     'db_type' => 'INT(11) UNSIGNED'   ],
+            'enabled'      => ['type' => self::TYPE_INT, 'validate' => 'isBool', 'required' => true, 'default' => false, 'db_type' => 'TINYINT(1) UNSIGNED'],
+            'locked'       => ['type' => self::TYPE_INT, 'validate' => 'isBool', 'required' => true, 'default' => false, 'db_type' => 'TINYINT(1) UNSIGNED'],
         ],
     ];
     // @codingStandardsIgnoreStart
@@ -52,16 +63,26 @@ class MailChimpPromo extends \ObjectModel
     /** @var bool $enabled */
     public $enabled;
     // @codingStandardsIgnoreEnd
-    
+
+    /**
+     * @param int   $id
+     * @param array $tr
+     *
+     * @return string
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
+     */
     public static function printMailChimpPromoButton($id, $tr)
     {
         if ($tr['mailchimp_locked']) {
             return '--';
         }
 
-        $module = \Module::getInstanceByName('mailchimp');
+        $module = Module::getInstanceByName('mailchimp');
 
-        \Context::getContext()->smarty->assign([
+        Context::getContext()->smarty->assign([
             'id' => $id,
             'tr' => $tr,
         ]);
@@ -74,19 +95,20 @@ class MailChimpPromo extends \ObjectModel
      * @param int $idCartRule
      *
      * @return static
-     * @throws \Adapter_Exception
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public static function getByCartRuleId($idCartRule)
     {
         $promo = new static();
-        $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow(
-            (new \DbQuery())
+        $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow(
+            (new DbQuery())
                 ->select('*')
                 ->from(bqSQL(static::$definition['table']))
                 ->where('`id_cart_rule` = '.(int) $idCartRule)
         );
+
         if (is_array($result) && !empty($result)) {
             $promo->hydrate($result);
         } else {
@@ -102,9 +124,9 @@ class MailChimpPromo extends \ObjectModel
      *
      * @return bool New status
      *
-     * @throws \Adapter_Exception
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public static function toggle($idCartRule)
     {
@@ -118,11 +140,11 @@ class MailChimpPromo extends \ObjectModel
     /**
      * Get enabled Cart Rules
      *
-     * @return \CartRule[]
+     * @return CartRule[]
      *
-     * @throws \Adapter_Exception
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public static function getCartRules()
     {
@@ -146,21 +168,21 @@ class MailChimpPromo extends \ObjectModel
     /**
      * Lock a Cart Rule
      *
-     * @param \CartRule $cartRule
+     * @param CartRule $cartRule
      *
      * @return bool
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
-    public static function lock(\CartRule $cartRule)
+    public static function lock(CartRule $cartRule)
     {
-        if (\Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
-            (new \DbQuery())
+        if (Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+            (new DbQuery())
                 ->select('`id_cart_rule`')
                 ->from(bqSQL(static::$definition['table']))
                 ->where('`id_cart_rule` = '.(int) $cartRule->id)
         )) {
-            return \Db::getInstance()->update(
+            return Db::getInstance()->update(
                 bqSQL(static::$definition['table']),
                 [
                     'locked'  => true,
@@ -169,7 +191,7 @@ class MailChimpPromo extends \ObjectModel
                 '`id_cart_rule` = '.(int) $cartRule->id
             );
         } else {
-            return \Db::getInstance()->insert(
+            return Db::getInstance()->insert(
                 bqSQL(static::$definition['table']),
                 [
                     'id_cart_rule' => (int) $cartRule->id,
@@ -184,29 +206,26 @@ class MailChimpPromo extends \ObjectModel
     /**
      * Duplicate cart rules for the given customer
      *
-     * @param int|\Customer $customer
+     * @param int|Customer $customer
      *
-     * @throws \Adapter_Exception
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public static function duplicateCartRules($customer)
     {
-        if (!$customer instanceof \Customer) {
-            $customer = new \Customer($customer);
+        if (!$customer instanceof Customer) {
+            $customer = new Customer($customer);
         }
         $tbRef = MailChimpSubscriber::getTbRef($customer->email);
         foreach (static::getCartRules() as $cartRule) {
             /** @var \CartRule $duplicate */
-            try {
-                if (!\CartRule::getIdByCode("$tbRef-{$cartRule->code}")) {
-                    $duplicate = $cartRule->duplicateObject();
-                    $duplicate->id_customer = $customer->id;
-                    $duplicate->code = "$tbRef-{$cartRule->code}";
-                    $duplicate->save();
-                    static::lock($duplicate);
-                }
-            } catch (\PrestaShopException $e) {
+            if (!CartRule::getIdByCode("$tbRef-{$cartRule->code}")) {
+                $duplicate = $cartRule->duplicateObject();
+                $duplicate->id_customer = $customer->id;
+                $duplicate->code = "$tbRef-{$cartRule->code}";
+                $duplicate->save();
+                static::lock($duplicate);
             }
         }
     }

@@ -19,6 +19,15 @@
 
 namespace MailChimpModule;
 
+use Cart;
+use Context;
+use Db;
+use DbQuery;
+use ObjectModel;
+use PrestaShopException;
+use Shop;
+use Translate;
+
 if (!defined('_TB_VERSION_')) {
     exit;
 }
@@ -30,7 +39,7 @@ if (!defined('_TB_VERSION_')) {
  *
  * @since 1.1.0
  */
-class MailChimpCart extends \ObjectModel
+class MailChimpCart extends ObjectModel
 {
     /**
      * @see ObjectModel::$definition
@@ -72,14 +81,14 @@ class MailChimpCart extends \ObjectModel
         if (is_int($idShops)) {
             $idShops = [$idShops];
         } else if (!is_array($idShops) || empty($idShops)) {
-            $idShops = \Shop::getContextListShopID(\Shop::SHARE_CUSTOMER);
+            $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
 
-        $selectOrdersSql = new \DbQuery();
+        $selectOrdersSql = new DbQuery();
         $selectOrdersSql->select('`id_cart`');
         $selectOrdersSql->from('orders');
 
-        $sql = new \DbQuery();
+        $sql = new DbQuery();
         if ($count) {
             $sql->select('COUNT(*)');
         } else {
@@ -94,8 +103,8 @@ class MailChimpCart extends \ObjectModel
         $sql->where('c.`date_upd` > \''.date('Y-m-d H:i:s', strtotime('-1 day')).'\'');
         try {
             $sql->where('c.`id_cart` NOT IN ('.$selectOrdersSql->build().')');
-        } catch (\PrestaShopException $e) {
-            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
+        } catch (PrestaShopException $e) {
+            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
 
             return 0;
         }
@@ -109,11 +118,11 @@ class MailChimpCart extends \ObjectModel
         try {
             if ($count) {
 
-                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+                return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
             }
-            $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-        } catch (\PrestaShopException $e) {
-            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
+            $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        } catch (PrestaShopException $e) {
+            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
 
             return 0;
         }
@@ -125,11 +134,11 @@ class MailChimpCart extends \ObjectModel
             return false;
         }
         foreach ($results as &$cart) {
-            $cartObject = new \Cart($cart['id_cart']);
+            $cartObject = new Cart($cart['id_cart']);
 
             $cart['currency_code'] = $defaultCurrencyCode;
             $cart['order_total'] = (float) $cartObject->getOrderTotal(false);
-            $cart['checkout_url'] = \Context::getContext()->link->getPageLink(
+            $cart['checkout_url'] = Context::getContext()->link->getPageLink(
                 'order',
                 false,
                 (int) $cart['id_lang'],
@@ -177,28 +186,28 @@ class MailChimpCart extends \ObjectModel
         }
 
         try {
-            \Db::getInstance()->delete(
+            Db::getInstance()->delete(
                 bqSQL(self::$definition['table']),
                 '`id_cart` IN ('.implode(',', $range).')',
                 0,
                 false
             );
         } catch (\PrestaShopException $e) {
-            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
+            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
 
             return false;
         }
 
         try {
-            return \Db::getInstance()->insert(
+            return Db::getInstance()->insert(
                 bqSQL(self::$definition['table']),
                 $insert,
                 false,
                 false,
-                \Db::INSERT_IGNORE
+                Db::INSERT_IGNORE
             );
-        } catch (\PrestaShopException $e) {
-            \Context::getContext()->controller->errors[] = \Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
+        } catch (PrestaShopException $e) {
+            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
 
             return false;
         }
@@ -213,7 +222,7 @@ class MailChimpCart extends \ObjectModel
      */
     public static function resetShop($idShop)
     {
-        return \Db::getInstance()->update(
+        return Db::getInstance()->update(
             bqSQL(static::$definition['table']),
             [
                 'last_synced' => '1970-01-01 00:00:00',
