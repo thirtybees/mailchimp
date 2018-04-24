@@ -2558,7 +2558,16 @@ class MailChimp extends Module
 
                 $variants = [];
                 if ($productObj->hasAttributes()) {
-                    $allCombinations = $productObj->getAttributeCombinations($idLang);
+                    $dbCombinations = array_filter($productObj->getAttributeCombinations($idLang), function ($item) {
+                        return $item['id_product_attribute']; // All combinations must have an `id_product_attribute` > 0
+                    });
+                    if (empty($dbCombinations)) {
+                        continue;
+                    }
+                    $allCombinations = [];
+                    foreach ($dbCombinations as $dbCombination) {
+                        $allCombinations[$dbCombination['id_product_attribute']] = $dbCombination;
+                    }
                     $allCombinationImages = $productObj->getCombinationImages($idLang);
 
                     foreach ($allCombinations as $combination) {
@@ -2762,7 +2771,16 @@ class MailChimp extends Module
 
                     $variants = [];
                     if ($productObj->hasAttributes()) {
-                        $allCombinations = $productObj->getAttributeCombinations($idLang);
+                        $dbCombinations = array_filter($productObj->getAttributeCombinations($idLang), function ($item) {
+                            return $item['id_product_attribute']; // All combinations must have an `id_product_attribute` > 0
+                        });
+                        if (empty($dbCombinations)) {
+                            continue;
+                        }
+                        $allCombinations = [];
+                        foreach ($dbCombinations as $dbCombination) {
+                            $allCombinations[$dbCombination['id_product_attribute']] = $dbCombination;
+                        }
                         $allCombinationImages = $productObj->getCombinationImages($idLang);
 
                         foreach ($allCombinations as $combination) {
