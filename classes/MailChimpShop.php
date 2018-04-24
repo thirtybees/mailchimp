@@ -19,6 +19,17 @@
 
 namespace MailChimpModule;
 
+use Adapter_Exception;
+use Context;
+use Db;
+use DbQuery;
+use mysqli_result;
+use ObjectModel;
+use PDOStatement;
+use PrestaShopDatabaseException;
+use PrestaShopException;
+use Shop;
+
 if (!defined('_TB_VERSION_')) {
     exit;
 }
@@ -30,7 +41,7 @@ if (!defined('_TB_VERSION_')) {
  *
  * @since 1.1.0
  */
-class MailChimpShop extends \ObjectModel
+class MailChimpShop extends ObjectModel
 {
     /**
      * @see ObjectModel::$definition
@@ -63,27 +74,27 @@ class MailChimpShop extends \ObjectModel
      *
      * @param bool $active
      *
-     * @return array|false|\mysqli_result|null|\PDOStatement|resource
+     * @return array|false|mysqli_result|null|PDOStatement|resource
      *
      * @since 1.1.0
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
     public static function getShops($active = false)
     {
-        $sql = new \DbQuery();
-        $sql->select('s.`'.bqSQL(\Shop::$definition['primary']).'`, s.`name`, ms.`list_id`, ms.`id_tax`, ms.`synced`');
+        $sql = new DbQuery();
+        $sql->select('s.`'.bqSQL(Shop::$definition['primary']).'`, s.`name`, ms.`list_id`, ms.`id_tax`, ms.`synced`');
         $sql->from('shop', 's');
-        $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(\Shop::$definition['primary']).'` = ms.`'.bqSQL(\Shop::$definition['primary']).'`');
+        $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
         if ($active) {
             $sql->where('s.`active` = 1');
         }
-        if (!\Shop::isFeatureActive()) {
-            $sql->where('s.`id_shop` = '.(int) \Context::getContext()->shop->id);
+        if (!Shop::isFeatureActive()) {
+            $sql->where('s.`id_shop` = '.(int) Context::getContext()->shop->id);
         }
 
         try {
-            return \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-        } catch (\PrestaShopException $e) {
+            return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        } catch (PrestaShopException $e) {
             return false;
         }
     }
@@ -94,23 +105,19 @@ class MailChimpShop extends \ObjectModel
      * @param int $idShop
      *
      * @return MailChimpShop|false
-     * @throws \Adapter_Exception
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public static function getByShopId($idShop)
     {
-        $sql = new \DbQuery();
-        $sql->select('s.`'.bqSQL(\Shop::$definition['primary']).'`, ms.*');
+        $sql = new DbQuery();
+        $sql->select('s.`'.bqSQL(Shop::$definition['primary']).'`, ms.*');
         $sql->from('shop', 's');
-        $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(\Shop::$definition['primary']).'` = ms.`'.bqSQL(\Shop::$definition['primary']).'`');
+        $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
         $sql->where('s.`id_shop` = '.(int) $idShop);
 
-        try {
-            $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
-        } catch (\PrestaShopException $e) {
-            return false;
-        }
+        $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
         if (!$result) {
             return false;
         }
@@ -129,19 +136,19 @@ class MailChimpShop extends \ObjectModel
      *
      * @return MailChimpShop[]
      *
-     * @throws \Adapter_Exception
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public static function getByShopIds($idShops)
     {
-        $sql = new \DbQuery();
-        $sql->select('s.`'.bqSQL(\Shop::$definition['primary']).'`, ms.*');
+        $sql = new DbQuery();
+        $sql->select('s.`'.bqSQL(Shop::$definition['primary']).'`, ms.*');
         $sql->from('shop', 's');
-        $sql->innerJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(\Shop::$definition['primary']).'` = ms.`'.bqSQL(\Shop::$definition['primary']).'`');
-        $sql->where('s.`'.bqSQL(\Shop::$definition['primary']).'` IN ('.implode(',', array_map('intval', $idShops)).')');
+        $sql->innerJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
+        $sql->where('s.`'.bqSQL(Shop::$definition['primary']).'` IN ('.implode(',', array_map('intval', $idShops)).')');
 
-        $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         if (!$results) {
             return [];
         }

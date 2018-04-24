@@ -19,6 +19,16 @@
 
 namespace MailChimpModule;
 
+use Configuration;
+use Context;
+use Db;
+use DbQuery;
+use Logger;
+use MailChimp;
+use PrestaShopDatabaseException;
+use PrestaShopException;
+use Shop;
+
 if (!defined('_TB_VERSION_')) {
     exit;
 }
@@ -100,13 +110,13 @@ class MailChimpSubscriber
             'language'         => $this->language,
             'timestamp_signup' => $this->timestampSignup,
         ];
-        if (!\Configuration::get(\MailChimp::GDPR)) {
+        if (!Configuration::get(MailChimp::GDPR)) {
             $subscriber['ip_signup'] = (string) ($this->ipSignup ?: '');
         } else {
 
         }
-        if (\Configuration::get(\MailChimp::EXPORT_COUNTRY) && !empty($subscriber['ip_signup'])) {
-            $coords = \MailChimp::getUserLatLongByIp($this->ipSignup);
+        if (Configuration::get(MailChimp::EXPORT_COUNTRY) && !empty($subscriber['ip_signup'])) {
+            $coords = MailChimp::getUserLatLongByIp($this->ipSignup);
             if ($coords) {
                 $subscriber['location'] = [
                     'latitude'  => $coords['lat'],
@@ -122,7 +132,7 @@ class MailChimpSubscriber
      * Get subscriber as json
      *
      * @return string
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
     public function getAsJSON()
     {
@@ -280,8 +290,8 @@ class MailChimpSubscriber
      *
      * @return array|int|false
      *
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.0.0
      */
     public static function getSubscribers($idShops = null, $offset = 0, $limit = 0, $customers = true, $optedIn = false, $count = false)
@@ -289,19 +299,19 @@ class MailChimpSubscriber
         if (is_int($idShops)) {
             $idShops = [$idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
-            $idShops = \Shop::getContextListShopID(\Shop::SHARE_CUSTOMER);
+            $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
 
         $list = [];
         $result = false;
         // Check if the module exists
-        $existingMailQuery = new \DbQuery();
+        $existingMailQuery = new DbQuery();
         $existingMailQuery->select('`email`');
         $existingMailQuery->from('customer', 'c');
         $existingMailQuery->where('c.`newsletter` = 1');
         $existingMailQuery->where('c.`active` = 1');
 
-        $nlQuery = new \DbQuery();
+        $nlQuery = new DbQuery();
         $nlQuery->select('n.`email`, \'\' AS `firstname`, \'\' AS `lastname`');
         $nlQuery->select('\'\' AS `ip_registration_newsletter`, l.`iso_code`, n.`id_shop`');
         $nlQuery->select('n.`newsletter_date_add`, \'\' AS `company`, \'\' AS `website`, \'\' AS `birthday`');
@@ -317,8 +327,8 @@ class MailChimpSubscriber
         $nlQuery->where('n.`email` != \'\'');
         $nlQuery->where('n.`email` IS NOT NULL');
 
-        $customerQuery = new \DbQuery();
-        if ($count && !\MailChimp::newsletterTableExists()) {
+        $customerQuery = new DbQuery();
+        if ($count && !MailChimp::newsletterTableExists()) {
             $customerQuery->select('COUNT(*)');
         } else {
             $customerQuery->select('c.`email`, c.`firstname`, c.`lastname`, c.`ip_registration_newsletter`');
@@ -336,7 +346,7 @@ class MailChimpSubscriber
         }
 
         // Check if the module exists
-        if (\MailChimp::newsletterTableExists()) {
+        if (MailChimp::newsletterTableExists()) {
             $sql = $count ? 'SELECT COUNT(*) FROM ' : 'SELECT * FROM ';
             $sql .= "({$nlQuery->build()} UNION ALL {$customerQuery->build()}) AS `x` ";
             if ($count) {
@@ -346,22 +356,22 @@ class MailChimpSubscriber
                 $sql .= ', '.(int) $limit;
             }
             try {
-                $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-            } catch (\PrestaShopException $e) {
-                \Logger::addLog("MailChimp module error: {$e->getMessage()}");
+                $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            } catch (PrestaShopException $e) {
+                Logger::addLog("MailChimp module error: {$e->getMessage()}");
 
                 $result = false;
             }
         } elseif ($customers) {
             try {
                 if ($count) {
-                    return \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($customerQuery);
+                    return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($customerQuery);
                 }
 
                 $customerQuery->limit($limit, $offset);
-                $result = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($customerQuery);
-            } catch (\PrestaShopException $e) {
-                \Logger::addLog("MailChimp module error: {$e->getMessage()}");
+                $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($customerQuery);
+            } catch (PrestaShopException $e) {
+                Logger::addLog("MailChimp module error: {$e->getMessage()}");
 
                 $result = false;
             }
@@ -369,7 +379,7 @@ class MailChimpSubscriber
 
         if ($result) {
             // If confirmation mail is to be sent, statuses must be post as pending to the MailChimp API
-            $subscription = (string) \Configuration::get(\MailChimp::CONFIRMATION_EMAIL)
+            $subscription = (string) Configuration::get(MailChimp::CONFIRMATION_EMAIL)
                 ? MailChimpSubscriber::SUBSCRIPTION_PENDING
                 : MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED;
             // Get default shop language since Newsletter Block registrations don't contain any language info
@@ -381,7 +391,7 @@ class MailChimpSubscriber
                     'firstname'           => $row['firstname'] ?: '',
                     'lastname'            => $row['lastname'] ?: '',
                     'ip_address'          => $row['ip_registration_newsletter'],
-                    'language_code'       => \MailChimp::getMailChimpLanguageByIso($row['iso_code'] ?: \Context::getContext()->language->iso_code),
+                    'language_code'       => MailChimp::getMailChimpLanguageByIso($row['iso_code'] ?: Context::getContext()->language->iso_code),
                     'newsletter_date_add' => $row['newsletter_date_add'],
                     'company'             => $row['company'] ?: '',
                     'website'             => $row['website'] ?: '',

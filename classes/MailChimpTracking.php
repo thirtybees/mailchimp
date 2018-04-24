@@ -19,6 +19,8 @@
 
 namespace MailChimpModule;
 
+use ObjectModel;
+
 if (!defined('_TB_VERSION_')) {
     exit;
 }
@@ -30,7 +32,7 @@ if (!defined('_TB_VERSION_')) {
  *
  * @since 1.1.0
  */
-class MailChimpTracking extends \ObjectModel
+class MailChimpTracking extends ObjectModel
 {
     /**
      * @see ObjectModel::$definition
