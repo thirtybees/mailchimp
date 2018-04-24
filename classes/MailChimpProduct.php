@@ -164,7 +164,7 @@ class MailChimpProduct extends ObjectModel
 
         try {
             $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-            if (is_array($results)) {
+            if ($orderDetail && is_array($results)) {
                 $missingIds = array_diff(array_map('intval', $range), array_map('intval', array_column($results, 'id_product')));
                 if (!empty($missingIds)) {
                     $orderDetails = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
