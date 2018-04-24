@@ -92,6 +92,7 @@ class MailChimpProduct extends ObjectModel
             $sql->select('COUNT(*)');
         } else {
             $sql->select('ps.*, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`, mp.`last_synced`');
+            $sql->select('p.`out_of_stock`');
         }
         $sql->from('product_shop', 'ps');
         $sql->innerJoin('product_lang', 'pl', 'pl.`id_product` = ps.`id_product` AND pl.`id_lang` = '.(int) $idLang.' AND ps.`id_shop` = pl.`id_shop`');
@@ -148,8 +149,9 @@ class MailChimpProduct extends ObjectModel
         }
 
         $sql = new DbQuery();
-        $sql->select('ps.`id_product`, ps.`id_shop`, ps.`id_tax_rules_group`, ps.`price`, ps.`active`, IFNULL(p.`reference`, p.`supplier_reference`) AS `reference`');
+        $sql->select('ps.`id_product`, ps.`id_shop`, ps.`id_tax_rules_group`, ps.`price`, ps.`active`');
         $sql->select('ps.`date_add`, ps.`date_upd`, pl.`name`, pl.`description_short`, m.`name` as `manufacturer`, mp.`last_synced`');
+        $sql->select('IFNULL(p.`reference`, p.`supplier_reference`) AS `reference`, p.`out_of_stock`');
         $sql->from('product_shop', 'ps');
         $sql->innerJoin('product_lang', 'pl', 'pl.`id_product` = ps.`id_product` AND pl.`id_lang` = '.(int) $idLang.' AND ps.`id_shop` = pl.`id_shop`');
         $sql->innerJoin('product', 'p', 'p.`id_product` = ps.`id_product`');
