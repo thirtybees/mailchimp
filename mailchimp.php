@@ -2591,7 +2591,7 @@ class MailChimp extends Module
                     // Apply the tax rate here so the proper price shows up in emails
                     'price'              => (float) ($product['price'] * $rate),
                     // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
-                    'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($product['quantity'] ?: ($allowOosp ? 999 : 0))),
+                    'inventory_quantity' => (int) (!$stockmgmt ? 999 : (StockAvailable::getQuantityAvailableByProduct($product['id_product'], null, $idShop) ?: ($allowOosp ? 999 : 0))),
                 ];
 
                 try {
@@ -2792,7 +2792,7 @@ class MailChimp extends Module
                         // Apply taxes here so the proper price shows up in emails
                         'price'              => (float) ($product['price'] * $rate),
                         // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
-                        'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($product['quantity'] ?: ($allowOosp ? 999 : 0))),
+                        'inventory_quantity' => (int) (!$stockmgmt ? 999 : (StockAvailable::getQuantityAvailableByProduct($product['id_product'], null, $idShop) ?: ($allowOosp ? 999 : 0))),
                     ];
 
                     try {
