@@ -2574,7 +2574,7 @@ class MailChimp extends Module
                             'sku'                => $combination['reference'],
                             // Apply the chosen tax rate here so the proper price shows up in emails
                             'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
-                            // Add articial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                            // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
                             'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($combination['quantity'] ?: ($allowOosp ? 999 : 0))),
                         ];
                         if (isset($allCombinationImages[$combination['id_product_attribute']])) {
@@ -2590,7 +2590,7 @@ class MailChimp extends Module
                     'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
                     // Apply the tax rate here so the proper price shows up in emails
                     'price'              => (float) ($product['price'] * $rate),
-                    // Add articial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                    // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
                     'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($product['quantity'] ?: ($allowOosp ? 999 : 0))),
                 ];
 
@@ -2775,7 +2775,7 @@ class MailChimp extends Module
                                 'sku'                => $combination['reference'],
                                 // Apply the tax rate here so the proper price shows up in emails
                                 'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
-                                // Add articial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                                // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
                                 'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($combination['quantity'] ?: ($allowOosp ? 999 : 0))),
                             ];
                             if (isset($allCombinationImages[$combination['id_product_attribute']])) {
@@ -2791,7 +2791,7 @@ class MailChimp extends Module
                         'sku'                => (string) $product['reference'],
                         // Apply taxes here so the proper price shows up in emails
                         'price'              => (float) ($product['price'] * $rate),
-                        // Add articial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                        // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
                         'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($product['quantity'] ?: ($allowOosp ? 999 : 0))),
                     ];
 
