@@ -2546,7 +2546,10 @@ class MailChimp extends Module
         $link = Context::getContext()->link;
 
         $promises = call_user_func(function () use (&$products, $idLang, $client, $link, $taxes) {
+            $stockmgmt = (bool) Configuration::get('PS_STOCK_MANAGEMENT');
+            $globalOosp = (bool) Configuration::get('PS_ORDER_OUT_OF_STOCK');
             foreach ($products as &$product) {
+                $allowOosp = $globalOosp && $product['out_of_stock'] == 2 || $product['out_of_stock'] == 1;
                 $productObj = new Product();
                 $productObj->hydrate($product);
                 $allImages = array_values($productObj->getImages($idLang));
@@ -2569,8 +2572,10 @@ class MailChimp extends Module
                             'id'                 => "{$product['id_product']}-{$combination['id_product_attribute']}",
                             'title'              => (string) $product['name'],
                             'sku'                => $combination['reference'],
+                            // Apply the chosen tax rate here so the proper price shows up in emails
                             'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
-                            'inventory_quantity' => (int) $combination['quantity'],
+                            // Add articial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                            'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($combination['quantity'] ?: ($allowOosp ? 999 : 0))),
                         ];
                         if (isset($allCombinationImages[$combination['id_product_attribute']])) {
                             $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
@@ -2583,8 +2588,10 @@ class MailChimp extends Module
                     'id'                 => "{$product['id_product']}-0",
                     'title'              => (string) $product['name'],
                     'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
+                    // Apply the tax rate here so the proper price shows up in emails
                     'price'              => (float) ($product['price'] * $rate),
-                    'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
+                    // Add articial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                    'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($product['quantity'] ?: ($allowOosp ? 999 : 0))),
                 ];
 
                 try {
@@ -2640,7 +2647,9 @@ class MailChimp extends Module
                             );
                             return;
                         } catch (TransferException $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         } catch (Exception $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
@@ -2653,7 +2662,9 @@ class MailChimp extends Module
                             );
                             return;
                         } catch (TransferException $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         } catch (Exception $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         }
                     }
 
@@ -2736,8 +2747,12 @@ class MailChimp extends Module
         $link = Context::getContext()->link;
 
         $promises = call_user_func(function () use (&$products, $idLang, $client, $link, $taxes) {
+            $stockmgmt = (bool) Configuration::get('PS_STOCK_MANAGEMENT');
+            $globalOosp = (bool) Configuration::get('PS_ORDER_OUT_OF_STOCK');
             foreach (array_unique(array_map('intval', array_column($products, 'id_product'))) as $idProduct) {
                 $product = $products[array_search((int) $idProduct, array_map('intval', array_column($products, 'id_product')))];
+                $allowOosp = $globalOosp && $product['out_of_stock'] == 2 || $product['out_of_stock'] == 1;
+                // No order detail means the product could be grabbed from the product table and the product still exists in the store
                 if (!isset($product['id_order_detail'])) {
                     $productObj = new Product($idProduct);
                     // Work with an existing product
@@ -2758,8 +2773,10 @@ class MailChimp extends Module
                                 'id'                 => "{$product['id_product']}-{$combination['id_product_attribute']}",
                                 'title'              => (string) $product['name'],
                                 'sku'                => $combination['reference'],
+                                // Apply the tax rate here so the proper price shows up in emails
                                 'price'              => (float) ($product['price'] * $rate) + (float) ($combination['price'] * $rate),
-                                'inventory_quantity' => (int) $combination['quantity'],
+                                // Add articial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                                'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($combination['quantity'] ?: ($allowOosp ? 999 : 0))),
                             ];
                             if (isset($allCombinationImages[$combination['id_product_attribute']])) {
                                 $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
@@ -2767,12 +2784,15 @@ class MailChimp extends Module
                             $variants[] = $variant;
                         }
                     }
+                    // Add the default combination
                     $variants[] = [
                         'id'                 => "{$product['id_product']}-0",
                         'title'              => (string) $product['name'],
                         'sku'                => (string) $product['reference'],
+                        // Apply taxes here so the proper price shows up in emails
                         'price'              => (float) ($product['price'] * $rate),
-                        'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
+                        // Add articial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                        'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($product['quantity'] ?: ($allowOosp ? 999 : 0))),
                     ];
 
                     try {
@@ -2808,7 +2828,7 @@ class MailChimp extends Module
                             'title'              => (string) $orderDetail['name'],
                             'sku'                => (string) $orderDetail['reference'],
                             'price'              => (float) $orderDetail['unit_price_tax_incl'],
-                            'inventory_quantity' => (int) $orderDetail['quantity'],
+                            'inventory_quantity' => 0, // Out of stock because we had to grab it from the order_detail table
                         ];
                     }
                     $product = array_values($orderDetails)[0];
@@ -2817,7 +2837,7 @@ class MailChimp extends Module
                             'title'              => (string) $product['name'],
                             'sku'                => (string) $product['reference'],
                             'price'              => (float) $product['unit_price_tax_incl'],
-                            'inventory_quantity' => (int) (isset($product['quantity']) ? $product['quantity'] : 1),
+                            'inventory_quantity' => 0, // Out of stock because we had to grab it from the order_detail table
                     ];
                     $payload = [
                         'id'          => (string) $idProduct,
@@ -2865,7 +2885,9 @@ class MailChimp extends Module
                             );
                             return;
                         } catch (TransferException $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         } catch (Exception $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
@@ -2878,9 +2900,9 @@ class MailChimp extends Module
                             );
                             return;
                         } catch (TransferException $e) {
-                            Logger::addLog($e->getMessage());
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         } catch (Exception $e) {
-                            Logger::addLog($e->getMessage());
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         }
                     }
 
@@ -3028,7 +3050,9 @@ class MailChimp extends Module
                             }
                             return;
                         } catch (TransferException $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         } catch (Exception $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
@@ -3044,7 +3068,9 @@ class MailChimp extends Module
                             }
                             return;
                         } catch (TransferException $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         } catch (Exception $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
                         }
                     }
 
