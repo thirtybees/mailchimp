@@ -411,9 +411,9 @@ class MailChimp extends Module
                 $cookie->write();
             }
         } catch (Exception $e) {
-            if (isset ($cookie->mc_tc) && isset($params['order']->id)) {
+            if (isset($cookie) && isset ($cookie->mc_tc) && isset($params['order']->id)) {
                 Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_tc for Order {$params['order']->id}", 2);
-            } elseif (isset ($cookie->mc_cid) && isset($params['order']->id)) {
+            } elseif (isset($cookie) && isset ($cookie->mc_cid) && isset($params['order']->id)) {
                 Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_cid for Order {$params['order']->id}", 2);
             } else {
                 Logger::addLog('Unable to set Mailchimp tracking code for Order', 2);
@@ -1128,26 +1128,24 @@ class MailChimp extends Module
                 break;
         }
         $entity = 'MailChimp'.ucfirst(substr($entityType, 0, strlen($entityType) - 1));
-        if (!isset($table) || !isset($primary)) {
-            return false;
-        }
-
         $success = false;
-        try {
-            $success = Db::getInstance()->execute(
-                'DELETE mo
+        if (isset($table)  && isset($primary)) {
+            try {
+                $success = Db::getInstance()->execute(
+                    'DELETE mo
                  FROM `'._DB_PREFIX_.bqSQL((new ReflectionProperty('\\MailChimpModule\\'.$entity, 'definition'))->getValue()['table']).'` mo
                  INNER JOIN `'._DB_PREFIX_.bqSQL($table).'` o ON o.`'.bqSQL($primary).'` = mo.`'.bqSQL($primary).'`
                  WHERE o.`id_shop` = '.(int) $idShop
-            );
-        } catch (PrestaShopDatabaseException $e) {
-            Logger::addLog("MailChimp module error: {$e->getMessage()}");
-        } catch (PrestaShopException $e) {
-            Logger::addLog("MailChimp module error: {$e->getMessage()}");
-            $success = false;
-        } catch (ReflectionException $e) {
-            Logger::addLog("MailChimp module error: {$e->getMessage()}");
-            $success = false;
+                );
+            } catch (PrestaShopDatabaseException $e) {
+                Logger::addLog("MailChimp module error: {$e->getMessage()}");
+            } catch (PrestaShopException $e) {
+                Logger::addLog("MailChimp module error: {$e->getMessage()}");
+                $success = false;
+            } catch (ReflectionException $e) {
+                Logger::addLog("MailChimp module error: {$e->getMessage()}");
+                $success = false;
+            }
         }
 
         if ($ajax) {
