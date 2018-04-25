@@ -581,7 +581,7 @@ class MailChimp extends Module
         $params['join'] .= "\n\t\tLEFT JOIN `"._DB_PREFIX_.bqSQL(MailChimpPromo::$definition['table']).'` mcp ON (mcp.`id_cart_rule` = a.`id_cart_rule`)';
         if (isset($params['fields'])) {
             $params['fields']['mailchimp_enabled'] = [
-                'title'           => $this->l('MailChimp'),
+                'title'           => $this->l('MailChimp').'<br>'.$this->l('Abandoned').'<br>'.$this->l('cart mails'),
                 'class'           => 'fixed-width-lg',
                 'callback'        => 'printMailChimpPromoButton',
                 'callback_object' => 'MailChimpModule\\MailChimpPromo',

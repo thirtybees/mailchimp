@@ -32,6 +32,7 @@ use PDOStatement;
 use PrestaShopDatabaseException;
 use PrestaShopException;
 use Shop;
+use Tax;
 use Translate;
 use Validate;
 
@@ -133,7 +134,7 @@ class MailChimpOrder extends ObjectModel
             return false;
         }
         $rate = 1;
-        $tax = new \Tax($mailChimpShop->id_tax);
+        $tax = new Tax($mailChimpShop->id_tax);
         if (Validate::isLoadedObject($tax) && $tax->active) {
             $rate = 1 + ($tax->rate / 100);
         }
@@ -149,17 +150,17 @@ class MailChimpOrder extends ObjectModel
             $order['order_total'] = $orderObj->total_paid_tax_incl;
             $order['shipping_total'] = (float) $orderObj->total_shipping_tax_incl;
             $order['tax_total'] = (float) $orderObj->total_paid_tax_incl - $orderObj->total_paid_tax_excl;
-            if (count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', \MailChimp::getOrderRefundedStatuses()))) >= 1) {
+            if (count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', MailChimp::getOrderRefundedStatuses()))) >= 1) {
                 $order['financial_status'] = 'refunded';
-            } elseif (count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', \MailChimp::getOrderCanceledStatuses()))) >= 1) {
+            } elseif (count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', MailChimp::getOrderCanceledStatuses()))) >= 1) {
                 $order['financial_status'] = 'canceled';
-            } elseif (count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', \MailChimp::getOrderPaidStatuses()))) >= 1) {
+            } elseif (count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', MailChimp::getOrderPaidStatuses()))) >= 1) {
                 $order['financial_status'] = 'paid';
             } else {
                 $order['financial_status'] = 'pending';
             }
 
-            $order['shipped'] = count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', \MailChimp::getOrderShippedStatuses()))) >= 1;
+            $order['shipped'] = count(array_intersect(array_map('intval', array_column($orderHistory, 'id_order_state')), array_map('intval', MailChimp::getOrderShippedStatuses()))) >= 1;
 
             $orderProducts = $orderObj->getOrderDetailList();
             if (!$orderProducts) {
@@ -188,9 +189,9 @@ class MailChimpOrder extends ObjectModel
      *
      * @param int|int[] $range
      *
-     * @return array|bool|false|null|\PDOStatement
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @return array|bool|false|null|PDOStatement
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     protected static function getOrderHistories($range)
     {
@@ -228,7 +229,7 @@ class MailChimpOrder extends ObjectModel
      *
      * @return bool
      * @since 1.1.0
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
     public static function setSynced($range)
     {
@@ -252,7 +253,7 @@ class MailChimpOrder extends ObjectModel
                 0,
                 false
             );
-        } catch (\PrestaShopDatabaseException $e) {
+        } catch (PrestaShopDatabaseException $e) {
             Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
 
             return false;

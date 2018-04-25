@@ -26,7 +26,7 @@ if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
  */
 class MailChimpHookModuleFrontController extends ModuleFrontController
 {
-    /** @var \MailChimp $module */
+    /** @var MailChimp $module */
     public $module;
 
     public $status = '0';
@@ -98,7 +98,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
                 ->from('customer')
                 ->where('`email` LIKE \''.pSQL($data['email']).'\'')
         )) {
-            $customer = \Db::getInstance()->update(
+            $customer = Db::getInstance()->update(
                 'customer',
                 [
                     'newsletter' => 1,
@@ -110,7 +110,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             }
         } else {
             // Update newsletter table
-            $newsletter = \Db::getInstance()->insert(
+            $newsletter = Db::getInstance()->insert(
                 'newsletter',
                 [
                     'email'                      => pSQL($data['email']),
@@ -140,7 +140,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
         $this->status = '1';
 
         // Update customer table
-        $customer = \Db::getInstance()->update(
+        $customer = Db::getInstance()->update(
             'customer',
             [
                 'newsletter' => 0,
@@ -148,7 +148,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             '`email` LIKE \''.pSQL($data['email']).'\''
         );
         // Update newsletter table
-        $newsletter = \Db::getInstance()->update(
+        $newsletter = Db::getInstance()->update(
             'newsletter',
             [
                 'active' => 0,
@@ -176,13 +176,13 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
     public function processEmailChanged($data)
     {
         // Update customer table
-        $customer = \Db::getInstance()->update(
+        $customer = Db::getInstance()->update(
             'customer',
             [
                 'newsletter' => 0,
             ],
             '`email` = \''.pSQL($data['old_email']).'\''
-        ) && \Db::getInstance()->update(
+        ) && Db::getInstance()->update(
             'customer',
             [
                 'newsletter' => 1,
@@ -190,7 +190,7 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
             '`email` = \''.pSQL($data['new_email']).'\''
         );
         // Update newsletter table
-        $newsletter = \Db::getInstance()->update(
+        $newsletter = Db::getInstance()->update(
             'newsletter',
             [
                 'email' => pSQL($data['new_email']),

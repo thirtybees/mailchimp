@@ -24,6 +24,7 @@ use Context;
 use Db;
 use DbQuery;
 use ObjectModel;
+use PrestaShopDatabaseException;
 use PrestaShopException;
 use Shop;
 use Translate;
@@ -76,7 +77,7 @@ class MailChimpProduct extends ObjectModel
      * @return array|false|int
      *
      * @since 1.1.0
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
     public static function getProducts($idShops = null, $offset = 0, $limit = 0, $remaining = false, $count = false)
     {
@@ -200,7 +201,7 @@ class MailChimpProduct extends ObjectModel
      *
      * @return bool
      * @since 1.1.0
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
     public static function setSynced($range, $idShops = null)
     {
@@ -233,7 +234,7 @@ class MailChimpProduct extends ObjectModel
                 0,
                 false
             );
-        } catch (\PrestaShopDatabaseException $e) {
+        } catch (PrestaShopDatabaseException $e) {
             Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
 
             return false;
@@ -260,8 +261,8 @@ class MailChimpProduct extends ObjectModel
      * @param int $idShop
      *
      * @return bool
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public static function resetShop($idShop)
     {

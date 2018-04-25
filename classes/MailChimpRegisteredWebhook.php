@@ -23,6 +23,7 @@ use Adapter_Exception;
 use Db;
 use DbQuery;
 use mysqli_result;
+use ObjectModel;
 use PDOStatement;
 use PrestaShopDatabaseException;
 use PrestaShopException;
@@ -36,7 +37,7 @@ require_once __DIR__.'/autoload.php';
 /**
  * Class StripeTransaction
  */
-class MailChimpRegisteredWebhook extends \ObjectModel
+class MailChimpRegisteredWebhook extends ObjectModel
 {
     /**
      * @see ObjectModel::$definition

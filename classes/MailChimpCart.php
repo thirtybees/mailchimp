@@ -19,14 +19,18 @@
 
 namespace MailChimpModule;
 
+use Adapter_Exception;
 use Cart;
 use Context;
+use Currency;
 use Db;
 use DbQuery;
 use ObjectModel;
+use PrestaShopDatabaseException;
 use PrestaShopException;
 use Shop;
 use Translate;
+use Validate;
 
 if (!defined('_TB_VERSION_')) {
     exit;
@@ -73,8 +77,8 @@ class MailChimpCart extends ObjectModel
      * @return array|false|int
      *
      * @since 1.1.0
-     * @throws \PrestaShopException
-     * @throws \Adapter_Exception
+     * @throws PrestaShopException
+     * @throws Adapter_Exception
      */
     public static function getCarts($idShops = null, $offset = 0, $limit = 0, $remaining = false, $count = false)
     {
@@ -127,10 +131,10 @@ class MailChimpCart extends ObjectModel
             return 0;
         }
 
-        $defaultCurrency = \Currency::getDefaultCurrency();
+        $defaultCurrency = Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
         $mailChimpShop = MailChimpShop::getByShopId($idShops);
-        if (!\Validate::isLoadedObject($mailChimpShop)) {
+        if (!Validate::isLoadedObject($mailChimpShop)) {
             return false;
         }
         foreach ($results as &$cart) {
@@ -192,7 +196,7 @@ class MailChimpCart extends ObjectModel
                 0,
                 false
             );
-        } catch (\PrestaShopException $e) {
+        } catch (PrestaShopException $e) {
             Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
 
             return false;
@@ -217,8 +221,8 @@ class MailChimpCart extends ObjectModel
      * @param int $idShop
      *
      * @return bool
-     * @throws \PrestaShopDatabaseException
-     * @throws \PrestaShopException
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     public static function resetShop($idShop)
     {

@@ -94,7 +94,7 @@ class MailChimpSubscriber
      * Get subscriber as array
      *
      * @return array
-     * @throws \PrestaShopException
+     * @throws PrestaShopException
      */
     public function getAsArray()
     {

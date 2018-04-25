@@ -26,6 +26,7 @@ use Customer;
 use Db;
 use DbQuery;
 use Module;
+use ObjectModel;
 use PrestaShopDatabaseException;
 use PrestaShopException;
 use SmartyException;
@@ -41,7 +42,7 @@ if (!defined('_TB_VERSION_')) {
  *
  * @since 1.1.0
  */
-class MailChimpPromo extends \ObjectModel
+class MailChimpPromo extends ObjectModel
 {
     /**
      * @see ObjectModel::$definition
@@ -151,8 +152,8 @@ class MailChimpPromo extends \ObjectModel
     public static function getCartRules()
     {
         $cartRules = [];
-        $results = \Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
-            (new \DbQuery())
+        $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+            (new DbQuery())
                 ->select('`id_cart_rule`')
                 ->from(bqSQL(static::$definition['table']))
                 ->where('`enabled` = 1')
@@ -160,7 +161,7 @@ class MailChimpPromo extends \ObjectModel
 
         if (is_array($results) && !empty($results)) {
             foreach ($results as $result) {
-                $cartRules[] = new \CartRule($result['id_cart_rule']);
+                $cartRules[] = new CartRule($result['id_cart_rule']);
             }
         }
 
@@ -221,7 +222,7 @@ class MailChimpPromo extends \ObjectModel
         }
         $tbRef = MailChimpSubscriber::getTbRef($customer->email);
         foreach (static::getCartRules() as $cartRule) {
-            /** @var \CartRule $duplicate */
+            /** @var CartRule $duplicate */
             if (!CartRule::getIdByCode("$tbRef-{$cartRule->code}")) {
                 $duplicate = $cartRule->duplicateObject();
                 $duplicate->id_customer = $customer->id;
