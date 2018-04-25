@@ -3354,7 +3354,7 @@ class MailChimp extends Module
             'TBREF' => [
                 'type'     => 'text',
                 'name'     => 'thirty bees customer reference',
-                'required' => true,
+                'required' => false,
             ],
         ];
         foreach ($result['merge_fields'] as $mergeField) {
