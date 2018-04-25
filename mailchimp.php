@@ -3007,7 +3007,7 @@ class MailChimp extends Module
                         'body' => json_encode([
                             'email_address' => mb_strtolower($cart['email']),
                             'status_if_new' => MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED,
-                            'merge_fields'  => (object) $mergeFields,
+                            'merge_fields'  => $mergeFields,
                             'language'      => static::getMailChimpLanguageByIso($cart['language_code']),
                         ]),
                     ]
@@ -3178,7 +3178,7 @@ class MailChimp extends Module
                         'body'    => json_encode([
                             'email_address' => mb_strtolower($order['email']),
                             'status_if_new' => MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED,
-                            'merge_fields'  => (object) $mergeFields,
+                            'merge_fields'  => $mergeFields,
                             'language'      => static::getMailChimpLanguageByIso($order['language_code']),
                         ]),
                     ]
