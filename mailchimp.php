@@ -3332,8 +3332,10 @@ class MailChimp extends Module
             $responseBody = (string) $e->getResponse()->getBody();
             $requestBody = (string) $e->getRequest()->getBody();
             Logger::addLog("MailChimp client error while grabbing the merge fields: {$requestBody} -- {$responseBody}");
+            return false;
         } catch (TransferException $e) {
             Logger::addLog("MailChimp generic error while grabbing the merge fields: {$e->getMessage()}");
+            return false;
         }
         $missingFields = [
             'FNAME' => [
