@@ -2758,9 +2758,9 @@ class MailChimp extends Module
             $globalOosp = (bool) Configuration::get('PS_ORDER_OUT_OF_STOCK');
             foreach (array_unique(array_map('intval', array_column($products, 'id_product'))) as $idProduct) {
                 $product = $products[array_search((int) $idProduct, array_map('intval', array_column($products, 'id_product')))];
-                $allowOosp = $globalOosp && $product['out_of_stock'] == 2 || $product['out_of_stock'] == 1;
                 // No order detail means the product could be grabbed from the product table and the product still exists in the store
                 if (!isset($product['id_order_detail'])) {
+                    $allowOosp = $globalOosp && $product['out_of_stock'] == 2 || $product['out_of_stock'] == 1;
                     $productObj = new Product($idProduct);
                     // Work with an existing product
                     $allImages = array_values($productObj->getImages($idLang));
