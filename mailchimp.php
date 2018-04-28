@@ -2579,6 +2579,7 @@ class MailChimp extends Module
                 $productObj = new Product();
                 $productObj->hydrate($product);
                 $allImages = array_values($productObj->getImages($idLang));
+                $allCombinationImages = $productObj->getCombinationImages($idLang);
                 $rate = $taxes[$product['id_shop']];
                 $idShop = $product['id_shop'];
 
@@ -2594,8 +2595,6 @@ class MailChimp extends Module
                     foreach ($dbCombinations as $dbCombination) {
                         $allCombinations[$dbCombination['id_product_attribute']] = $dbCombination;
                     }
-                    $allCombinationImages = $productObj->getCombinationImages($idLang);
-
                     foreach ($allCombinations as $combination) {
                         if (!isset($combination['quantity'])
                             || !isset($combination['reference'])
@@ -2614,6 +2613,17 @@ class MailChimp extends Module
                         ];
                         if (isset($allCombinationImages[$combination['id_product_attribute']])) {
                             $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
+                            foreach ($allCombinationImages[$combination['id_product_attribute']] as $image) {
+                                if (!isset($images[$image['id_image']])) {
+                                    $images[$image['id_image']] = [
+                                        'id'          => $image['id_image'],
+                                        'url'         => $link->getImageLink('default', $image['id_image']),
+                                        'variant_ids' => [],
+                                    ];
+
+                                }
+                                $images[$image['id_image']]['variant_ids'][] = "{$product['id_product']}-{$combination['id_product_attribute']}";
+                            }
                         }
                         $variants[] = $variant;
                     }
@@ -2627,6 +2637,7 @@ class MailChimp extends Module
                     'price'              => (float) ($product['price'] * $rate),
                     // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
                     'inventory_quantity' => (int) (!$stockmgmt ? 999 : (StockAvailable::getQuantityAvailableByProduct($product['id_product'], null, $idShop) ?: ($allowOosp ? 999 : 0))),
+                    'image_url'          => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
                 ];
 
                 try {
