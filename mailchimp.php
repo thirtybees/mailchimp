@@ -1645,7 +1645,7 @@ class MailChimp extends Module
             $fields[] = [
                 'form' => [
                     'legend' => [
-                        'title' => $this->l('Export Settings').$this->getConfigurationContext(Shop::getContextShopID()),
+                        'title' => $this->l('Export Settings').$this->getConfigurationContext(Shop::getContextShopID(), Shop::getContextShopGroupID()),
                         'icon'  => 'icon-cogs',
                     ],
                     'input'  => $inputs2,
@@ -1660,7 +1660,7 @@ class MailChimp extends Module
             $fields[] = [
                 'form' => [
                     'legend' => [
-                        'title' => $this->l('Miscellaneous').$this->getConfigurationContext(Shop::getContextShopID()),
+                        'title' => $this->l('Miscellaneous').$this->getConfigurationContext(Shop::getContextShopID(), Shop::getContextShopGroupID()),
                         'icon'  => 'icon-cogs',
                     ],
                     'input'  => [
@@ -2188,7 +2188,7 @@ class MailChimp extends Module
             [
                 'form' => [
                     'legend' => [
-                        'title' => $this->l('Order settings').$this->getConfigurationContext(Shop::getContextShopID()),
+                        'title' => $this->l('Order settings').$this->getConfigurationContext(Shop::getContextShopID(), Shop::getContextShopGroupID()),
                         'icon'  => 'icon-cogs',
                     ],
                     'input'  => [
@@ -3780,9 +3780,11 @@ class MailChimp extends Module
     /**
      * @param null|int $idShop
      *
+     * @param null|int $idShopGroup
+     *
      * @return string
      */
-    protected function getConfigurationContext($idShop = null)
+    protected function getConfigurationContext($idShop = null, $idShopGroup = null)
     {
         try {
             if (!Shop::isFeatureActive()) {
@@ -3794,9 +3796,16 @@ class MailChimp extends Module
                 if (Validate::isLoadedObject($shop)) {
                     $idShop = $shop->name;
                 }
+            } elseif ($idShopGroup) {
+                $shops = ShopGroup::getShopsFromGroup($idShopGroup);
+                if (is_array($shops) && count($shops)) {
+                    $idShop = (new Shop($shops[0]['id_shop']))->name;
+                }
             }
 
-            $this->context->smarty->assign('context_shop', $idShop);
+            $this->context->smarty->assign([
+                'context_shop' => $idShop,
+            ]);
 
             return $this->display(__FILE__, 'views/templates/admin/context-badge.tpl');
         } catch (Exception $e) {
