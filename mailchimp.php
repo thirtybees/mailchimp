@@ -19,8 +19,8 @@
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\EachPromise;
 use GuzzleHttp\Psr7\Response;
 use MailChimpModule\MailChimpCart;
@@ -1252,6 +1252,9 @@ class MailChimp extends Module
                         }
                         if ($idList) {
                             try {
+                                $storeAddress = $shop->getAddress();
+                                $shopState = StateCore::getNameById($storeAddress->id_state) ? StateCore::getNameById($storeAddress->id_state) : '';
+                                $shopCountryIso = CountryCore::getIsoById($storeAddress->id_country);
                                 $client->post(
                                     'ecommerce/stores',
                                     [
@@ -1263,6 +1266,16 @@ class MailChimp extends Module
                                             'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
                                             'currency_code' => strtoupper($currency->iso_code),
                                             'money_format'  => $currency->sign,
+                                            'platform'      => 'thirty bees',
+                                            'address'       => [
+                                                'company'  => $shop->getAddress()->company,
+                                                'address1' => $shop->getAddress()->address1,
+                                                'address2' => (isset($shop->getAddress()->address2) ? $shop->getAddress()->address2 : ''),
+                                                'city'     => $shop->getAddress()->city,
+                                                'state'    => $shopState,
+                                                'country'  => $shopCountryIso,
+                                                'zip'      => $storeAddress->postcode,
+                                            ],
                                         ]),
                                     ]
                                 );
