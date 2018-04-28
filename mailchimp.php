@@ -3795,6 +3795,52 @@ class MailChimp extends Module
     }
 
     /**
+     * Signal that the store is starting the sync
+     *
+     * @param int $idShop
+     *
+     * @throws Adapter_Exception
+     * @throws PrestaShopException
+     */
+    public static function signalSyncStart($idShop)
+    {
+        $guzzle = static::getGuzzle();
+        if (!$guzzle) {
+            return;
+        }
+
+        try {
+            $guzzle->patch("stores/tbstore_{$idShop}", ['json' => [
+                'is_syncing' => true,
+            ]]);
+        } catch (TransferException $e) {
+        }
+    }
+
+    /**
+     * Signal that the store is stopping the sync
+     *
+     * @param int $idShop
+     *
+     * @throws Adapter_Exception
+     * @throws PrestaShopException
+     */
+    public static function signalSyncStop($idShop)
+    {
+        $guzzle = static::getGuzzle();
+        if (!$guzzle) {
+            return;
+        }
+
+        try {
+            $guzzle->patch("stores/tbstore_{$idShop}", ['json' => [
+                'is_syncing' => false,
+            ]]);
+        } catch (TransferException $e) {
+        }
+    }
+
+    /**
      * Check if the newsletter table exists and has the required columns
      *
      * @return bool
