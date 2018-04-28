@@ -3277,8 +3277,7 @@ class MailChimp extends Module
                         } catch (TransferException $e) {
                         } catch (Exception $e) {
                         }
-                    }
-                    elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
+                    } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
                     ) {
                         try {
