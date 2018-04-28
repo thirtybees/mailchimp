@@ -1258,7 +1258,7 @@ class MailChimp extends Module
                                 $client->post(
                                     'ecommerce/stores',
                                     [
-                                        'body' => json_encode([
+                                        'json' => [
                                             'id'            => 'tbstore_'.(int) $idShop,
                                             'list_id'       => $idList,
                                             'name'          => $shop->name,
@@ -1276,7 +1276,7 @@ class MailChimp extends Module
                                                 'country'  => $shopCountryIso,
                                                 'zip'      => $storeAddress->postcode,
                                             ],
-                                        ]),
+                                        ],
                                     ]
                                 );
                             } catch (ClientException $reason) {
@@ -1411,7 +1411,7 @@ class MailChimp extends Module
         $promise = $client->postAsync(
             "lists/{$idList}/webhooks",
             [
-                'body'   => json_encode([
+                'json'   => [
                     'url'     => $url,
                     'events'  => [
                         'subscribe'   => true,
@@ -1426,7 +1426,7 @@ class MailChimp extends Module
                         'admin' => true,
                         'api'   => false,
                     ],
-                ]),
+                ],
             ]
         );
         $promise->then(function ($response) use (&$success) {
@@ -1474,7 +1474,7 @@ class MailChimp extends Module
                 yield $client->putAsync(
                     "lists/{$mailChimpShop->list_id}/members/{$hash}",
                     [
-                        'body' => $subscriber->getAsJSON(),
+                        'json' => $subscriber->getAsArray(),
                     ]
                 );
             }
@@ -2489,7 +2489,7 @@ class MailChimp extends Module
                 yield $client->putAsync(
                     "lists/{$mailChimpShops[$subscriber['id_shop']]->list_id}/members/{$subscriberHash}",
                     [
-                        'body' => json_encode($subscriberBody),
+                        'json' => $subscriberBody,
                     ]
                 );
             }
@@ -2645,14 +2645,14 @@ class MailChimp extends Module
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
                         [
-                            'body' => json_encode($payload),
+                            'json' => $payload,
                         ]
                     );
                 } else {
                     yield $client->postAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products",
                         [
-                            'body' => json_encode($payload),
+                            'json' => $payload,
                         ]
                     );
                 }
@@ -2891,14 +2891,14 @@ class MailChimp extends Module
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
                         [
-                            'body' => json_encode($payload),
+                            'json' => $payload,
                         ]
                     );
                 } else {
                     yield $client->postAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products",
                         [
-                            'body' => json_encode($payload),
+                            'json' => $payload,
                         ]
                     );
                 }
@@ -3027,12 +3027,12 @@ class MailChimp extends Module
                 yield $client->putAsync(
                     "lists/{$mailChimpShops[$cart['id_shop']]->list_id}/members/{$subscriberHash}",
                     [
-                        'body' => json_encode([
+                        'json' => [
                             'email_address' => mb_strtolower($cart['email']),
                             'status_if_new' => MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED,
                             'merge_fields'  => $mergeFields,
                             'language'      => static::getMailChimpLanguageByIso($cart['language_code']),
-                        ]),
+                        ],
                     ]
                 );
                 $payload = [
@@ -3054,14 +3054,14 @@ class MailChimp extends Module
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$cart['id_shop']}/carts/{$cart['id_cart']}",
                         [
-                            'body' => json_encode($payload),
+                            'json' => $payload,
                         ]
                     );
                 } else {
                     yield $client->postAsync(
                         "ecommerce/stores/tbstore_{$cart['id_shop']}/carts",
                         [
-                            'body' => json_encode($payload),
+                            'json' => $payload,
                         ]
                     );
                 }
@@ -3198,12 +3198,12 @@ class MailChimp extends Module
                 yield $client->putAsync(
                     "lists/{$mailChimpShops[$order['id_shop']]->list_id}/members/{$subscriberHash}",
                     [
-                        'body'    => json_encode([
+                        'json'    => [
                             'email_address' => mb_strtolower($order['email']),
                             'status_if_new' => MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED,
                             'merge_fields'  => $mergeFields,
                             'language'      => static::getMailChimpLanguageByIso($order['language_code']),
-                        ]),
+                        ],
                     ]
                 );
 
@@ -3240,14 +3240,14 @@ class MailChimp extends Module
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$mailChimpShops[$order['id_shop']]->id_shop}/orders/{$order['id_order']}",
                         [
-                            'body' => json_encode($payload),
+                            'json' => $payload,
                         ]
                     );
                 } else {
                     yield $client->postAsync(
                         "ecommerce/stores/tbstore_{$mailChimpShops[$order['id_shop']]->id_shop}/orders",
                         [
-                            'body' => json_encode($payload),
+                            'json' => $payload,
                         ]
                     );
                     $client->deleteAsync("ecommerce/stores/tbstore_{$mailChimpShops[$order['id_shop']]->id_shop}/carts/{$order['id_cart']}");
@@ -3396,12 +3396,12 @@ class MailChimp extends Module
                 yield $client->postAsync(
                     "lists/{$idList}/merge-fields",
                     [
-                        'body'    => json_encode([
+                        'json'    => [
                             'tag'      => $tag,
                             'name'     => $field['name'],
                             'type'     => $field['type'],
                             'required' => $field['required'],
-                        ]),
+                        ],
                     ]
                 );
             }
