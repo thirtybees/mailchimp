@@ -2447,6 +2447,7 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
+        static::signalSyncStart($idShops);
         $subscribers = MailChimpSubscriber::getSubscribers($idShops, $offset, static::EXPORT_CHUNK_SIZE);
         if (empty($subscribers)) {
             return false;
@@ -2510,6 +2511,7 @@ class MailChimp extends Module
                 $success = false;
             }
         ]))->promise()->wait();
+        static::signalSyncStop($idShops);
 
         return $result;
     }
@@ -2547,6 +2549,7 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
+        static::signalSyncStart($idShops);
 
         $products = MailChimpProduct::getProducts($idShops, $offset, static::EXPORT_CHUNK_SIZE, $remaining);
         if (empty($products)) {
@@ -2714,6 +2717,7 @@ class MailChimp extends Module
                 }
             },
         ]))->promise()->wait();
+        static::signalSyncStop($idShops);
 
         MailChimpProduct::setSynced(array_column($products, 'id_product'), $idShops);
 
@@ -2757,6 +2761,7 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
+        static::signalSyncStart($idShops);
 
         $products = MailChimpProduct::getProductRange($range, $idShops, true, $orderDetail);
         if (empty($products)) {
@@ -2961,6 +2966,7 @@ class MailChimp extends Module
                 }
             },
         ]))->promise()->wait();
+        static::signalSyncStop($idShops);
 
         MailChimpProduct::setSynced(array_column($products, 'id_product'), $idShops);
 
@@ -2998,6 +3004,7 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
+        static::signalSyncStart($idShops);
 
         $carts = MailChimpCart::getCarts($idShops, $offset, static::EXPORT_CHUNK_SIZE, $remaining);
         if (empty($carts)) {
@@ -3135,6 +3142,7 @@ class MailChimp extends Module
                 }
             },
         ]))->promise()->wait();
+        static::signalSyncStop($idShops);
 
         MailChimpCart::setSynced(array_column($carts, 'id_cart'));
 
@@ -3169,6 +3177,8 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
+        static::signalSyncStart($idShops);
+
         // We use the Order objects
         $orders = MailChimpOrder::getOrders($idShops, $offset, static::EXPORT_CHUNK_SIZE, $exportRemaining);
         if (empty($orders)) {
@@ -3306,6 +3316,7 @@ class MailChimp extends Module
                 }
             },
         ]))->promise()->wait();
+        self::signalSyncStop($idShops);
 
         MailChimpOrder::setSynced(array_column($orders, 'id_order'));
 
@@ -3796,47 +3807,69 @@ class MailChimp extends Module
     /**
      * Signal that the store is starting the sync
      *
-     * @param int $idShop
+     * @param int|int[] $idShops
      *
      * @throws Adapter_Exception
      * @throws PrestaShopException
      */
-    public static function signalSyncStart($idShop)
+    public static function signalSyncStart($idShops)
     {
+        if (!$idShops) {
+            return;
+        }
         $guzzle = static::getGuzzle();
         if (!$guzzle) {
             return;
         }
-
-        try {
-            $guzzle->patch("stores/tbstore_{$idShop}", ['json' => [
-                'is_syncing' => true,
-            ]]);
-        } catch (TransferException $e) {
+        if (is_int($idShops)) {
+            $idShops = [$idShops];
         }
+
+        $promises = call_user_func(function () use ($idShops, $guzzle) {
+            foreach ($idShops as $idShop) {
+                $guzzle->patchAsync("stores/tbstore_{$idShop}", ['json' => [
+                    'is_syncing' => true,
+                ]]);
+            }
+        });
+
+        (new EachPromise($promises, [
+            'concurrency' => static::API_CONCURRENCY,
+        ]))->promise()->wait();
     }
 
     /**
      * Signal that the store is stopping the sync
      *
-     * @param int $idShop
+     * @param int|int[] $idShops
      *
      * @throws Adapter_Exception
      * @throws PrestaShopException
      */
-    public static function signalSyncStop($idShop)
+    public static function signalSyncStop($idShops)
     {
+        if ($idShops) {
+            return;
+        }
         $guzzle = static::getGuzzle();
         if (!$guzzle) {
             return;
         }
-
-        try {
-            $guzzle->patch("stores/tbstore_{$idShop}", ['json' => [
-                'is_syncing' => false,
-            ]]);
-        } catch (TransferException $e) {
+        if (is_int($idShops)) {
+            $idShops = [$idShops];
         }
+
+        $promises = call_user_func(function () use ($idShops, $guzzle) {
+            foreach ($idShops as $idShop) {
+                $guzzle->patchAsync("stores/tbstore_{$idShop}", ['json' => [
+                    'is_syncing' => false,
+                ]]);
+            }
+        });
+
+        (new EachPromise($promises, [
+            'concurrency' => static::API_CONCURRENCY,
+        ]))->promise()->wait();
     }
 
     /**

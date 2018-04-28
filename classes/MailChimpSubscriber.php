@@ -129,17 +129,6 @@ class MailChimpSubscriber
     }
 
     /**
-     * Get subscriber as json
-     *
-     * @return string
-     * @throws PrestaShopException
-     */
-    public function getAsJSON()
-    {
-        return json_encode($this->getAsArray());
-    }
-
-    /**
      * @param string|null $subscription
      *
      * @return string
