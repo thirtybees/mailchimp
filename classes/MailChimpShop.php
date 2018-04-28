@@ -52,10 +52,11 @@ class MailChimpShop extends ObjectModel
         'table'   => 'mailchimp_shop',
         'primary' => 'id_mailchimp_shop',
         'fields'  => [
-            'id_shop' => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                   'db_type' => 'INT(11) UNSIGNED'   ],
-            'list_id' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true,                   'db_type' => 'VARCHAR(32)'        ],
-            'id_tax'  => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                   'db_type' => 'INT(11) UNSIGNED'   ],
-            'synced'  => ['type' => self::TYPE_BOOL,   'validate' => 'isBool',   'required' => true, 'default' => '0', 'db_type' => 'TINYINT(1) UNSIGNED'],
+            'id_shop'   => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                   'db_type' => 'INT(11) UNSIGNED'   ],
+            'list_id'   => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true,                   'db_type' => 'VARCHAR(32)'        ],
+            'id_tax'    => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                   'db_type' => 'INT(11) UNSIGNED'   ],
+            'synced'    => ['type' => self::TYPE_BOOL,   'validate' => 'isBool',   'required' => true, 'default' => '0', 'db_type' => 'TINYINT(1) UNSIGNED'],
+            'mc_script' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => false,                  'db_type' => 'VARCHAR(255)'],
         ],
     ];
     // @codingStandardsIgnoreStart
@@ -67,6 +68,8 @@ class MailChimpShop extends ObjectModel
     public $id_tax;
     /** @var bool $synced */
     public $synced;
+    /** @var string $mc_script */
+    public $mc_script;
     // @codingStandardsIgnoreEnd
 
     /**

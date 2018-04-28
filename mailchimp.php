@@ -218,7 +218,7 @@ class MailChimp extends Module
         $this->registerHook('actionValidateOrder'); // validate order
         $this->registerHook('actionAdminCartRulesListingFieldsModifier');
         
-        Configuration::updateValue(static::DISABLE_POPUP, true, false, 0, 0);
+        Configuration::updateValue(static::DISABLE_POPUP, true);
 
         return true;
     }
@@ -342,9 +342,7 @@ class MailChimp extends Module
             }
 
             $this->context->smarty->assign([
-                'mc_dc'   => static::getDc(),
-                'mc_uuid' => static::$uuid,
-                'mc_lid'  => $shop->list_id,
+                'mc_script' => static::getMailChimpScript(),
             ]);
 
             return $this->display(__FILE__, 'popup.tpl');
@@ -1210,11 +1208,11 @@ class MailChimp extends Module
             $confirmationEmail = (bool) Tools::getvalue(static::CONFIRMATION_EMAIL);
             $importOptedIn = (bool) Tools::getvalue(static::EXPORT_OPT_IN);
 
-            if (Configuration::updateValue(static::CONFIRMATION_EMAIL, $confirmationEmail, false, 0 ,0)
-                && Configuration::updateValue(static::EXPORT_OPT_IN, $importOptedIn, false, 0, 0)
-                && Configuration::updateValue(static::GDPR, (bool) Tools::getvalue(static::GDPR, false), false, 0 ,0)
-                && Configuration::updateValue(static::EXPORT_COUNTRY, (bool) Tools::getvalue(static::EXPORT_COUNTRY), false, 0, 0)
-                && Configuration::updateValue(static::DISABLE_POPUP, (bool) Tools::getvalue(static::DISABLE_POPUP), false, 0, 0)
+            if (Configuration::updateValue(static::CONFIRMATION_EMAIL, $confirmationEmail)
+                && Configuration::updateValue(static::EXPORT_OPT_IN, $importOptedIn)
+                && Configuration::updateValue(static::GDPR, (bool) Tools::getvalue(static::GDPR, false))
+                && Configuration::updateValue(static::EXPORT_COUNTRY, (bool) Tools::getvalue(static::EXPORT_COUNTRY))
+                && Configuration::updateValue(static::DISABLE_POPUP, (bool) Tools::getvalue(static::DISABLE_POPUP))
             ) {
                 $this->addConfirmation($this->l('Settings updated.'));
             } else {
@@ -1225,7 +1223,7 @@ class MailChimp extends Module
             $shopTaxes = Tools::getValue('shop_tax');
             $client = static::getGuzzle();
             if (!$client) {
-                return false;
+                return;
             }
             if (is_array($shopLists)) {
                 foreach ($shopLists as $idShop => $idList) {
@@ -1258,6 +1256,7 @@ class MailChimp extends Module
                                             'domain'        => $shop->domain_ssl,
                                             'email_address' => Configuration::get('PS_SHOP_EMAIL', null, $shop->id_shop_group, $shop->id),
                                             'currency_code' => strtoupper($currency->iso_code),
+                                            'money_format'  => $currency->sign,
                                         ]),
                                     ]
                                 );
@@ -1298,16 +1297,16 @@ class MailChimp extends Module
                 }
             }
         } elseif (Tools::isSubmit('submitOrders')) {
-            Configuration::updateValue(static::VALID_ORDER_STATUSES, serialize($this->getStatusesValue(static::VALID_ORDER_STATUSES)), false,0,0);
-            Configuration::updateValue(static::ORDER_STATUS_PAID, serialize($this->getStatusesValue(static::ORDER_STATUS_PAID)), false,0,0);
-            Configuration::updateValue(static::ORDER_STATUS_CANCELED, serialize($this->getStatusesValue(static::ORDER_STATUS_CANCELED)), false,0,0);
-            Configuration::updateValue(static::ORDER_STATUS_REFUNDED, serialize($this->getStatusesValue(static::ORDER_STATUS_REFUNDED)), false,0,0);
-            Configuration::updateValue(static::ORDER_STATUS_SHIPPED, serialize($this->getStatusesValue(static::ORDER_STATUS_SHIPPED)), false,0,0);
+            Configuration::updateValue(static::VALID_ORDER_STATUSES, serialize($this->getStatusesValue(static::VALID_ORDER_STATUSES)));
+            Configuration::updateValue(static::ORDER_STATUS_PAID, serialize($this->getStatusesValue(static::ORDER_STATUS_PAID)));
+            Configuration::updateValue(static::ORDER_STATUS_CANCELED, serialize($this->getStatusesValue(static::ORDER_STATUS_CANCELED)));
+            Configuration::updateValue(static::ORDER_STATUS_REFUNDED, serialize($this->getStatusesValue(static::ORDER_STATUS_REFUNDED)));
+            Configuration::updateValue(static::ORDER_STATUS_SHIPPED, serialize($this->getStatusesValue(static::ORDER_STATUS_SHIPPED)));
             $date = Tools::getValue(static::DATE_CUTOFF);
             if (!$date) {
                 $date = '2018-01-01';
             }
-            Configuration::updateValue(static::DATE_CUTOFF, date('Y-m-d', strtotime($date)), false, 0, 0);
+            Configuration::updateValue(static::DATE_CUTOFF, date('Y-m-d', strtotime($date)));
         }
     }
 
@@ -1528,7 +1527,7 @@ class MailChimp extends Module
         $fieldsForm1 = [
             'form' => [
                 'legend' => [
-                    'title' => $this->l('API Settings'),
+                    'title' => $this->l('API Settings').$this->getConfigurationContext(),
                     'icon'  => 'icon-cogs',
                 ],
                 'input'  => $inputs1,
@@ -1627,7 +1626,7 @@ class MailChimp extends Module
             $fields[] = [
                 'form' => [
                     'legend' => [
-                        'title' => $this->l('Export Settings'),
+                        'title' => $this->l('Export Settings').$this->getConfigurationContext(Shop::getContextShopID()),
                         'icon'  => 'icon-cogs',
                     ],
                     'input'  => $inputs2,
@@ -1642,15 +1641,15 @@ class MailChimp extends Module
             $fields[] = [
                 'form' => [
                     'legend' => [
-                        'title' => $this->l('Miscellaneous'),
+                        'title' => $this->l('Miscellaneous').$this->getConfigurationContext(Shop::getContextShopID()),
                         'icon'  => 'icon-cogs',
                     ],
                     'input'  => [
                         [
                             'type'   => 'switch',
-                            'label'  => $this->l('Disable MailChimp popup'),
+                            'label'  => $this->l('Disable MailChimp script'),
                             'name'   => static::DISABLE_POPUP,
-                            'desc'   => $this->l('For privacy purposes you can prevent the popup script from loading'),
+                            'desc'   => $this->l('For privacy purposes you can prevent the popup and other MailChimp tracking scripts from loading on front office pages'),
                             'id'     => 'importOptedIn',
                             'values' => [
                                 [
@@ -1815,7 +1814,7 @@ class MailChimp extends Module
         $fieldsForm2 = [
             'form' => [
                 'legend'      => [
-                    'title' => $this->l('Cron Settings'),
+                    'title' => $this->l('Cron Settings').$this->getConfigurationContext(),
                     'icon'  => 'icon-cogs',
                 ],
                 'description' => $this->display(__FILE__, 'views/templates/admin/cron_settings.tpl'),
@@ -1847,12 +1846,12 @@ class MailChimp extends Module
     {
         $configFields = [
             static::API_KEY            => static::getApiKey(),
-            static::CONFIRMATION_EMAIL => Configuration::get(static::CONFIRMATION_EMAIL, null, 0, 0),
-            static::EXPORT_OPT_IN      => Configuration::get(static::EXPORT_OPT_IN, null, 0, 0),
+            static::CONFIRMATION_EMAIL => Configuration::get(static::CONFIRMATION_EMAIL),
+            static::EXPORT_OPT_IN      => Configuration::get(static::EXPORT_OPT_IN),
             static::DATE_CUTOFF        => date('Y-m-d', strtotime(static::getOrderDateCutoff())),
-            static::GDPR               => (bool) Configuration::get(static::GDPR, false, 0, 0),
-            static::EXPORT_COUNTRY     => (bool) Configuration::get(static::EXPORT_COUNTRY, false, 0, 0),
-            static::DISABLE_POPUP      => (bool) Configuration::get(static::DISABLE_POPUP, false, 0, 0),
+            static::GDPR               => (bool) Configuration::get(static::GDPR),
+            static::EXPORT_COUNTRY     => (bool) Configuration::get(static::EXPORT_COUNTRY),
+            static::DISABLE_POPUP      => (bool) Configuration::get(static::DISABLE_POPUP),
         ];
 
         $paidStatuses = [];
@@ -1946,7 +1945,7 @@ class MailChimp extends Module
         return [
             'form' => [
                 'legend' => [
-                    'title' => $this->l('Shop settings'),
+                    'title' => $this->l('Shop settings').$this->getConfigurationContext(),
                     'icon'  => 'icon-building',
                 ],
                 'input'  => [
@@ -2014,7 +2013,7 @@ class MailChimp extends Module
         return [
             'form' => [
                 'legend' => [
-                    'title' => $this->l('Product export'),
+                    'title' => $this->l('Product export').$this->getConfigurationContext(),
                     'icon'  => 'icon-archive',
                 ],
                 'input'  => [
@@ -2075,7 +2074,7 @@ class MailChimp extends Module
         return [
             'form' => [
                 'legend' => [
-                    'title' => $this->l('Cart export'),
+                    'title' => $this->l('Cart export').$this->getConfigurationContext(),
                     'icon'  => 'icon-shopping-cart',
                 ],
                 'input'  => [
@@ -2151,7 +2150,7 @@ class MailChimp extends Module
             [
                 'form' => [
                     'legend' => [
-                        'title' => $this->l('Order export'),
+                        'title' => $this->l('Order export').$this->getConfigurationContext(),
                         'icon'  => 'icon-money',
                     ],
                     'input'  => [
@@ -2170,7 +2169,7 @@ class MailChimp extends Module
             [
                 'form' => [
                     'legend' => [
-                        'title' => $this->l('Order settings'),
+                        'title' => $this->l('Order settings').$this->getConfigurationContext(Shop::getContextShopID()),
                         'icon'  => 'icon-cogs',
                     ],
                     'input'  => [
@@ -2454,10 +2453,10 @@ class MailChimp extends Module
                     'merge_fields'  => $mergeFields,
                     'language'      => static::getMailChimpLanguageByIso($subscriber['language_code']),
                 ];
-                if (!Configuration::get(static::GDPR, false, 0, 0)) {
+                if (!Configuration::get(static::GDPR)) {
                     $subscriberBody['ip_signup'] = (string) ($subscriber['ip_address'] ?: '');
                 }
-                if (Configuration::get(static::EXPORT_COUNTRY, false, 0, 0) && $subscriber['ip_address']) {
+                if (Configuration::get(static::EXPORT_COUNTRY) && $subscriber['ip_address']) {
                     $coords = static::getUserLatLongByIp($subscriber['id_address']);
                     if ($coords) {
                         $subscriberBody['location'] = [
@@ -3493,7 +3492,7 @@ class MailChimp extends Module
      */
     public static function getOrderDateCutoff()
     {
-        $cutoff = Configuration::get(static::DATE_CUTOFF, null, 0, 0);
+        $cutoff = Configuration::get(static::DATE_CUTOFF);
         if ($cutoff === false || !strtotime($cutoff)) {
             $cutoff = '2018-01-01 00:00:00';
         }
@@ -3511,7 +3510,7 @@ class MailChimp extends Module
      */
     public static function getValidOrderStatuses()
     {
-        $statuses = Configuration::get(static::VALID_ORDER_STATUSES, null, 0, 0);
+        $statuses = Configuration::get(static::VALID_ORDER_STATUSES);
         if ($statuses === false) {
             return array_column(OrderState::getOrderStates(Context::getContext()->language->id), 'id_order_state');
         } else {
@@ -3531,7 +3530,7 @@ class MailChimp extends Module
      */
     public static function getOrderPaidStatuses()
     {
-        $statuses = Configuration::get(static::ORDER_STATUS_PAID, null, 0, 0);
+        $statuses = Configuration::get(static::ORDER_STATUS_PAID);
         if ($statuses === false) {
             return array_column(Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
                 (new DbQuery())
@@ -3556,7 +3555,7 @@ class MailChimp extends Module
      */
     public static function getOrderCanceledStatuses()
     {
-        $statuses = Configuration::get(static::ORDER_STATUS_CANCELED, null, 0, 0);
+        $statuses = Configuration::get(static::ORDER_STATUS_CANCELED);
         if ($statuses === false) {
             return [(int) Configuration::get('PS_OS_CANCELED')];
         } else {
@@ -3576,7 +3575,7 @@ class MailChimp extends Module
      */
     public static function getOrderRefundedStatuses()
     {
-        $statuses = Configuration::get(static::ORDER_STATUS_REFUNDED, null, 0, 0);
+        $statuses = Configuration::get(static::ORDER_STATUS_REFUNDED);
         if ($statuses === false) {
             return [(int) Configuration::get('PS_OS_REFUND')];
         } else {
@@ -3596,7 +3595,7 @@ class MailChimp extends Module
      */
     public static function getOrderShippedStatuses()
     {
-        $statuses = Configuration::get(static::ORDER_STATUS_SHIPPED, null, 0, 0);
+        $statuses = Configuration::get(static::ORDER_STATUS_SHIPPED);
         if ($statuses === false) {
             return array_column(Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
                 (new DbQuery())
@@ -3679,7 +3678,7 @@ class MailChimp extends Module
      */
     protected static function getIpRequests()
     {
-        $requests = json_decode(Configuration::get(static::IP_SERVICE_REQUESTS, null, 0, 0));
+        $requests = json_decode(Configuration::get(static::IP_SERVICE_REQUESTS));
         if (!is_array($requests)) {
             $requests = [];
         }
@@ -3698,7 +3697,80 @@ class MailChimp extends Module
      */
     protected static function saveIpRequests($requests)
     {
-        return Configuration::updateValue(static::IP_SERVICE_REQUESTS, json_encode($requests), false, 0, 0);
+        return Configuration::updateValue(static::IP_SERVICE_REQUESTS, json_encode($requests));
+    }
+
+    /**
+     * @return string
+     *
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     * @throws SmartyException
+     */
+    protected static function getMailChimpScript()
+    {
+        if (Configuration::get(static::DISABLE_POPUP)) {
+            return '';
+        }
+        $idShop = (int) Context::getContext()->shop->id;
+        $mcShop = MailChimpShop::getByShopId($idShop);
+        if (!Validate::isLoadedObject($mcShop) || !$mcShop->list_id) {
+            return '';
+        }
+
+        $mcScript = $mcShop->mc_script;
+        if (!$mcScript) {
+            $guzzle = static::getGuzzle();
+            if (!$guzzle) {
+                return '';
+            }
+            try {
+                $response = json_decode((string) $guzzle->get("connected-sites/tbstore_{$idShop}")->getBody(), true);
+            } catch (TransferException $e ) {
+                return '';
+            }
+            if (!isset($response['site_script']['url'])) {
+                return '';
+            }
+            $mcShop->mc_script = $response['site_script']['url'];
+            $mcShop->save();
+            try {
+                $guzzle->post("connected-sites/tbstore_{$idShop}/actions/verify-script-installation");
+            } catch (TransferException $e) {
+            }
+
+            $mcScript = $mcShop->mc_script;
+        }
+
+        return $mcScript;
+    }
+
+    /**
+     * @param null|int $idShop
+     *
+     * @return string
+     */
+    protected function getConfigurationContext($idShop = null)
+    {
+        try {
+            if (!Shop::isFeatureActive()) {
+                return '';
+            }
+
+            if ($idShop) {
+                $shop = new Shop($idShop);
+                if (Validate::isLoadedObject($shop)) {
+                    $idShop = $shop->name;
+                }
+            }
+
+            $this->context->smarty->assign('context_shop', $idShop);
+
+            return $this->display(__FILE__, 'views/templates/admin/context-badge.tpl');
+        } catch (Exception $e) {
+             return '';
+        }
     }
 
     /**

@@ -1,8 +1,20 @@
-<script type="text/javascript" src="//s3.amazonaws.com/downloads.mailchimp.com/js/signup-forms/popup/embed.js" data-dojo-config="usePlainJson: true, isDebug: false"></script>
-<script type="text/javascript">require(["mojo/signup-forms/Loader"], function (L) {
-    L.start({
-      "baseUrl":"mc.{$mc_dc|escape:'javascript'}.list-manage.com",
-      "uuid":"{$mc_uuid|escape:'javascript'}",
-      "lid":"{$mc_lid|escape:'javascript'}"
-    });
-  })</script>
+{*
+ * 2018 thirty bees
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License (AFL 3.0)
+ * that is bundled with this package in the file LICENSE.txt.
+ * It is also available through the world-wide-web at this URL:
+ * http://opensource.org/licenses/afl-3.0.php
+ * If you did not receive a copy of the license and are unable to
+ * obtain it through the world-wide-web, please send an email
+ * to license@thirtybees.com so we can send you a copy immediately.
+ *
+ *  @author    thirty bees <modules@thirtybees.com>
+ *  @copyright 2017-2018 thirty bees
+ *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+*}
+{if !empty($mc_script)}
+  <script id="mcjs">!function(c,h,i,m,p){ m=c.createElement(h),p=c.getElementsByTagName(h)[0],m.async=1,m.src=i,p.parentNode.insertBefore(m,p) }(document,"script","{$mc_script|escape:'javascript'}");</script>
+{/if}

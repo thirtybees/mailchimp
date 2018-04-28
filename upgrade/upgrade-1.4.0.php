@@ -32,6 +32,16 @@ function upgrade_module_1_4_0()
     ) {
         Db::getInstance()->execute('ALTER TABLE `'._DB_PREFIX_.'mailchimp_tracking` ADD `landing_site` VARCHAR(255) NULL');
     }
+    if (!Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
+                SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = \''._DB_NAME_.'\'
+                AND TABLE_NAME = \''._DB_PREFIX_.'mailchimp_shop\'
+                AND COLUMN_NAME = \'mc_script\'')
+    ) {
+        Db::getInstance()->execute('ALTER TABLE `'._DB_PREFIX_.'mailchimp_shop` ADD `mc_script` VARCHAR(255) NULL');
+    }
+
 
     return true;
 }
