@@ -96,7 +96,7 @@ class MailChimpOrder extends ObjectModel
         if ($count) {
             $sql->select('COUNT(*)');
         } else {
-            $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`');
+            $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`, mc.`landing_site`');
             $sql->select('cu.`id_customer`, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`birthday`, cu.`newsletter`');
             $sql->select('l.`language_code`, o.`id_shop`');
         }

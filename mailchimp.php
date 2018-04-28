@@ -326,10 +326,13 @@ class MailChimp extends Module
         // Set MailChimp tracking code
         if (Tools::isSubmit('mc_tc') || Tools::isSubmit('mc_cid')) {
             $cookie = new Cookie('tb_mailchimp');
-            $cookie->mc_tc = Tools::getValue('mc_tc');
-            $cookie->mc_cid = Tools::getValue('mc_cid');
-            $cookie->setExpire(static::COOKIE_LIFETIME);
-            $cookie->write();
+            if ($cookie->mc_tc != Tools::getValue('mc_tc') || $cookie->mc_cid != Tools::getValue('mc_cid')) {
+                $cookie->mc_tc = Tools::getValue('mc_tc');
+                $cookie->mc_cid = Tools::getValue('mc_cid');
+                $cookie->landing_site = Tools::getShopProtocol()."{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
+                $cookie->setExpire(static::COOKIE_LIFETIME);
+                $cookie->write();
+            }
         }
 
         if (static::getApiKey() && static::$uuid && !Configuration::get(static::DISABLE_POPUP)) {
@@ -403,11 +406,13 @@ class MailChimp extends Module
                 $mailChimpTracking->mc_tc = $cookie->mc_tc;
                 $mailChimpTracking->mc_cid = $cookie->mc_cid;
                 $mailChimpTracking->id_order = $order->id;
+                $mailChimpTracking->landing_site = $cookie->landing_site;
 
                 $mailChimpTracking->save();
 
                 unset($cookie->mc_tc);
                 unset($cookie->mc_cid);
+                unset($cookie->landing_site);
                 $cookie->write();
             }
         } catch (Exception $e) {
@@ -3206,6 +3211,9 @@ class MailChimp extends Module
                 }
                 if ($order['mc_cid']) {
                     $payload['campaign_id'] = $order['mc_cid'];
+                }
+                if ($order['landing_site']) {
+                    $payload['landing_site'] = $order['landing_site'];
                 }
 
                 if (!empty($order['last_synced']) && $order['last_synced'] > '2000-01-01 00:00:00') {

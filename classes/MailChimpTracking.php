@@ -43,9 +43,10 @@ class MailChimpTracking extends ObjectModel
         'table'   => 'mailchimp_tracking',
         'primary' => 'id_mailchimp_tracking',
         'fields'  => [
-            'id_order' => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                  'db_type' => 'INT(11) UNSIGNED'],
-            'mc_tc'    => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(255)'    ],
-            'mc_cid'   => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true, 'default' => '', 'db_type' => 'VARCHAR(255)'    ],
+            'id_order'     => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                   'db_type' => 'INT(11) UNSIGNED'],
+            'mc_tc'        => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true,  'default' => '', 'db_type' => 'VARCHAR(255)'    ],
+            'mc_cid'       => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true,  'default' => '', 'db_type' => 'VARCHAR(255)'    ],
+            'landing_site' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => false, 'default' => '', 'db_type' => 'VARCHAR(255)'    ],
         ],
     ];
     // @codingStandardsIgnoreStart
@@ -55,5 +56,7 @@ class MailChimpTracking extends ObjectModel
     public $mc_tc;
     /** @var string $mc_cid */
     public $mc_cid;
+    /** @var string $landing_site */
+    public $landing_site;
     // @codingStandardsIgnoreEnd
 }

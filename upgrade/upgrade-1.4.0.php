@@ -21,26 +21,17 @@ if (!defined('_TB_VERSION_')) {
     exit;
 }
 
-function upgrade_module_1_2_0($module)
+function upgrade_module_1_4_0()
 {
-    $sql = [];
-    $sql[] = 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'mailchimp_promo` (
-  `id_mailchimp_promo` INT(11) NOT NULL AUTO_INCREMENT,
-  `id_cart_rule`       INT(11) UNSIGNED NOT NULL,
-  `enabled`            TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  `locked`             TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id_mailchimp_promo`),
-  KEY `mc_promo_cart_rule` (`id_cart_rule`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-';
-
-    foreach ($sql as $query) {
-        if (!Db::getInstance()->execute($query)) {
-            return false;
-        }
+    if (!Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
+                SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = \''._DB_NAME_.'\'
+                AND TABLE_NAME = \''._DB_PREFIX_.'mailchimp_tracking\'
+                AND COLUMN_NAME = \'landing_site\'')
+    ) {
+        Db::getInstance()->execute('ALTER TABLE `'._DB_PREFIX_.'mailchimp_tracking` ADD `landing_site` VARCHAR(255) NULL');
     }
-
-    $module->registerHook('ActionAdminCartRulesListingFieldsModifier');
 
     return true;
 }
