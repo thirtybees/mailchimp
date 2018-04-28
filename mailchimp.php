@@ -612,7 +612,9 @@ class MailChimp extends Module
                 $guzzle = new Client([
                     'timeout'         => static::API_TIMEOUT,
                     'connect_timeout' => static::API_TIMEOUT,
-                    'verify'          => _PS_TOOL_DIR_.'cacert.pem',
+                    'verify'          => (file_exists(_PS_TOOL_DIR_.'cacert.pem') && filemtime(_PS_TOOL_DIR_.'cacert.pem') > strtotime('-2 years'))
+                        ?  _PS_TOOL_DIR_.'cacert.pem'
+                        : true,
                     'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
                     'headers'         => [
                         'Accept'        => 'application/json',
@@ -654,7 +656,9 @@ class MailChimp extends Module
                     $response = json_decode((string) (new Client([
                         'timeout'         => static::API_TIMEOUT,
                         'connect_timeout' => static::API_TIMEOUT,
-                        'verify'          => _PS_TOOL_DIR_.'cacert.pem',
+                        'verify'          => (file_exists(_PS_TOOL_DIR_.'cacert.pem') && filemtime(_PS_TOOL_DIR_.'cacert.pem') > strtotime('-2 years'))
+                            ?  _PS_TOOL_DIR_.'cacert.pem'
+                            : true,
                         'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
                         'headers'         => [
                             'Accept'        => 'application/json',
@@ -717,7 +721,9 @@ class MailChimp extends Module
                 $response = json_decode((string) (new Client([
                     'timeout'         => static::API_TIMEOUT,
                     'connect_timeout' => static::API_TIMEOUT,
-                    'verify'          => _PS_TOOL_DIR_.'cacert.pem',
+                    'verify'          => (file_exists(_PS_TOOL_DIR_.'cacert.pem') && filemtime(_PS_TOOL_DIR_.'cacert.pem') > strtotime('-2 years'))
+                        ?  _PS_TOOL_DIR_.'cacert.pem'
+                        : true,
                     'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
                     'headers'         => [
                         'Accept'        => 'application/json',
@@ -2368,7 +2374,9 @@ class MailChimp extends Module
             // Check if API key is valid
             try {
                 $getLists = json_decode((string) (new Client([
-                    'verify'   => _PS_TOOL_DIR_.'cacert.pem',
+                    'verify'   => (file_exists(_PS_TOOL_DIR_.'cacert.pem') && filemtime(_PS_TOOL_DIR_.'cacert.pem') > strtotime('-2 years'))
+                        ?  _PS_TOOL_DIR_.'cacert.pem'
+                        : true,
                     'timeout'  => static::API_TIMEOUT,
                     'base_uri' => "https://$dc.api.mailchimp.com/3.0/",
                 ]))->get('lists', [
