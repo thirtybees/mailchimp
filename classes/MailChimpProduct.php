@@ -108,6 +108,7 @@ class MailChimpProduct extends ObjectModel
         if ($limit) {
             $sql->limit($limit, $offset);
         }
+        $sql->where('ps.`id_product` = 61');
 
         try {
             if ($count) {

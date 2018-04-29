@@ -2579,14 +2579,14 @@ class MailChimp extends Module
                 $productObj = new Product();
                 $productObj->hydrate($product);
                 $allImages = array_values($productObj->getImages($idLang));
-                $allCombinationImages = $productObj->getCombinationImages($idLang);
                 $rate = $taxes[$product['id_shop']];
                 $idShop = $product['id_shop'];
 
                 $variants = [];
                 if ($productObj->hasAttributes()) {
+                    $allCombinationImages = $productObj->getCombinationImages($idLang);
                     $dbCombinations = array_filter($productObj->getAttributeCombinations($idLang), function ($item) {
-                        return $item['id_product_attribute']; // All combinations must have an `id_product_attribute` > 0
+                        return (bool) $item['id_product_attribute']; // All combinations must have an `id_product_attribute` > 0
                     });
                     if (empty($dbCombinations)) {
                         continue;
@@ -2594,6 +2594,11 @@ class MailChimp extends Module
                     $allCombinations = [];
                     foreach ($dbCombinations as $dbCombination) {
                         $allCombinations[$dbCombination['id_product_attribute']] = $dbCombination;
+                    }
+                    foreach (array_keys($allCombinations) as $idProductAttribute) {
+                        if (!array_key_exists($idProductAttribute, $allCombinationImages)) {
+                            $allCombinationImages[$idProductAttribute] = $allImages;
+                        }
                     }
                     foreach ($allCombinations as $combination) {
                         if (!isset($combination['quantity'])
@@ -2650,6 +2655,9 @@ class MailChimp extends Module
                         'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
                         'variants'    => $variants,
                     ];
+                    if (!empty($images)) {
+                        $payload['images'] = array_values($images);
+                    }
                 } catch (PrestaShopException $e) {
                     $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
 
@@ -2810,6 +2818,7 @@ class MailChimp extends Module
 
                     $variants = [];
                     if ($productObj->hasAttributes()) {
+                        $allCombinationImages = $productObj->getCombinationImages($idLang);
                         $dbCombinations = array_filter($productObj->getAttributeCombinations($idLang), function ($item) {
                             return $item['id_product_attribute']; // All combinations must have an `id_product_attribute` > 0
                         });
@@ -2820,7 +2829,11 @@ class MailChimp extends Module
                         foreach ($dbCombinations as $dbCombination) {
                             $allCombinations[$dbCombination['id_product_attribute']] = $dbCombination;
                         }
-                        $allCombinationImages = $productObj->getCombinationImages($idLang);
+                        foreach (array_keys($allCombinations) as $idProductAttribute) {
+                            if (!array_key_exists($idProductAttribute, $allCombinationImages)) {
+                                $allCombinationImages[$idProductAttribute] = $allImages;
+                            }
+                        }
 
                         foreach ($allCombinations as $combination) {
                             if (!isset($combination['quantity']) || !isset($combination['reference'])) {
@@ -2874,6 +2887,9 @@ class MailChimp extends Module
                             'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
                             'variants'    => $variants,
                         ];
+                        if (!empty($images)) {
+                            $payload['images'] = array_values($images);
+                        }
                     } catch (PrestaShopException $e) {
                         $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
 
