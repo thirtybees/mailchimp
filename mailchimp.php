@@ -2595,7 +2595,7 @@ class MailChimp extends Module
                     foreach ($dbCombinations as $dbCombination) {
                         $allCombinations[$dbCombination['id_product_attribute']] = $dbCombination;
                     }
-                    foreach (array_keys($allCombinations) as $idProductAttribute) {
+                    foreach (array_merge(array_keys($allCombinations), [0]) as $idProductAttribute) {
                         if (!array_key_exists($idProductAttribute, $allCombinationImages)) {
                             $allCombinationImages[$idProductAttribute] = $allImages;
                         }
@@ -2644,6 +2644,16 @@ class MailChimp extends Module
                     'inventory_quantity' => (int) (!$stockmgmt ? 999 : (StockAvailable::getQuantityAvailableByProduct($product['id_product'], null, $idShop) ?: ($allowOosp ? 999 : 0))),
                     'image_url'          => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
                 ];
+                foreach ($allImages as $image) {
+                    if (!isset($images[$image['id_image']])) {
+                        $images[$image['id_image']] = [
+                            'id'          => $image['id_image'],
+                            'url'         => $link->getImageLink('default', $image['id_image']),
+                            'variant_ids' => [],
+                        ];
+                    }
+                    $images[$image['id_image']]['variant_ids'][] = "{$product['id_product']}-0";
+                }
 
                 try {
                     $payload = [
@@ -2876,6 +2886,16 @@ class MailChimp extends Module
                         'inventory_quantity' => (int) (!$stockmgmt ? 999 : (StockAvailable::getQuantityAvailableByProduct($product['id_product'], null, $idShop) ?: ($allowOosp ? 999 : 0))),
                         'image_url'          => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
                     ];
+                    foreach ($allImages as $image) {
+                        if (!isset($images[$image['id_image']])) {
+                            $images[$image['id_image']] = [
+                                'id'          => $image['id_image'],
+                                'url'         => $link->getImageLink('default', $image['id_image']),
+                                'variant_ids' => [],
+                            ];
+                        }
+                        $images[$image['id_image']]['variant_ids'][] = "{$product['id_product']}-0";
+                    }
 
                     try {
                         $payload = [
