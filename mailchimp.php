@@ -2632,27 +2632,27 @@ class MailChimp extends Module
                         }
                         $variants[] = $variant;
                     }
-                }
-
-                $variants[] = [
-                    'id'                 => "{$product['id_product']}-0",
-                    'title'              => (string) $product['name'],
-                    'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
-                    // Apply the tax rate here so the proper price shows up in emails
-                    'price'              => (float) ($product['price'] * $rate),
-                    // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
-                    'inventory_quantity' => (int) (!$stockmgmt ? 999 : (StockAvailable::getQuantityAvailableByProduct($product['id_product'], null, $idShop) ?: ($allowOosp ? 999 : 0))),
-                    'image_url'          => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
-                ];
-                foreach ($allImages as $image) {
-                    if (!isset($images[$image['id_image']])) {
-                        $images[$image['id_image']] = [
-                            'id'          => $image['id_image'],
-                            'url'         => $link->getImageLink('default', $image['id_image']),
-                            'variant_ids' => [],
-                        ];
+                } else {
+                    $variants[] = [
+                        'id'                 => "{$product['id_product']}-0",
+                        'title'              => (string) $product['name'],
+                        'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
+                        // Apply the tax rate here so the proper price shows up in emails
+                        'price'              => (float) ($product['price'] * $rate),
+                        // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                        'inventory_quantity' => (int) (!$stockmgmt ? 999 : (StockAvailable::getQuantityAvailableByProduct($product['id_product'], null, $idShop) ?: ($allowOosp ? 999 : 0))),
+                        'image_url'          => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
+                    ];
+                    foreach ($allImages as $image) {
+                        if (!isset($images[$image['id_image']])) {
+                            $images[$image['id_image']] = [
+                                'id'          => $image['id_image'],
+                                'url'         => $link->getImageLink('default', $image['id_image']),
+                                'variant_ids' => [],
+                            ];
+                        }
+                        $images[$image['id_image']]['variant_ids'][] = "{$product['id_product']}-0";
                     }
-                    $images[$image['id_image']]['variant_ids'][] = "{$product['id_product']}-0";
                 }
 
                 try {
@@ -2874,27 +2874,27 @@ class MailChimp extends Module
                             }
                             $variants[] = $variant;
                         }
-                    }
-                    // Add the default combination
-                    $variants[] = [
-                        'id'                 => "{$product['id_product']}-0",
-                        'title'              => (string) $product['name'],
-                        'sku'                => (string) $product['reference'],
-                        // Apply taxes here so the proper price shows up in emails
-                        'price'              => (float) ($product['price'] * $rate),
-                        // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
-                        'inventory_quantity' => (int) (!$stockmgmt ? 999 : (StockAvailable::getQuantityAvailableByProduct($product['id_product'], null, $idShop) ?: ($allowOosp ? 999 : 0))),
-                        'image_url'          => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
-                    ];
-                    foreach ($allImages as $image) {
-                        if (!isset($images[$image['id_image']])) {
-                            $images[$image['id_image']] = [
-                                'id'          => $image['id_image'],
-                                'url'         => $link->getImageLink('default', $image['id_image']),
-                                'variant_ids' => [],
-                            ];
+                    } else {
+                        $variants[] = [
+                            'id'                 => "{$product['id_product']}-0",
+                            'title'              => (string) $product['name'],
+                            'sku'                => (string) $product['reference'],
+                            // Apply taxes here so the proper price shows up in emails
+                            'price'              => (float) ($product['price'] * $rate),
+                            // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
+                            'inventory_quantity' => (int) (!$stockmgmt ? 999 : (StockAvailable::getQuantityAvailableByProduct($product['id_product'], null, $idShop) ?: ($allowOosp ? 999 : 0))),
+                            'image_url'          => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
+                        ];
+                        foreach ($allImages as $image) {
+                            if (!isset($images[$image['id_image']])) {
+                                $images[$image['id_image']] = [
+                                    'id'          => $image['id_image'],
+                                    'url'         => $link->getImageLink('default', $image['id_image']),
+                                    'variant_ids' => [],
+                                ];
+                            }
+                            $images[$image['id_image']]['variant_ids'][] = "{$product['id_product']}-0";
                         }
-                        $images[$image['id_image']]['variant_ids'][] = "{$product['id_product']}-0";
                     }
 
                     try {
