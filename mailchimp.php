@@ -948,7 +948,11 @@ class MailChimp extends Module
                     'error'   => 'Count param missing',
                 ]));
             }
-            $success = $this->exportProducts(0, $idShops, $exportRemaining);
+            if ($exportRemaining) {
+                $success = $this->exportProducts(0, $idShops, $exportRemaining);
+            } else {
+                $success = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+            }
 
             die(json_encode([
                 'success' => $success,
@@ -981,7 +985,11 @@ class MailChimp extends Module
         } elseif (Tools::isSubmit('next')) {
             $count = (int) Tools::getValue('count');
 
-            $success = $this->exportCarts(0, $idShops, $exportRemaining);
+            if ($exportRemaining) {
+                $success = $this->exportProducts(0, $idShops, $exportRemaining);
+            } else {
+                $success = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+            }
 
             die(json_encode([
                 'success' => $success,
@@ -1020,8 +1028,12 @@ class MailChimp extends Module
                     'error'   => 'Count param missing',
                 ]));
             }
-            $success = $this->exportOrders(0, $idShops, $exportRemaining);
 
+            if ($exportRemaining) {
+                $success = $this->exportProducts(0, $idShops, $exportRemaining);
+            } else {
+                $success = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+            }
             die(json_encode([
                 'success' => $success,
                 'count'   => ++$count,
@@ -2583,6 +2595,7 @@ class MailChimp extends Module
                 $idShop = $product['id_shop'];
 
                 $variants = [];
+                $images = [];
                 if ($productObj->hasAttributes()) {
                     $allCombinationImages = $productObj->getCombinationImages($idLang);
                     $dbCombinations = array_filter($productObj->getAttributeCombinations($idLang), function ($item) {
@@ -2681,6 +2694,13 @@ class MailChimp extends Module
                         ]
                     );
                 } else {
+                    // Clear the path first, remove old variants and images
+                    if (!empty($images)) {
+                        $payload['images'] = array_values($images);
+                        foreach ($images as $image) {
+                            yield $client->deleteAsync("ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}/images/{$image['id']}");
+                        }
+                    }
                     yield $client->postAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products",
                         [
@@ -2688,6 +2708,9 @@ class MailChimp extends Module
                         ]
                     );
                 }
+                unset($images);
+                unset($variants);
+                unset($payload);
             }
         });
 
@@ -2712,35 +2735,57 @@ class MailChimp extends Module
                             return;
                         } catch (TransferException $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         } catch (Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
                     ) {
                         try {
+                            // Clear the path first, remove old images and variants
+                            $product = new Product($idProduct);
+                            $images = $product->getImages($this->context->language->id);
+                            if (!empty($images)) {
+                                foreach ($images as $image) {
+                                    yield $client->deleteAsync("ecommerce/stores/tbstore_{$m['id_shop']}/products/{$idProduct}/images/{$image['id_image']}");
+                                }
+                            }
                             $client->post("ecommerce/stores/tbstore_{$m['id_shop']}/products",
                                 [
                                     'body' => (string) $reason->getRequest()->getBody(),
                                 ]
                             );
+
                             return;
                         } catch (TransferException $e) {
+                            $reason = $e;
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                         } catch (Exception $e) {
+                            $reason = $e;
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                         }
                     }
 
-                    $responseBody = (string) $reason->getResponse()->getBody();
-                    $requestBody = (string) $reason->getRequest()->getBody();
-                    Logger::addLog(
-                        "MailChimp client error: {$requestBody} -- {$responseBody}",
-                        2,
-                        $reason->getResponse()->getStatusCode(),
-                        'MailChimpProduct',
-                        json_decode((string) $reason->getRequest()->getBody())->id
-                    );
+                    if (method_exists($reason, 'getResponse') && method_exists($reason, 'getRequest')) {
+                        $request = $reason->getRequest();
+                        $response = $reason->getResponse();
+                        if ($request && $response) {
+                            $requestBody = (string) $request->getBody();
+                            $responseBody = (string) $response->getBody();
+                            Logger::addLog(
+                                "MailChimp client error: {$requestBody} -- {$responseBody}",
+                                2,
+                                $reason->getResponse()->getStatusCode(),
+                                'MailChimpProduct',
+                                json_decode((string) $reason->getRequest()->getBody())->id
+                            );
+
+                            return;
+                        }
+                    }
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
@@ -2827,6 +2872,7 @@ class MailChimp extends Module
                     $idShop = $product['id_shop'];
 
                     $variants = [];
+                    $images = [];
                     if ($productObj->hasAttributes()) {
                         $allCombinationImages = $productObj->getCombinationImages($idLang);
                         $dbCombinations = array_filter($productObj->getAttributeCombinations($idLang), function ($item) {
@@ -2966,6 +3012,9 @@ class MailChimp extends Module
                         ]
                     );
                 }
+                unset($variants);
+                unset($images);
+                unset($payload);
             }
         });
 
@@ -2991,8 +3040,10 @@ class MailChimp extends Module
                             return;
                         } catch (TransferException $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         } catch (Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
@@ -3006,20 +3057,31 @@ class MailChimp extends Module
                             return;
                         } catch (TransferException $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         } catch (Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         }
                     }
 
-                    $responseBody = (string) $reason->getResponse()->getBody();
-                    $requestBody = (string) $reason->getRequest()->getBody();
-                    Logger::addLog(
-                        "MailChimp client error: {$requestBody} -- {$responseBody}",
-                        2,
-                        $reason->getResponse()->getStatusCode(),
-                        'MailChimpProduct',
-                        json_decode((string) $reason->getRequest()->getBody())->id
-                    );
+                    if (method_exists($reason, 'getResponse') && method_exists($reason, 'getRequest')) {
+                        $request = $reason->getRequest();
+                        $response = $reason->getResponse();
+                        if ($request && $response) {
+                            $requestBody = (string) $request->getBody();
+                            $responseBody = (string) $response->getBody();
+                            Logger::addLog(
+                                "MailChimp client error: {$requestBody} -- {$responseBody}",
+                                2,
+                                $reason->getResponse()->getStatusCode(),
+                                'MailChimpProduct',
+                                json_decode((string) $reason->getRequest()->getBody())->id
+                            );
+
+                            return;
+                        }
+                    }
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
@@ -3158,8 +3220,10 @@ class MailChimp extends Module
                             return;
                         } catch (TransferException $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         } catch (Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
@@ -3176,20 +3240,31 @@ class MailChimp extends Module
                             return;
                         } catch (TransferException $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         } catch (Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         }
                     }
 
-                    $responseBody = (string) $reason->getResponse()->getBody();
-                    $requestBody = (string) $reason->getRequest()->getBody();
-                    Logger::addLog(
-                        "MailChimp client error: {$requestBody} -- {$responseBody}",
-                        2,
-                        $reason->getResponse()->getStatusCode(),
-                        'MailChimpCart',
-                        json_decode((string) $reason->getRequest()->getBody())->id
-                    );
+                    if (method_exists($reason, 'getResponse') && method_exists($reason, 'getRequest')) {
+                        $request = $reason->getRequest();
+                        $response = $reason->getResponse();
+                        if ($request && $response) {
+                            $requestBody = (string) $request->getBody();
+                            $responseBody = (string) $response->getBody();
+                            Logger::addLog(
+                                "MailChimp client error: {$requestBody} -- {$responseBody}",
+                                2,
+                                $reason->getResponse()->getStatusCode(),
+                                'MailChimpProduct',
+                                json_decode((string) $reason->getRequest()->getBody())->id
+                            );
+
+                            return;
+                        }
+                    }
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
@@ -3344,7 +3419,11 @@ class MailChimp extends Module
                             );
                             return;
                         } catch (TransferException $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         } catch (Exception $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         }
                     } elseif (strtoupper($reason->getRequest()->getMethod()) === 'PATCH'
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
@@ -3357,19 +3436,32 @@ class MailChimp extends Module
                             );
                             return;
                         } catch (TransferException $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         } catch (Exception $e) {
+                            // Second attempt failed, this means an error in the request, continue to make it log the error
+                            $reason = $e;
                         }
                     }
 
-                    $responseBody = (string) $reason->getResponse()->getBody();
-                    $requestBody = (string) $reason->getRequest()->getBody();
-                    Logger::addLog(
-                        "MailChimp client error: {$requestBody} -- {$responseBody}",
-                        2,
-                        $reason->getResponse()->getStatusCode(),
-                        'MailChimpOrder',
-                        json_decode((string) $reason->getRequest()->getBody())->id
-                    );
+                    if (method_exists($reason, 'getResponse') && method_exists($reason, 'getRequest')) {
+                        $request = $reason->getRequest();
+                        $response = $reason->getResponse();
+                        if ($request && $response) {
+                            $requestBody = (string) $request->getBody();
+                            $responseBody = (string) $response->getBody();
+                            Logger::addLog(
+                                "MailChimp client error: {$requestBody} -- {$responseBody}",
+                                2,
+                                $reason->getResponse()->getStatusCode(),
+                                'MailChimpProduct',
+                                json_decode((string) $reason->getRequest()->getBody())->id
+                            );
+
+                            return;
+                        }
+                    }
+                    Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
