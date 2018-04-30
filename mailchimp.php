@@ -2694,13 +2694,6 @@ class MailChimp extends Module
                         ]
                     );
                 } else {
-                    // Clear the path first, remove old variants and images
-                    if (!empty($images)) {
-                        $payload['images'] = array_values($images);
-                        foreach ($images as $image) {
-                            yield $client->deleteAsync("ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}/images/{$image['id']}");
-                        }
-                    }
                     yield $client->postAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products",
                         [
@@ -2744,14 +2737,6 @@ class MailChimp extends Module
                         && json_decode((string) $reason->getResponse()->getBody())->title === 'Resource Not Found'
                     ) {
                         try {
-                            // Clear the path first, remove old images and variants
-                            $product = new Product($idProduct);
-                            $images = $product->getImages($this->context->language->id);
-                            if (!empty($images)) {
-                                foreach ($images as $image) {
-                                    yield $client->deleteAsync("ecommerce/stores/tbstore_{$m['id_shop']}/products/{$idProduct}/images/{$image['id_image']}");
-                                }
-                            }
                             $client->post("ecommerce/stores/tbstore_{$m['id_shop']}/products",
                                 [
                                     'body' => (string) $reason->getRequest()->getBody(),
