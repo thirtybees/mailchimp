@@ -2598,6 +2598,9 @@ class MailChimp extends Module
                 $images = [];
                 if ($productObj->hasAttributes()) {
                     $allCombinationImages = $productObj->getCombinationImages($idLang);
+                    if (!is_array($allCombinationImages)) {
+                        $allCombinationImages = [];
+                    }
                     $dbCombinations = array_filter($productObj->getAttributeCombinations($idLang), function ($item) {
                         return (bool) $item['id_product_attribute']; // All combinations must have an `id_product_attribute` > 0
                     });
@@ -2860,6 +2863,9 @@ class MailChimp extends Module
                     $images = [];
                     if ($productObj->hasAttributes()) {
                         $allCombinationImages = $productObj->getCombinationImages($idLang);
+                        if (!is_array($allCombinationImages)) {
+                            $allCombinationImages = [];
+                        }
                         $dbCombinations = array_filter($productObj->getAttributeCombinations($idLang), function ($item) {
                             return $item['id_product_attribute']; // All combinations must have an `id_product_attribute` > 0
                         });
