@@ -124,7 +124,11 @@ class MailChimpOrder extends ObjectModel
 
             $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         } catch (PrestaShopException $e) {
-            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count orders', 'mailchimp');
+            if ($count) {
+                Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count orders', 'mailchimp');
+            } else {
+                Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to find orders', 'mailchimp');
+            }
 
             return false;
         }

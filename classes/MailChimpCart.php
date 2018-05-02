@@ -126,9 +126,16 @@ class MailChimpCart extends ObjectModel
             }
             $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         } catch (PrestaShopException $e) {
-            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
+            if ($count) {
+                Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count carts properly', 'mailchimp');
+            } else {
+                Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to find carts', 'mailchimp');
+            }
 
-            return 0;
+            return false;
+        }
+        if (empty($results)) {
+            return [];
         }
 
         $defaultCurrency = Currency::getDefaultCurrency();
