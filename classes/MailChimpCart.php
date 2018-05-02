@@ -149,14 +149,14 @@ class MailChimpCart extends ObjectModel
                 'step=3&recover_cart='.$cart['id_cart'].'&token_cart='.md5(_COOKIE_KEY_.'recover_cart_'.$cart['id_cart'])
             );
 
-            $orderProducts = $cartObject->getProducts();
+            $cartProducts = $cartObject->getProducts();
 
             $cart['lines'] = [];
-            foreach ($orderProducts as &$cartProduct) {
+            foreach ($cartProducts as &$cartProduct) {
                 $cart['lines'][] = [
                     'id'                 => (string) $cartProduct['id_product'],
                     'product_id'         => (string) $cartProduct['id_product'],
-                    'product_variant_id' => (string) $cartProduct['id_product_attribute'] ? $cartProduct['id_product'].'-'.$cartProduct['id_product_attribute'] : $cartProduct['id_product'],
+                    'product_variant_id' => "{$cartProduct['id_product']}-{$cartProduct['id_product_attribute']}",
                     'quantity'           => (int) $cartProduct['cart_quantity'],
                     'price'              => (float) $cartProduct['price_wt'],
                 ];

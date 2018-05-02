@@ -58,8 +58,8 @@ class MailChimpOrder extends ObjectModel
         'table'   => 'mailchimp_order',
         'primary' => 'id_mailchimp_order',
         'fields'  => [
-            'id_order'    => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'   ],
-            'last_synced' => ['type' => self::TYPE_DATE,   'validate' => 'isDate',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'           ],
+            'id_order'    => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'],
+            'last_synced' => ['type' => self::TYPE_DATE,   'validate' => 'isDate',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'        ],
         ],
     ];
     // @codingStandardsIgnoreStart
@@ -133,12 +133,6 @@ class MailChimpOrder extends ObjectModel
         if (!Validate::isLoadedObject($mailChimpShop)) {
             return false;
         }
-        $rate = 1;
-        $tax = new Tax($mailChimpShop->id_tax);
-        if (Validate::isLoadedObject($tax) && $tax->active) {
-            $rate = 1 + ($tax->rate / 100);
-        }
-
         $orderHistories = static::getOrderHistories(array_column($results, 'id_order'));
         $defaultCurrency = Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
@@ -168,13 +162,13 @@ class MailChimpOrder extends ObjectModel
             }
 
             $order['lines'] = [];
-            foreach ($orderProducts as &$cartProduct) {
+            foreach ($orderProducts as &$orderProduct) {
                 $line = [
-                    'id'                 => (string) $cartProduct['product_id'],
-                    'product_id'         => (string) $cartProduct['product_id'],
-                    'product_variant_id' => (string) $cartProduct['product_attribute_id'] ? $cartProduct['product_id'].'-'.$cartProduct['product_attribute_id'] : $cartProduct['product_id'],
-                    'quantity'           => (int) $cartProduct['product_quantity'],
-                    'price'              => (float) ($cartProduct['total_price_tax_incl'] * $rate),
+                    'id'                 => (string) $orderProduct['product_id'],
+                    'product_id'         => (string) $orderProduct['product_id'],
+                    'product_variant_id' => "{$orderProduct['product_id']}-{$orderProduct['product_attribute_id']}",
+                    'quantity'           => (int) $orderProduct['product_quantity'],
+                    'price'              => (float) $orderProduct['total_price_tax_incl'],
                 ];
 
                 $order['lines'][] = $line;
