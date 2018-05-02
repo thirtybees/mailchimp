@@ -128,6 +128,9 @@ class MailChimpOrder extends ObjectModel
 
             return false;
         }
+        if (empty($results)) {
+            return [];
+        }
 
         $mailChimpShop = MailChimpShop::getByShopId($idShops);
         if (!Validate::isLoadedObject($mailChimpShop)) {
