@@ -1492,6 +1492,7 @@ class MailChimp extends Module
             }
         });
 
+        static::signalSyncStart(Context::getContext()->shop->id);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected'    => function ($reason) use (&$success) {
@@ -1505,6 +1506,7 @@ class MailChimp extends Module
                 $success = false;
             },
         ]))->promise()->wait();
+        static::signalSyncStop(Context::getContext()->shop->id);
 
         return $success;
     }
@@ -2459,7 +2461,6 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
-        static::signalSyncStart($idShops);
         $subscribers = MailChimpSubscriber::getSubscribers($idShops, $offset, static::EXPORT_CHUNK_SIZE);
         if (empty($subscribers)) {
             return false;
@@ -2509,6 +2510,7 @@ class MailChimp extends Module
         });
 
         $result = true;
+        static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use (&$success) {
@@ -2561,7 +2563,6 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
-        static::signalSyncStart($idShops);
 
         $products = MailChimpProduct::getProducts($idShops, $offset, static::EXPORT_CHUNK_SIZE, $remaining);
         if (empty($products)) {
@@ -2710,6 +2711,7 @@ class MailChimp extends Module
             }
         });
 
+        static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use ($client) {
@@ -2823,7 +2825,6 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
-        static::signalSyncStart($idShops);
 
         $products = MailChimpProduct::getProductRange($range, $idShops, true, $orderDetail);
         if (empty($products)) {
@@ -3010,6 +3011,7 @@ class MailChimp extends Module
         });
 
         $success = true;
+        static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use (&$success, $client) {
@@ -3116,7 +3118,6 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
-        static::signalSyncStart($idShops);
 
         $carts = MailChimpCart::getCarts($idShops, $offset, static::EXPORT_CHUNK_SIZE, $remaining);
         if (empty($carts)) {
@@ -3187,6 +3188,7 @@ class MailChimp extends Module
             }
         });
 
+        static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected' => function ($reason) use (&$success, $client) {
@@ -3302,7 +3304,6 @@ class MailChimp extends Module
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
-        static::signalSyncStart($idShops);
 
         // We use the Order objects
         $orders = MailChimpOrder::getOrders($idShops, $offset, static::EXPORT_CHUNK_SIZE, $exportRemaining);
@@ -3390,6 +3391,7 @@ class MailChimp extends Module
             }
         });
 
+        static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected'    => function ($reason) use ($client) {
@@ -3558,6 +3560,9 @@ class MailChimp extends Module
                 );
             }
         });
+
+        $idShop = MailChimpShop::getByListId($idList)->id_shop;
+        static::signalSyncStart($idShop);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
             'rejected'    => function ($reason) use ($client, $idList) {
@@ -3586,6 +3591,7 @@ class MailChimp extends Module
                 }
             },
         ]))->promise()->wait();
+        static::signalSyncStop($idShop);
 
         if (isset($result['id'])) {
             return true;
@@ -3984,9 +3990,11 @@ class MailChimp extends Module
             }
         });
 
+        static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
         ]))->promise()->wait();
+        static::signalSyncStop($idShops);
     }
 
     /**
@@ -4018,9 +4026,11 @@ class MailChimp extends Module
             }
         });
 
+        static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
         ]))->promise()->wait();
+        static::signalSyncStop($idShops);
     }
 
     /**

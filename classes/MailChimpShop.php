@@ -165,4 +165,34 @@ class MailChimpShop extends ObjectModel
 
         return $mcs;
     }
+
+    /**
+     * Get MailChimpShop by List ID
+     *
+     * @param string $idList
+     *
+     * @return MailChimpShop|false
+     *
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public static function getByListId($idList)
+    {
+        $sql = new DbQuery();
+        $sql->select('s.`'.bqSQL(Shop::$definition['primary']).'`, ms.*');
+        $sql->from('shop', 's');
+        $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
+        $sql->where('s.`id_list` = \''.pSQL($idList).'\'');
+
+        $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
+        if (!$result) {
+            return false;
+        }
+
+        $mcs = new self();
+        $mcs->hydrate($result);
+
+        return $mcs;
+    }
 }
