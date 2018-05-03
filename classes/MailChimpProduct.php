@@ -179,6 +179,9 @@ class MailChimpProduct extends ObjectModel
                             ->from('order_detail', 'od')
                             ->where('od.`product_id` IN ('.implode(',', array_map('intval', $missingIds)).')')
                     );
+                    if (!is_array($orderDetails)) {
+                        $orderDetails = [];
+                    }
                     $results = array_merge($results, $orderDetails);
                 }
             } else {
