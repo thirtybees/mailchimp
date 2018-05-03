@@ -140,10 +140,6 @@ class MailChimpCart extends ObjectModel
 
         $defaultCurrency = Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
-        $mailChimpShop = MailChimpShop::getByShopId($idShops);
-        if (!Validate::isLoadedObject($mailChimpShop)) {
-            return false;
-        }
         foreach ($results as &$cart) {
             $cartObject = new Cart($cart['id_cart']);
 

@@ -986,9 +986,9 @@ class MailChimp extends Module
             $count = (int) Tools::getValue('count');
 
             if ($exportRemaining) {
-                $success = $this->exportProducts(0, $idShops, $exportRemaining);
+                $success = $this->exportCarts(0, $idShops, $exportRemaining);
             } else {
-                $success = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+                $success = $this->exportCarts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
             }
 
             die(json_encode([
@@ -1030,9 +1030,9 @@ class MailChimp extends Module
             }
 
             if ($exportRemaining) {
-                $success = $this->exportProducts(0, $idShops, $exportRemaining);
+                $success = $this->exportOrders(0, $idShops, $exportRemaining);
             } else {
-                $success = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+                $success = $this->exportOrders(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
             }
             die(json_encode([
                 'success' => $success,
@@ -1461,7 +1461,7 @@ class MailChimp extends Module
     }
 
     /**
-     * @param array $list
+     * @param MailChimpSubscriber[] $list
      *
      * @return bool
      *
@@ -1477,12 +1477,12 @@ class MailChimp extends Module
         if (!$client) {
             return false;
         }
-        $promises = call_user_func(function () use ($list, $client) {
+        $mailChimpShop = MailChimpShop::getByShopId(Context::getContext()->shop->id);
+        $promises = call_user_func(function () use ($list, $client, $mailChimpShop) {
             for ($i = 0; $i < count($list); $i++) {
                 /** @var MailChimpSubscriber $subscriber */
                 $subscriber = $list[$i];
                 $hash = md5(mb_strtolower($subscriber->getEmail()));
-                $mailChimpShop = MailChimpShop::getByShopId(Context::getContext()->shop->id);
                 yield $client->putAsync(
                     "lists/{$mailChimpShop->list_id}/members/{$hash}",
                     [
@@ -3990,11 +3990,9 @@ class MailChimp extends Module
             }
         });
 
-        static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
         ]))->promise()->wait();
-        static::signalSyncStop($idShops);
     }
 
     /**
@@ -4026,11 +4024,9 @@ class MailChimp extends Module
             }
         });
 
-        static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
         ]))->promise()->wait();
-        static::signalSyncStop($idShops);
     }
 
     /**

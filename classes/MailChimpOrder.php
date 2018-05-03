@@ -58,8 +58,8 @@ class MailChimpOrder extends ObjectModel
         'table'   => 'mailchimp_order',
         'primary' => 'id_mailchimp_order',
         'fields'  => [
-            'id_order'    => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'],
-            'last_synced' => ['type' => self::TYPE_DATE,   'validate' => 'isDate',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'        ],
+            'id_order'    => ['type' => self::TYPE_INT,  'validate' => 'isInt',  'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'],
+            'last_synced' => ['type' => self::TYPE_DATE, 'validate' => 'isDate', 'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'        ],
         ],
     ];
     // @codingStandardsIgnoreStart
@@ -96,7 +96,7 @@ class MailChimpOrder extends ObjectModel
         if ($count) {
             $sql->select('COUNT(*)');
         } else {
-            $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`, mc.`landing_site`');
+            $sql->select('o.`id_order`, o.`date_add`, o.`date_upd`, c.*, mo.`last_synced`, mt.`mc_tc`, mt.`mc_cid`, mt.`landing_site`');
             $sql->select('cu.`id_customer`, cu.`email`, cu.`firstname`, cu.`lastname`, cu.`birthday`, cu.`newsletter`');
             $sql->select('l.`language_code`, o.`id_shop`');
         }
@@ -109,7 +109,7 @@ class MailChimpOrder extends ObjectModel
         $sql->where('o.`id_order` IN (SELECT `id_order` FROM `'._DB_PREFIX_.'order_detail`)');
         $sql->where('o.`current_state` IN ('.implode(',', array_map('intval', MailChimp::getValidOrderStatuses())).')');
         $sql->where('o.`date_add` > \''.pSQL(MailChimp::getOrderDateCutoff()).'\'');
-        $sql->leftJoin(bqSQL(self::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
+        $sql->leftJoin(bqSQL(static::$definition['table']), 'mo', 'mo.`id_order` = o.`id_order`');
         if ($remaining) {
             $sql->where('mo.`last_synced` IS NULL OR (mo.`last_synced` < o.`date_upd` AND mo.`last_synced` > \'2000-01-01 00:00:00\')');
         }

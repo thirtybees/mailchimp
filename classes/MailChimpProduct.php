@@ -51,9 +51,9 @@ class MailChimpProduct extends ObjectModel
         'table'   => 'mailchimp_product',
         'primary' => 'id_mailchimp_product',
         'fields'  => [
-            'id_product'  => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'   ],
-            'id_shop'     => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'   ],
-            'last_synced' => ['type' => self::TYPE_DATE,   'validate' => 'isDate',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'           ],
+            'id_product'  => ['type' => self::TYPE_INT,  'validate' => 'isInt',  'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'   ],
+            'id_shop'     => ['type' => self::TYPE_INT,  'validate' => 'isInt',  'required' => true,                                     'db_type' => 'INT(11) UNSIGNED'   ],
+            'last_synced' => ['type' => self::TYPE_DATE, 'validate' => 'isDate', 'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'           ],
         ],
     ];
     // @codingStandardsIgnoreStart
@@ -74,7 +74,7 @@ class MailChimpProduct extends ObjectModel
      * @param bool     $remaining
      * @param bool     $count
      *
-     * @return array|false|int
+     * @return array|int
      *
      * @since 1.1.0
      * @throws PrestaShopException
@@ -114,7 +114,12 @@ class MailChimpProduct extends ObjectModel
                 return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
             }
 
-            return (array) Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            if (!is_array($result)) {
+                $result = [];
+            }
+
+            return $result;
         } catch (PrestaShopException $e) {
             Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count products', 'mailchimp');
 

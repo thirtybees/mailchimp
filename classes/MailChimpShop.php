@@ -107,7 +107,8 @@ class MailChimpShop extends ObjectModel
      *
      * @param int $idShop
      *
-     * @return MailChimpShop|false
+     * @return MailChimpShop
+     *
      * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
@@ -117,16 +118,14 @@ class MailChimpShop extends ObjectModel
         $sql = new DbQuery();
         $sql->select('s.`'.bqSQL(Shop::$definition['primary']).'`, ms.*');
         $sql->from('shop', 's');
-        $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
+        $sql->leftJoin(bqSQL(static::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
         $sql->where('s.`id_shop` = '.(int) $idShop);
 
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
-        if (!$result) {
-            return false;
+        $mcs = new static();
+        if (is_array($result)) {
+            $mcs->hydrate($result);
         }
-
-        $mcs = new self();
-        $mcs->hydrate($result);
 
         return $mcs;
     }
@@ -148,7 +147,7 @@ class MailChimpShop extends ObjectModel
         $sql = new DbQuery();
         $sql->select('s.`'.bqSQL(Shop::$definition['primary']).'`, ms.*');
         $sql->from('shop', 's');
-        $sql->innerJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
+        $sql->innerJoin(bqSQL(static::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
         $sql->where('s.`'.bqSQL(Shop::$definition['primary']).'` IN ('.implode(',', array_map('intval', $idShops)).')');
 
         $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
@@ -171,7 +170,7 @@ class MailChimpShop extends ObjectModel
      *
      * @param string $idList
      *
-     * @return MailChimpShop|false
+     * @return MailChimpShop
      *
      * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
@@ -182,16 +181,14 @@ class MailChimpShop extends ObjectModel
         $sql = new DbQuery();
         $sql->select('s.`'.bqSQL(Shop::$definition['primary']).'`, ms.*');
         $sql->from('shop', 's');
-        $sql->leftJoin(bqSQL(self::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
+        $sql->leftJoin(bqSQL(static::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
         $sql->where('s.`id_list` = \''.pSQL($idList).'\'');
 
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
-        if (!$result) {
-            return false;
+        $mcs = new static();
+        if (is_array($result)) {
+            $mcs->hydrate($result);
         }
-
-        $mcs = new self();
-        $mcs->hydrate($result);
 
         return $mcs;
     }
