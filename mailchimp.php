@@ -21,8 +21,12 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\TransferException;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Promise\EachPromise;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\Exception\ConnectException;
 use MailChimpModule\MailChimpCart;
 use MailChimpModule\MailChimpOrder;
 use MailChimpModule\MailChimpProduct;
@@ -64,6 +68,7 @@ class MailChimp extends Module
     const LAST_EXPORT_ID = 'MAILCHIMP_LAST_IMPORT_ID';
     const API_TIMEOUT = 20;
     const API_CONCURRENCY = 5;
+    const RETRIES = 5;
 
     const EXPORT_CHUNK_SIZE = 10;
 
@@ -609,11 +614,39 @@ class MailChimp extends Module
             $apiKey = static::getApiKey();
             $dc = static::getDc();
             if ($apiKey && $dc) {
+                $stack = HandlerStack::create(\GuzzleHttp\choose_handler());
+                $stack->push(Middleware::retry(function (
+                    $retries,
+                    Request $request,
+                    Response $response = null,
+                    RequestException $exception = null
+                ) {
+                    // Limit the number of retries to 5
+                    if ($retries >= static::RETRIES) {
+                        return false;
+                    }
+
+                    // Retry connection exceptions
+                    if ($exception instanceof ConnectException) {
+                        return true;
+                    }
+
+                    if ($response) {
+                        // Retry on server errors
+                        if ($response->getStatusCode() >= 500) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }, function ($retries) {
+                    return $retries * 1000;
+                }));
                 $guzzle = new Client([
                     'timeout'         => static::API_TIMEOUT,
                     'connect_timeout' => static::API_TIMEOUT,
                     'verify'          => (file_exists(_PS_TOOL_DIR_.'cacert.pem') && filemtime(_PS_TOOL_DIR_.'cacert.pem') > strtotime('-2 years'))
-                        ?  _PS_TOOL_DIR_.'cacert.pem'
+                        ? _PS_TOOL_DIR_.'cacert.pem'
                         : true,
                     'base_uri'        => "https://$dc.api.mailchimp.com/3.0/",
                     'headers'         => [
@@ -622,6 +655,7 @@ class MailChimp extends Module
                         'Content-Type'  => 'application/json;charset=UTF-8',
                         'User-Agent'    => static::getUserAgent(),
                     ],
+                    'handler'         => $stack,
                 ]);
 
                 static::$guzzle = $guzzle;
