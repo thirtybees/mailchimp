@@ -82,11 +82,12 @@ class MailChimpCart extends ObjectModel
      */
     public static function getCarts($idShops = null, $offset = 0, $limit = 0, $remaining = false, $count = false)
     {
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } else if (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
+        $idShops = array_map('intval', $idShops);
 
         $selectOrdersSql = new DbQuery();
         $selectOrdersSql->select('`id_cart`');

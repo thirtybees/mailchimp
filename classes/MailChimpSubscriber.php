@@ -285,11 +285,12 @@ class MailChimpSubscriber
      */
     public static function getSubscribers($idShops = null, $offset = 0, $limit = 0, $customers = true, $optedIn = false, $count = false)
     {
-        if (is_int($idShops)) {
+        if (is_string($idShops) || is_int($idShops)) {
             $idShops = [$idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
+        $idShops = array_map('intval', $idShops);
 
         $list = [];
         $result = false;

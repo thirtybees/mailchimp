@@ -86,11 +86,12 @@ class MailChimpOrder extends ObjectModel
      */
     public static function getOrders($idShops = null, $offset = 0, $limit = 0, $remaining = false, $count = false)
     {
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
+        $idShops = array_map('intval', $idShops);
 
         $sql = new DbQuery();
         if ($count) {
@@ -196,17 +197,18 @@ class MailChimpOrder extends ObjectModel
      */
     protected static function getOrderHistories($range)
     {
-        if (is_int($range)) {
-            $range = [$range];
+        if (is_string($range) || is_int($range)) {
+            $range = [(int) $range];
         } elseif (!is_array($range) || empty($range)) {
             return false;
         }
+        $range = array_map('intval', $range);
 
         $results =  Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
             (new DbQuery())
                 ->select('`id_order`, `id_order_state`')
                 ->from('order_history')
-                ->where('`id_order` IN ('.implode(',', array_map('intval', $range)).')')
+                ->where('`id_order` IN ('.implode(',', $range).')')
         );
         if (!is_array($results)) {
             return false;

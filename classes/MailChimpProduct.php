@@ -81,11 +81,12 @@ class MailChimpProduct extends ObjectModel
      */
     public static function getProducts($idShops = null, $offset = 0, $limit = 0, $remaining = false, $count = false)
     {
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_STOCK);
         }
+        $idShops = array_map('intval', $idShops);
         $idLang = (int) Configuration::get('PS_LANG_DEFAULT');
 
         $sql = new DbQuery();
@@ -142,17 +143,19 @@ class MailChimpProduct extends ObjectModel
      */
     public static function getProductRange($range, $idShops = null, $remaining = false, $orderDetail = false)
     {
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_STOCK);
         }
+        $idShops = array_map('intval', $idShops);
         $idLang = (int) Configuration::get('PS_LANG_DEFAULT');
-        if (is_int($range)) {
+        if (is_string($range) || is_int($range)) {
             $range = [$range];
         } elseif (!is_array($range) || empty($range)) {
             return [];
         }
+        $range = array_map('intval', $range);
 
         $sql = new DbQuery();
         $sql->select('ps.`id_product`, ps.`id_shop`, ps.`id_tax_rules_group`, ps.`price`, ps.`active`');
@@ -213,11 +216,12 @@ class MailChimpProduct extends ObjectModel
      */
     public static function setSynced($range, $idShops = null)
     {
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_STOCK);
         }
+        $idShops = array_map('intval', $idShops);
 
         if (empty($range)) {
             return false;

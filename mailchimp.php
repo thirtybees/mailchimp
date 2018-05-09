@@ -2478,8 +2478,8 @@ class MailChimp extends Module
      */
     protected function exportSubscribers($offset, $idShops = null)
     {
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
@@ -2488,9 +2488,9 @@ class MailChimp extends Module
             /** @var MailChimpShop $mcs */
             return $mcs->list_id;
         });
-        $idShops = array_filter($idShops, function ($idShop) use ($mailChimpShops) {
+        $idShops = array_map('intval', array_filter($idShops, function ($idShop) use ($mailChimpShops) {
             return in_array($idShop, array_keys($mailChimpShops));
-        });
+        }));
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
@@ -2579,8 +2579,8 @@ class MailChimp extends Module
      */
     protected function exportProducts($offset, $idShops = null, $remaining = false)
     {
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_STOCK);
         }
@@ -2590,9 +2590,9 @@ class MailChimp extends Module
             /** @var MailChimpShop $mcs */
             return $mcs->list_id;
         });
-        $idShops = array_filter($idShops, function ($idShop) use ($mailChimpShops) {
+        $idShops = array_map('intval', array_filter($idShops, function ($idShop) use ($mailChimpShops) {
             return in_array($idShop, array_keys($mailChimpShops));
-        });
+        }));
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
@@ -2844,8 +2844,8 @@ class MailChimp extends Module
             return true;
         }
 
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_STOCK);
         }
@@ -2855,9 +2855,9 @@ class MailChimp extends Module
             /** @var MailChimpShop $mcs */
             return $mcs->list_id;
         });
-        $idShops = array_filter($idShops, function ($idShop) use ($mailChimpShops) {
+        $idShops = array_map('intval', array_filter($idShops, function ($idShop) use ($mailChimpShops) {
             return in_array($idShop, array_keys($mailChimpShops));
-        });
+        }));
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
@@ -3142,8 +3142,8 @@ class MailChimp extends Module
      */
     protected function exportCarts($offset, $idShops = null, $remaining = false)
     {
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
@@ -3151,9 +3151,9 @@ class MailChimp extends Module
             /** @var MailChimpShop $mc */
             return $mc->list_id;
         });
-        $idShops = array_filter($idShops, function ($idShop) use ($mailChimpShops) {
+        $idShops = array_map('intval', array_filter($idShops, function ($idShop) use ($mailChimpShops) {
             return in_array($idShop, array_keys($mailChimpShops));
-        });
+        }));
         if (empty($mailChimpShops) || empty($idShops)) {
             return false;
         }
@@ -3331,11 +3331,12 @@ class MailChimp extends Module
      */
     protected function exportOrders($offset, $idShops = null, $exportRemaining = false)
     {
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
         } elseif (!is_array($idShops) || empty($idShops)) {
             $idShops = Shop::getContextListShopID(Shop::SHARE_ORDER);
         }
+        $idShops = array_map('intval', $idShops);
         $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mcs) {
             /** @var MailChimpShop $mcs */
             return $mcs->list_id;
@@ -4010,16 +4011,19 @@ class MailChimp extends Module
      */
     public static function signalSyncStart($idShops)
     {
-        if (!$idShops) {
+        if (empty($idShops)) {
             return;
         }
         $guzzle = static::getGuzzle();
         if (!$guzzle) {
             return;
         }
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
+        } elseif (!is_array($idShops)) {
+            return;
         }
+        $idShops = array_map('intval', $idShops);
 
         $promises = call_user_func(function () use ($idShops, $guzzle) {
             foreach ($idShops as $idShop) {
@@ -4039,21 +4043,26 @@ class MailChimp extends Module
      *
      * @param int|int[] $idShops
      *
+     * @return void
+     *
      * @throws Adapter_Exception
      * @throws PrestaShopException
      */
     public static function signalSyncStop($idShops)
     {
-        if ($idShops) {
+        if (empty($idShops)) {
             return;
         }
         $guzzle = static::getGuzzle();
         if (!$guzzle) {
             return;
         }
-        if (is_int($idShops)) {
-            $idShops = [$idShops];
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
+        } elseif (!is_array($idShops)) {
+            return;
         }
+        $idShops = array_map('intval', $idShops);
 
         $promises = call_user_func(function () use ($idShops, $guzzle) {
             foreach ($idShops as $idShop) {
