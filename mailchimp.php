@@ -168,7 +168,7 @@ class MailChimp extends Module
     {
         $this->name = 'mailchimp';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.4.2';
+        $this->version = '1.4.3';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
