@@ -706,7 +706,6 @@ class MailChimp extends Module
                         Configuration::updateValue(static::UUID, static::$uuid, false, 0, 0);
                     }
                 } catch (TransferException $e) {
-
                 }
             }
         }
@@ -2667,7 +2666,10 @@ class MailChimp extends Module
                             // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
                             'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($combination['quantity'] ?: ($allowOosp ? 999 : 0))),
                         ];
-                        if (isset($allCombinationImages[$combination['id_product_attribute']])) {
+                        if (isset($allCombinationImages[$combination['id_product_attribute']])
+                            && is_array($allCombinationImages[$combination['id_product_attribute']])
+                            && count($allCombinationImages[$combination['id_product_attribute']]) > 0
+                        ) {
                             $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
                             foreach ($allCombinationImages[$combination['id_product_attribute']] as $image) {
                                 if (!isset($images[$image['id_image']])) {
@@ -2930,7 +2932,10 @@ class MailChimp extends Module
                                 // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
                                 'inventory_quantity' => (int) (!$stockmgmt ? 999 : ($combination['quantity'] ?: ($allowOosp ? 999 : 0))),
                             ];
-                            if (isset($allCombinationImages[$combination['id_product_attribute']])) {
+                            if (isset($allCombinationImages[$combination['id_product_attribute']])
+                                && is_array($allCombinationImages[$combination['id_product_attribute']])
+                                && count($allCombinationImages[$combination['id_product_attribute']]) > 0
+                            ) {
                                 $variant['image_url'] = $link->getImageLink('default', "{$product['id_product']}-{$allCombinationImages[$combination['id_product_attribute']][0]['id_image']}");
                                 foreach ($allCombinationImages[$combination['id_product_attribute']] as $image) {
                                     if (!isset($images[$image['id_image']])) {
