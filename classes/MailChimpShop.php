@@ -23,6 +23,8 @@ use Adapter_Exception;
 use Context;
 use Db;
 use DbQuery;
+use GuzzleHttp\Exception\TransferException;
+use GuzzleHttp\Promise\EachPromise;
 use mysqli_result;
 use ObjectModel;
 use PDOStatement;
@@ -56,7 +58,9 @@ class MailChimpShop extends ObjectModel
             'list_id'   => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => true,                   'db_type' => 'VARCHAR(32)'        ],
             'id_tax'    => ['type' => self::TYPE_INT,    'validate' => 'isInt',    'required' => true,                   'db_type' => 'INT(11) UNSIGNED'   ],
             'synced'    => ['type' => self::TYPE_BOOL,   'validate' => 'isBool',   'required' => true, 'default' => '0', 'db_type' => 'TINYINT(1) UNSIGNED'],
-            'mc_script' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => false,                  'db_type' => 'VARCHAR(255)'],
+            'mc_script' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => false,                  'db_type' => 'VARCHAR(255)'       ],
+            'date_add'  => ['type' => self::TYPE_STRING, 'validate' => 'isDate',                                         'db_type' => 'DATETIME'           ],
+            'date_upd'  => ['type' => self::TYPE_STRING, 'validate' => 'isDate',                                         'db_type' => 'DATETIME'           ],
         ],
     ];
     // @codingStandardsIgnoreStart
@@ -70,6 +74,10 @@ class MailChimpShop extends ObjectModel
     public $synced;
     /** @var string $mc_script */
     public $mc_script;
+    /** @var string $date_add */
+    public $date_add;
+    /** @var string $date_upd */
+    public $date_upd;
     // @codingStandardsIgnoreEnd
 
     /**
@@ -134,7 +142,6 @@ class MailChimpShop extends ObjectModel
      * Get MailChimpShop by Shop ID
      *
      * @param int[] $idShops
-     * @param bool  $hasList Needs to have a list
      *
      * @return MailChimpShop[]
      *
@@ -191,5 +198,55 @@ class MailChimpShop extends ObjectModel
         }
 
         return $mcs;
+    }
+
+    /**
+     * Renew MC scripts
+     *
+     * @param int|int[]|null $idShops
+     *
+     * @throws PrestaShopException
+     * @throws Adapter_Exception
+     */
+    public static function renewScripts($idShops = null)
+    {
+        if (is_string($idShops) || is_int($idShops)) {
+            $idShops = [(int) $idShops];
+        } else if (!is_array($idShops) || empty($idShops)) {
+            $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
+        }
+        $idShops = array_map('intval', $idShops);
+        $mailChimpShops = static::getByShopIds($idShops);
+
+        $guzzle = \MailChimp::getGuzzle();
+        if (!$guzzle) {
+            return;
+        }
+
+        $promises = call_user_func(function () use ($mailChimpShops, $guzzle) {
+            foreach ($mailChimpShops as $index => $mailChimpShop) {
+                yield $index => $guzzle->getAsync("connected-sites/tbstore_{$mailChimpShop->id_shop}");
+            }
+        });
+
+        (new EachPromise($promises, [
+            'concurrency' => \MailChimp::API_CONCURRENCY,
+            'fulfilled' => function ($response, $index) use ($mailChimpShops, $guzzle) {
+                if ($response instanceof \GuzzleHttp\Psr7\Response) {
+                    $response = json_decode((string) $response->getBody(), true);
+                    $mailChimpShop = $mailChimpShops[$index];
+                    if (isset($response['site_script']['url'])) {
+                        if (!$mailChimpShop->mc_script) {
+                            try {
+                                $guzzle->post("connected-sites/tbstore_{$mailChimpShop->id_shop}/actions/verify-script-installation");
+                            } catch (TransferException $e) {
+                            }
+                        }
+                        $mailChimpShop->mc_script = $response['site_script']['url'];
+                        $mailChimpShop->save();
+                    }
+                }
+            }
+        ]))->promise()->wait();
     }
 }

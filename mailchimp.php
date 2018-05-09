@@ -168,7 +168,7 @@ class MailChimp extends Module
     {
         $this->name = 'mailchimp';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.4.3';
+        $this->version = '1.5.0';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -380,6 +380,22 @@ class MailChimp extends Module
                     date('Y-m-d H:i:s')
                 );
                 $this->addOrUpdateSubscription($customer);
+            }
+        }
+    }
+
+    /**
+     * @throws Adapter_Exception
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public function hookDisplayBackOfficeHeader()
+    {
+        $mailChimpShop = MailChimpShop::getByShopId($this->context->shop->id);
+        if (strtotime($mailChimpShop->date_upd) < strtotime('-1 day')) {
+            try {
+                MailChimpShop::renewScripts(Shop::getShops(true, null, true));
+            } catch (PrestaShopDatabaseException $e) {
             }
         }
     }
