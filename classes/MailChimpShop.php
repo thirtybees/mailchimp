@@ -182,7 +182,7 @@ class MailChimpShop extends ObjectModel
         $sql->select('s.`'.bqSQL(Shop::$definition['primary']).'`, ms.*');
         $sql->from('shop', 's');
         $sql->leftJoin(bqSQL(static::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
-        $sql->where('s.`id_list` = \''.pSQL($idList).'\'');
+        $sql->where('ms.`list_id` = \''.pSQL($idList).'\'');
 
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
         $mcs = new static();
