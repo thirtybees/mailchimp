@@ -54,8 +54,8 @@ class MailChimpPromo extends ObjectModel
         'primary' => 'id_mailchimp_promo',
         'fields'  => [
             'id_cart_rule' => ['type' => self::TYPE_INT, 'validate' => 'isInt',  'required' => true,                     'db_type' => 'INT(11) UNSIGNED'   ],
-            'enabled'      => ['type' => self::TYPE_INT, 'validate' => 'isBool', 'required' => true, 'default' => false, 'db_type' => 'TINYINT(1) UNSIGNED'],
-            'locked'       => ['type' => self::TYPE_INT, 'validate' => 'isBool', 'required' => true, 'default' => false, 'db_type' => 'TINYINT(1) UNSIGNED'],
+            'enabled'      => ['type' => self::TYPE_INT, 'validate' => 'isBool', 'required' => true, 'default' => '0', 'db_type' => 'TINYINT(1) UNSIGNED'],
+            'locked'       => ['type' => self::TYPE_INT, 'validate' => 'isBool', 'required' => true, 'default' => '0', 'db_type' => 'TINYINT(1) UNSIGNED'],
         ],
     ];
     // @codingStandardsIgnoreStart
