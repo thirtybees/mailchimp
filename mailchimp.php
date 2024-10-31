@@ -392,7 +392,7 @@ class MailChimp extends Module
     public function hookDisplayBackOfficeHeader()
     {
         $mailChimpShop = MailChimpShop::getByShopId($this->context->shop->id);
-        if (strtotime($mailChimpShop->date_upd) < strtotime('-1 day')) {
+        if (strtotime((string)$mailChimpShop->date_upd) < strtotime('-1 day')) {
             try {
                 MailChimpShop::renewScripts(Shop::getShops(true, null, true));
             } catch (PrestaShopDatabaseException $e) {
