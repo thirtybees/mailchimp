@@ -1181,7 +1181,7 @@ class MailChimp extends Module
      * @throws PrestaShopException
      * @since 1.1.0
      */
-    public function processReset($entityType = 'products', $idShop, $ajax = false)
+    public function processReset($entityType, $idShop, $ajax = false)
     {
         switch ($entityType) {
             case 'products':
@@ -1236,7 +1236,7 @@ class MailChimp extends Module
      * @return array|false
      * @throws PrestaShopException
      */
-    public function cronExport($type = 'products', $idShop, $exportRemaining, $submit)
+    public function cronExport($type, $idShop, $exportRemaining, $submit)
     {
         if ($submit === 'start') {
             $totalItems = call_user_func('\\MailChimpModule\\MailChimp'.ucfirst(substr($type, 0, strlen($type) - 1)).'::get'.ucfirst($type), $idShop, 0, 0, $exportRemaining, true);

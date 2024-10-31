@@ -75,9 +75,9 @@ class MailChimpSubscriber
     public function __construct(
         $email,
         $subscription,
-        $fname = '',
-        $lname = '',
-        $ipSignup = '',
+        $fname,
+        $lname,
+        $ipSignup,
         $language,
         $timestampSignup
     ) {
@@ -112,8 +112,6 @@ class MailChimpSubscriber
         ];
         if (!Configuration::get(MailChimp::GDPR)) {
             $subscriber['ip_signup'] = (string) ($this->ipSignup ?: '');
-        } else {
-
         }
         if (Configuration::get(MailChimp::EXPORT_COUNTRY) && !empty($subscriber['ip_signup'])) {
             $coords = MailChimp::getUserLatLongByIp($this->ipSignup);
