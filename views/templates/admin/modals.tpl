@@ -26,7 +26,7 @@
           </div>
         {/if}
 
-        {$modal.modal_content|escape:'UTF-8'}
+        {$modal.modal_content}
 
         {if isset($modal.modal_actions)}
           <div class="modal-footer">
