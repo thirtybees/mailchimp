@@ -1504,7 +1504,7 @@ class MailChimp extends Module
                 }
             }
         });
-        GuzzleHttp\Promise\settle([$promise])->wait();
+        GuzzleHttp\Promise\Utils::settle([$promise])->wait();
 
         return $success;
     }
