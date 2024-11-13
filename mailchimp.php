@@ -287,7 +287,6 @@ class MailChimp extends Module
      *
      * @return array|bool
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      */
     public function getLists($prepare = false)
     {
@@ -324,7 +323,6 @@ class MailChimp extends Module
      *
      * @throws PrestaShopException
      * @throws SmartyException
-     * @throws Adapter_Exception
      */
     public function hookDisplayHeader()
     {
@@ -385,7 +383,6 @@ class MailChimp extends Module
     }
 
     /**
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -592,7 +589,6 @@ class MailChimp extends Module
     /**
      * @param array $params
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -623,7 +619,6 @@ class MailChimp extends Module
      *
      * @return Client
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      */
     public static function getGuzzle()
     {
@@ -694,7 +689,6 @@ class MailChimp extends Module
     /**
      * @return string
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      */
     public static function getApiKey()
     {
@@ -736,7 +730,6 @@ class MailChimp extends Module
      *
      * @return string|false
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopException
      */
     public static function getDc()
@@ -756,7 +749,6 @@ class MailChimp extends Module
      *
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      */
     public static function setApiKey($apiKey)
     {
@@ -1924,7 +1916,6 @@ class MailChimp extends Module
      *
      * @since 1.0.0
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      */
     protected function getConfigFieldsValues()
     {
@@ -2436,7 +2427,6 @@ class MailChimp extends Module
      *
      * @return bool Indicates whether the API key is valid
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      */
     protected function checkApiKey()
     {
@@ -3153,7 +3143,6 @@ class MailChimp extends Module
      *
      * @return bool $success
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
@@ -3342,7 +3331,6 @@ class MailChimp extends Module
      *
      * @return bool $success
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
@@ -3660,7 +3648,6 @@ class MailChimp extends Module
 
     /**
      * @return string
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -3940,7 +3927,6 @@ class MailChimp extends Module
     /**
      * @return string
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -4024,7 +4010,6 @@ class MailChimp extends Module
      *
      * @param int|int[] $idShops
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopException
      */
     public static function signalSyncStart($idShops)
@@ -4063,7 +4048,6 @@ class MailChimp extends Module
      *
      * @return void
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopException
      */
     public static function signalSyncStop($idShops)

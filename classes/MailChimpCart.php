@@ -19,7 +19,6 @@
 
 namespace MailChimpModule;
 
-use Adapter_Exception;
 use Cart;
 use Context;
 use Currency;
@@ -30,7 +29,6 @@ use PrestaShopDatabaseException;
 use PrestaShopException;
 use Shop;
 use Translate;
-use Validate;
 
 if (!defined('_TB_VERSION_')) {
     exit;
@@ -78,7 +76,6 @@ class MailChimpCart extends ObjectModel
      *
      * @since 1.1.0
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      */
     public static function getCarts($idShops = null, $offset = 0, $limit = 0, $remaining = false, $count = false)
     {

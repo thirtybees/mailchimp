@@ -19,7 +19,6 @@
 
 namespace MailChimpModule;
 
-use Adapter_Exception;
 use Context;
 use Currency;
 use Db;
@@ -81,7 +80,6 @@ class MailChimpOrder extends ObjectModel
      * @return array|false|int|mysqli_result|null|PDOStatement|resource
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      * @since 1.1.0
      */
     public static function getOrders($idShops = null, $offset = 0, $limit = 0, $remaining = false, $count = false)

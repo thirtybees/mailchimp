@@ -19,7 +19,6 @@
 
 namespace MailChimpModule;
 
-use Adapter_Exception;
 use Context;
 use Db;
 use DbQuery;
@@ -117,7 +116,6 @@ class MailChimpShop extends ObjectModel
      *
      * @return MailChimpShop
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -145,7 +143,6 @@ class MailChimpShop extends ObjectModel
      *
      * @return MailChimpShop[]
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -179,7 +176,6 @@ class MailChimpShop extends ObjectModel
      *
      * @return MailChimpShop
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -206,7 +202,6 @@ class MailChimpShop extends ObjectModel
      * @param int|int[]|null $idShops
      *
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      */
     public static function renewScripts($idShops = null)
     {

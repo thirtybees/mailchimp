@@ -19,7 +19,6 @@
 
 namespace MailChimpModule;
 
-use Adapter_Exception;
 use CartRule;
 use Context;
 use Customer;
@@ -72,7 +71,6 @@ class MailChimpPromo extends ObjectModel
      * @param array $tr
      *
      * @return string
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -98,7 +96,6 @@ class MailChimpPromo extends ObjectModel
      * @param int $idCartRule
      *
      * @return static
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -127,7 +124,6 @@ class MailChimpPromo extends ObjectModel
      *
      * @return bool New status
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -145,7 +141,6 @@ class MailChimpPromo extends ObjectModel
      *
      * @return CartRule[]
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -211,7 +206,6 @@ class MailChimpPromo extends ObjectModel
      *
      * @param int|Customer $customer
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */

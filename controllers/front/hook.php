@@ -34,7 +34,6 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
     /**
      * MailChimpHookModuleFrontController constructor.
      *
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */

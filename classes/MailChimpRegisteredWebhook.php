@@ -19,7 +19,6 @@
 
 namespace MailChimpModule;
 
-use Adapter_Exception;
 use Db;
 use DbQuery;
 use mysqli_result;
@@ -89,7 +88,6 @@ class MailChimpRegisteredWebhook extends ObjectModel
      * @param string|null $idList
      *
      * @return bool|MailChimpRegisteredWebhook
-     * @throws Adapter_Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -122,7 +120,6 @@ class MailChimpRegisteredWebhook extends ObjectModel
      *
      * @return bool Indicates whether the list was successfully refreshed
      * @throws PrestaShopException
-     * @throws Adapter_Exception
      */
     public static function refresh($urls, $idList)
     {
