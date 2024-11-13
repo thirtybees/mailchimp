@@ -570,20 +570,22 @@ class MailChimp extends Module
     {
         if (Tools::isSubmit('newsletter')) {
             $object = $params['return'];
-            $subscription = (string) Tools::getValue('newsletter')
-                ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED
-                : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
-            $iso = Language::getIsoById($object->id_lang);
-            $customer = new MailChimpSubscriber(
-                $object->email,
-                $subscription,
-                $object->firstname,
-                $object->lastname,
-                Tools::getRemoteAddr(),
-                $this->getMailChimpLanguageByIso($iso),
-                date('Y-m-d H:i:s')
-            );
-            $this->addOrUpdateSubscription($customer);
+            if ($object instanceof Customer) {
+                $subscription = (string)Tools::getValue('newsletter')
+                    ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED
+                    : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
+                $iso = Language::getIsoById($object->id_lang);
+                $customer = new MailChimpSubscriber(
+                    $object->email,
+                    $subscription,
+                    $object->firstname,
+                    $object->lastname,
+                    Tools::getRemoteAddr(),
+                    $this->getMailChimpLanguageByIso($iso),
+                    date('Y-m-d H:i:s')
+                );
+                $this->addOrUpdateSubscription($customer);
+            }
         }
     }
 
