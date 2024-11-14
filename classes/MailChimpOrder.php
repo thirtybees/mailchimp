@@ -120,10 +120,6 @@ class MailChimpOrder extends ObjectModel
             return [];
         }
 
-        $mailChimpShop = MailChimpShop::getByShopId($idShops);
-        if (!Validate::isLoadedObject($mailChimpShop)) {
-            return [];
-        }
         $orderHistories = static::getOrderHistories(array_column($results, 'id_order'));
         $defaultCurrency = Currency::getDefaultCurrency();
         $defaultCurrencyCode = $defaultCurrency->iso_code;
