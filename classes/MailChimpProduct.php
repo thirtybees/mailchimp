@@ -20,14 +20,12 @@
 namespace MailChimpModule;
 
 use Configuration;
-use Context;
 use Db;
 use DbQuery;
 use ObjectModel;
 use PrestaShopDatabaseException;
 use PrestaShopException;
 use Shop;
-use Translate;
 
 if (!defined('_TB_VERSION_')) {
     exit;

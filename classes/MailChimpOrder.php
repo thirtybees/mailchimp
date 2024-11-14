@@ -19,20 +19,15 @@
 
 namespace MailChimpModule;
 
-use Context;
 use Currency;
 use Db;
 use DbQuery;
 use MailChimp;
-use mysqli_result;
 use ObjectModel;
 use Order;
-use PDOStatement;
 use PrestaShopDatabaseException;
 use PrestaShopException;
 use Shop;
-use Tax;
-use Translate;
 use Validate;
 
 if (!defined('_TB_VERSION_')) {

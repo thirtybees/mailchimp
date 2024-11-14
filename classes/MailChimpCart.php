@@ -28,7 +28,6 @@ use ObjectModel;
 use PrestaShopDatabaseException;
 use PrestaShopException;
 use Shop;
-use Translate;
 
 if (!defined('_TB_VERSION_')) {
     exit;

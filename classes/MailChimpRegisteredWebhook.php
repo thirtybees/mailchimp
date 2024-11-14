@@ -21,9 +21,7 @@ namespace MailChimpModule;
 
 use Db;
 use DbQuery;
-use mysqli_result;
 use ObjectModel;
-use PDOStatement;
 use PrestaShopDatabaseException;
 use PrestaShopException;
 

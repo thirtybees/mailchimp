@@ -23,8 +23,6 @@ use Configuration;
 use Context;
 use Db;
 use DbQuery;
-use GuzzleHttp\Exception\GuzzleException;
-use Logger;
 use MailChimp;
 use PrestaShopDatabaseException;
 use PrestaShopException;
