@@ -137,7 +137,7 @@ class MailChimpCart extends ObjectModel
             $cartProducts = $cartObject->getProducts();
 
             $cart['lines'] = [];
-            foreach ($cartProducts as &$cartProduct) {
+            foreach ($cartProducts as $cartProduct) {
                 $cart['lines'][] = [
                     'id'                 => (string) $cartProduct['id_product'],
                     'product_id'         => (string) $cartProduct['id_product'],

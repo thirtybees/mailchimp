@@ -2500,7 +2500,7 @@ class MailChimp extends Module
             return false;
         }
         $promises = call_user_func(function () use (&$subscribers, $mailChimpShops, $client) {
-            foreach ($subscribers as &$subscriber) {
+            foreach ($subscribers as $subscriber) {
                 $mergeFields = [
                     'FNAME' => $subscriber['firstname'],
                     'LNAME' => $subscriber['lastname'],
@@ -2606,7 +2606,7 @@ class MailChimp extends Module
         $promises = call_user_func(function () use (&$products, $idLang, $client, $link, $taxes) {
             $stockmgmt = (bool) Configuration::get('PS_STOCK_MANAGEMENT');
             $globalOosp = (bool) Configuration::get('PS_ORDER_OUT_OF_STOCK');
-            foreach ($products as &$product) {
+            foreach ($products as $product) {
                 $allowOosp = $globalOosp && $product['out_of_stock'] == 2 || $product['out_of_stock'] == 1;
                 $productObj = new Product();
                 $productObj->hydrate($product);
@@ -3141,7 +3141,7 @@ class MailChimp extends Module
             return false;
         }
         $promises = call_user_func(function () use (&$carts, $client, $mailChimpShops, $idShops) {
-            foreach ($carts as &$cart) {
+            foreach ($carts as $cart) {
                 if (empty($cart['lines'])) {
                     continue;
                 }
@@ -3327,7 +3327,7 @@ class MailChimp extends Module
             return false;
         }
         $promises = call_user_func(function () use (&$orders, $client, $mailChimpShops, $idShops) {
-            foreach ($orders as &$order) {
+            foreach ($orders as $order) {
                 if (empty($order['lines'])) {
                     continue;
                 }

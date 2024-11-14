@@ -153,7 +153,7 @@ class MailChimpOrder extends ObjectModel
             }
 
             $order['lines'] = [];
-            foreach ($orderProducts as &$orderProduct) {
+            foreach ($orderProducts as $orderProduct) {
                 $line = [
                     'id'                 => (string) $orderProduct['product_id'],
                     'product_id'         => (string) $orderProduct['product_id'],
