@@ -110,22 +110,13 @@ class MailChimpProduct extends ObjectModel
             $sql->limit($limit, $offset);
         }
 
-        try {
-            if ($count) {
-                return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
-            }
-
-            $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-            if (!is_array($result)) {
-                $result = [];
-            }
-
-            return $result;
-        } catch (PrestaShopException $e) {
-            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count products', 'mailchimp');
-
-            return 0;
+        if ($count) {
+            return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
         }
+
+        $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray($sql);
+
+        return $result;
     }
 
     /**
@@ -173,41 +164,32 @@ class MailChimpProduct extends ObjectModel
             $sql->where('mp.`last_synced` IS NULL OR (mp.`last_synced` < ps.`date_upd` AND mp.`last_synced` > \'2000-01-01 00:00:00\')');
         }
 
-        try {
-            $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-            if ($orderDetail && is_array($results)) {
-                $missingIds = array_diff(array_map('intval', $range), array_map('intval', array_column($results, 'id_product')));
-                if (!empty($missingIds)) {
-                    $orderDetails = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
-                        (new DbQuery())
-                            ->select('od.`product_id` AS `id_product`, od.`product_attribute_id` AS `id_product_attribute`, od.`id_order_detail`')
-                            ->select('od.`id_shop`, od.`product_name` AS `name`, od.`product_quantity` AS `quantity`, od.`product_price` AS `price`')
-                            ->select('od.`tax_rate`, od.`unit_price_tax_excl`, od.`unit_price_tax_incl`, \'1970-01-01 00:00:00\' AS `last_synced`')
-                            ->select('od.`product_reference` AS `reference`, \'0\' AS p.`out_of_stock`, \'0\' AS p.`quantity`')
-                            ->from('order_detail', 'od')
-                            ->where('od.`product_id` IN ('.implode(',', array_map('intval', $missingIds)).')')
-                    );
-                    if (!is_array($orderDetails)) {
-                        $orderDetails = [];
-                    }
-                    $results = array_merge($results, $orderDetails);
-                }
-            } else {
-                return [];
+        $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray($sql);
+        if ($orderDetail) {
+            $missingIds = array_diff(array_map('intval', $range), array_map('intval', array_column($results, 'id_product')));
+            if (!empty($missingIds)) {
+                $orderDetails = Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray(
+                    (new DbQuery())
+                        ->select('od.`product_id` AS `id_product`, od.`product_attribute_id` AS `id_product_attribute`, od.`id_order_detail`')
+                        ->select('od.`id_shop`, od.`product_name` AS `name`, od.`product_quantity` AS `quantity`, od.`product_price` AS `price`')
+                        ->select('od.`tax_rate`, od.`unit_price_tax_excl`, od.`unit_price_tax_incl`, \'1970-01-01 00:00:00\' AS `last_synced`')
+                        ->select('od.`product_reference` AS `reference`, \'0\' AS p.`out_of_stock`, \'0\' AS p.`quantity`')
+                        ->from('order_detail', 'od')
+                        ->where('od.`product_id` IN ('.implode(',', array_map('intval', $missingIds)).')')
+                );
+                $results = array_merge($results, $orderDetails);
             }
-
-            return $results;
-        } catch (PrestaShopException $e) {
-            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count products', 'mailchimp');
-
+        } else {
             return [];
         }
+
+        return $results;
     }
 
     /**
      * Set synced
      *
-     * @param array          $range
+     * @param int[] $range
      * @param int[]|int|null $idShops
      *
      * @return bool
@@ -223,13 +205,15 @@ class MailChimpProduct extends ObjectModel
         }
         $idShops = array_map('intval', $idShops);
 
-        if (empty($range)) {
+        if (! $range) {
             return false;
         }
 
+        $range = array_map('intval', $range);
+
         $insert = [];
         $now = date('Y-m-d H:i:s');
-        foreach ($range as &$item) {
+        foreach ($range as $item) {
             foreach ($idShops as $idShop) {
                 $insert[] = [
                     'id_product'  => $item,
@@ -239,32 +223,20 @@ class MailChimpProduct extends ObjectModel
             }
         }
 
-        try {
-            Db::getInstance()->delete(
-                bqSQL(self::$definition['table']),
-                '`id_product` IN ('.implode(',', $range).') AND `id_shop` IN ('.implode(',', array_map('intval', $idShops)).')',
-                0,
-                false
-            );
-        } catch (PrestaShopDatabaseException $e) {
-            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
+        Db::getInstance()->delete(
+            bqSQL(self::$definition['table']),
+            '`id_product` IN ('.implode(',', $range).') AND `id_shop` IN ('.implode(',', array_map('intval', $idShops)).')',
+            0,
+            false
+        );
 
-            return false;
-        }
-
-        try {
-            return Db::getInstance()->insert(
-                bqSQL(self::$definition['table']),
-                $insert,
-                false,
-                false,
-                Db::INSERT_IGNORE
-            );
-        } catch (PrestaShopException $e) {
-            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
-
-            return false;
-        }
+        return Db::getInstance()->insert(
+            bqSQL(self::$definition['table']),
+            $insert,
+            false,
+            false,
+            Db::INSERT_IGNORE
+        );
     }
 
     /**

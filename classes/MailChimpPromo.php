@@ -147,17 +147,15 @@ class MailChimpPromo extends ObjectModel
     public static function getCartRules()
     {
         $cartRules = [];
-        $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+        $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray(
             (new DbQuery())
                 ->select('`id_cart_rule`')
                 ->from(bqSQL(static::$definition['table']))
                 ->where('`enabled` = 1')
         );
 
-        if (is_array($results) && !empty($results)) {
-            foreach ($results as $result) {
-                $cartRules[] = new CartRule($result['id_cart_rule']);
-            }
+        foreach ($results as $result) {
+            $cartRules[] = new CartRule($result['id_cart_rule']);
         }
 
         return $cartRules;

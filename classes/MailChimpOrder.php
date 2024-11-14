@@ -77,7 +77,7 @@ class MailChimpOrder extends ObjectModel
      * @param bool           $remaining Remaining Orders only
      * @param bool           $count
      *
-     * @return array|bool|int|PDOStatement
+     * @return array|int
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
@@ -116,28 +116,18 @@ class MailChimpOrder extends ObjectModel
             $sql->limit($limit, $offset);
         }
 
-        try {
-            if ($count) {
-                return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
-            }
-
-            $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-        } catch (PrestaShopException $e) {
-            if ($count) {
-                Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to count orders', 'mailchimp');
-            } else {
-                Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to find orders', 'mailchimp');
-            }
-
-            return false;
+        if ($count) {
+            return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
         }
+
+        $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray($sql);
         if (empty($results)) {
             return [];
         }
 
         $mailChimpShop = MailChimpShop::getByShopId($idShops);
         if (!Validate::isLoadedObject($mailChimpShop)) {
-            return false;
+            return [];
         }
         $orderHistories = static::getOrderHistories(array_column($results, 'id_order'));
         $defaultCurrency = Currency::getDefaultCurrency();
@@ -202,15 +192,12 @@ class MailChimpOrder extends ObjectModel
         }
         $range = array_map('intval', $range);
 
-        $results =  Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+        $results =  Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray(
             (new DbQuery())
                 ->select('`id_order`, `id_order_state`')
                 ->from('order_history')
                 ->where('`id_order` IN ('.implode(',', $range).')')
         );
-        if (!is_array($results)) {
-            return false;
-        }
 
         $histories = [];
         foreach ($results as $result) {
@@ -226,7 +213,7 @@ class MailChimpOrder extends ObjectModel
     /**
      * Set synced
      *
-     * @param array $range
+     * @param int[] $range
      *
      * @return bool
      * @since 1.1.0
@@ -234,45 +221,35 @@ class MailChimpOrder extends ObjectModel
      */
     public static function setSynced($range)
     {
-        if (empty($range)) {
+        if (! $range) {
             return false;
         }
 
+        $range = array_map('intval', $range);
+
         $insert = [];
         $now = date('Y-m-d H:i:s');
-        foreach ($range as &$item) {
+        foreach ($range as $item) {
             $insert[] = [
                 'id_order'    => $item,
                 'last_synced' => $now,
             ];
         }
 
-        try {
-            Db::getInstance()->delete(
-                bqSQL(self::$definition['table']),
-                '`id_order` IN ('.implode(',', $range).')',
-                0,
-                false
-            );
-        } catch (PrestaShopDatabaseException $e) {
-            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
+        Db::getInstance()->delete(
+            bqSQL(self::$definition['table']),
+            '`id_order` IN ('.implode(',', $range).')',
+            0,
+            false
+        );
 
-            return false;
-        }
-
-        try {
-            return Db::getInstance()->insert(
-                bqSQL(self::$definition['table']),
-                $insert,
-                false,
-                false,
-                Db::INSERT_IGNORE
-            );
-        } catch (PrestaShopException $e) {
-            Context::getContext()->controller->errors[] = Translate::getModuleTranslation('mailchimp', 'Unable to set sync status', 'mailchimp');
-
-            return false;
-        }
+        return Db::getInstance()->insert(
+            bqSQL(self::$definition['table']),
+            $insert,
+            false,
+            false,
+            Db::INSERT_IGNORE
+        );
     }
 
     /**

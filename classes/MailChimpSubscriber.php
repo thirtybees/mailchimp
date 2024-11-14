@@ -117,7 +117,6 @@ class MailChimpSubscriber
      *
      * @return array
      * @throws PrestaShopException
-     * @throws GuzzleException
      */
     public function getAsArray()
     {
@@ -248,26 +247,14 @@ class MailChimpSubscriber
                 $sql .= ' LIMIT '.(int) $offset;
                 $sql .= ', '.(int) $limit;
             }
-            try {
-                $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-            } catch (PrestaShopException $e) {
-                Logger::addLog("MailChimp module error: {$e->getMessage()}");
-
-                $result = false;
-            }
+            $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray($sql);
         } elseif ($customers) {
-            try {
-                if ($count) {
-                    return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($customerQuery);
-                }
-
-                $customerQuery->limit($limit, $offset);
-                $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($customerQuery);
-            } catch (PrestaShopException $e) {
-                Logger::addLog("MailChimp module error: {$e->getMessage()}");
-
-                $result = false;
+            if ($count) {
+                return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($customerQuery);
             }
+
+            $customerQuery->limit($limit, $offset);
+            $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray($customerQuery);
         }
 
         if ($result) {

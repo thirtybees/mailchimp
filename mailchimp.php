@@ -172,6 +172,7 @@ class MailChimp extends Module
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
+        $this->tb_min_version = '1.5.0';
 
         parent::__construct();
 
@@ -396,10 +397,7 @@ class MailChimp extends Module
     {
         $mailChimpShop = MailChimpShop::getByShopId($this->context->shop->id);
         if (strtotime((string)$mailChimpShop->date_upd) < strtotime('-1 day')) {
-            try {
-                MailChimpShop::renewScripts(Shop::getShops(true, null, true));
-            } catch (PrestaShopDatabaseException $e) {
-            }
+            MailChimpShop::renewScripts(Shop::getShops(true, null, true));
         }
     }
 
@@ -1200,36 +1198,28 @@ class MailChimp extends Module
             case 'products':
                 $table = 'product_shop';
                 $primary = 'id_product';
+                $def = MailChimpProduct::$definition;
                 break;
             case 'carts':
                 $table = 'cart';
                 $primary = 'id_cart';
+                $def = MailChimpCart::$definition;
                 break;
             case 'orders':
+                $def = MailChimpOrder::$definition;
                 $table = 'orders';
                 $primary = 'id_order';
                 break;
+            default:
+                throw new RuntimeException('Unknown entity type');
         }
-        $entity = 'MailChimp'.ucfirst(substr($entityType, 0, strlen($entityType) - 1));
-        $success = false;
-        if (isset($table)  && isset($primary)) {
-            try {
-                $success = Db::getInstance()->execute(
-                    'DELETE mo
-                 FROM `'._DB_PREFIX_.bqSQL((new ReflectionProperty('\\MailChimpModule\\'.$entity, 'definition'))->getValue()['table']).'` mo
-                 INNER JOIN `'._DB_PREFIX_.bqSQL($table).'` o ON o.`'.bqSQL($primary).'` = mo.`'.bqSQL($primary).'`
-                 WHERE o.`id_shop` = '.(int) $idShop
-                );
-            } catch (PrestaShopDatabaseException $e) {
-                Logger::addLog("MailChimp module error: {$e->getMessage()}");
-            } catch (PrestaShopException $e) {
-                Logger::addLog("MailChimp module error: {$e->getMessage()}");
-                $success = false;
-            } catch (ReflectionException $e) {
-                Logger::addLog("MailChimp module error: {$e->getMessage()}");
-                $success = false;
-            }
-        }
+
+        $success = Db::getInstance()->execute(
+            'DELETE mo
+         FROM `'._DB_PREFIX_.bqSQL($def['table']).'` mo
+         INNER JOIN `'._DB_PREFIX_.bqSQL($table).'` o ON o.`'.bqSQL($primary).'` = mo.`'.bqSQL($primary).'`
+         WHERE o.`id_shop` = '.(int) $idShop
+        );
 
         if ($ajax) {
             die(json_encode([
@@ -1369,11 +1359,7 @@ class MailChimp extends Module
                     $mailChimpShop->id_tax = (int) $shopTaxes[$idShop];
                     $mailChimpShop->synced = true;
 
-                    try {
-                        $mailChimpShop->save();
-                    } catch (PrestaShopException $e) {
-                        $this->addError($this->l('Shop info could not be saved'));
-                    }
+                    $mailChimpShop->save();
 
                     // Create MailChimp side webhooks
                     if ($mailChimpShop->list_id) {
@@ -2708,24 +2694,19 @@ class MailChimp extends Module
                     }
                 }
 
-                try {
-                    $payload = [
-                        'id'          => (string) $product['id_product'],
-                        'title'       => (string) $product['name'],
-                        'url'         => (string) $link->getProductLink($product['id_product']),
-                        'description' => (string) $product['description_short'],
-                        'vendor'      => (string) $product['manufacturer'] ?: '',
-                        'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
-                        'variants'    => $variants,
-                    ];
-                    if (!empty($images)) {
-                        $payload['images'] = array_values($images);
-                    }
-                } catch (PrestaShopException $e) {
-                    $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
-
-                    continue;
+                $payload = [
+                    'id'          => (string) $product['id_product'],
+                    'title'       => (string) $product['name'],
+                    'url'         => (string) $link->getProductLink($product['id_product']),
+                    'description' => (string) $product['description_short'],
+                    'vendor'      => (string) $product['manufacturer'] ?: '',
+                    'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
+                    'variants'    => $variants,
+                ];
+                if (!empty($images)) {
+                    $payload['images'] = array_values($images);
                 }
+
                 if (!empty($product['last_synced']) && $product['last_synced'] > '2000-01-01 00:00:00') {
                     yield $client->patchAsync(
                         "ecommerce/stores/tbstore_{$idShop}/products/{$product['id_product']}",
@@ -2973,23 +2954,17 @@ class MailChimp extends Module
                         }
                     }
 
-                    try {
-                        $payload = [
-                            'id'          => (string) $product['id_product'],
-                            'title'       => (string) $product['name'],
-                            'url'         => (string) $link->getProductLink($product['id_product']),
-                            'description' => (string) $product['description_short'],
-                            'vendor'      => (string) $product['manufacturer'] ?: '',
-                            'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
-                            'variants'    => $variants,
-                        ];
-                        if (!empty($images)) {
-                            $payload['images'] = array_values($images);
-                        }
-                    } catch (PrestaShopException $e) {
-                        $this->addError(sprintf($this->l('Unable to generate product link for Product ID %d'), $product['id_product']));
-
-                        continue;
+                    $payload = [
+                        'id'          => (string) $product['id_product'],
+                        'title'       => (string) $product['name'],
+                        'url'         => (string) $link->getProductLink($product['id_product']),
+                        'description' => (string) $product['description_short'],
+                        'vendor'      => (string) $product['manufacturer'] ?: '',
+                        'image_url'   => !empty($allImages) ? $link->getImageLink('default', "{$product['id_product']}-{$allImages[0]['id_image']}") : '',
+                        'variants'    => $variants,
+                    ];
+                    if (!empty($images)) {
+                        $payload['images'] = array_values($images);
                     }
                 } else {
                     // Work with an order detail row
@@ -3747,7 +3722,7 @@ class MailChimp extends Module
     {
         $statuses = Configuration::get(static::ORDER_STATUS_PAID);
         if ($statuses === false) {
-            return array_column(Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+            return array_column(Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray(
                 (new DbQuery())
                     ->select('`id_order_state`')
                     ->from('order_state')
@@ -3812,7 +3787,7 @@ class MailChimp extends Module
     {
         $statuses = Configuration::get(static::ORDER_STATUS_SHIPPED);
         if ($statuses === false) {
-            return array_column(Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+            return array_column(Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray(
                 (new DbQuery())
                     ->select('`id_order_state`')
                     ->from('order_state')

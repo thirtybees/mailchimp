@@ -85,10 +85,10 @@ class MailChimpShop extends ObjectModel
      *
      * @param bool $active
      *
-     * @return array|bool|PDOStatement
+     * @return array
      *
      * @throws PrestaShopException
-     *@since 1.1.0
+     * @since 1.1.0
      */
     public static function getShops($active = false)
     {
@@ -103,11 +103,7 @@ class MailChimpShop extends ObjectModel
             $sql->where('s.`id_shop` = '.(int) Context::getContext()->shop->id);
         }
 
-        try {
-            return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-        } catch (PrestaShopException $e) {
-            return false;
-        }
+        return Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray($sql);
     }
 
     /**
@@ -155,11 +151,7 @@ class MailChimpShop extends ObjectModel
         $sql->innerJoin(bqSQL(static::$definition['table']), 'ms', 's.`'.bqSQL(Shop::$definition['primary']).'` = ms.`'.bqSQL(Shop::$definition['primary']).'`');
         $sql->where('s.`'.bqSQL(Shop::$definition['primary']).'` IN ('.implode(',', array_map('intval', $idShops)).')');
 
-        $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-        if (!$results) {
-            return [];
-        }
-
+        $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray($sql);
         $mcs = [];
         foreach ($results as $result) {
             $mc = new static();

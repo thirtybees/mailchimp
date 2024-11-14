@@ -158,7 +158,7 @@ class MailChimpRegisteredWebhook extends ObjectModel
      *
      * @param string|null $idList
      *
-     * @return array|bool|PDOStatement
+     * @return array
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -171,6 +171,6 @@ class MailChimpRegisteredWebhook extends ObjectModel
             $sql->where('`id_list` = \''.pSQL($idList).'\'');
         }
 
-        return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        return Db::getInstance(_PS_USE_SQL_SLAVE_)->getArray($sql);
     }
 }
