@@ -2748,10 +2748,7 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (TransferException $e) {
-                            // Second attempt failed, this means an error in the request, continue to make it log the error
-                            $reason = $e;
-                        } catch (Exception $e) {
+                        } catch (TransferException|Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                             $reason = $e;
                         }
@@ -2766,10 +2763,7 @@ class MailChimp extends Module
                             );
 
                             return;
-                        } catch (TransferException $e) {
-                            $reason = $e;
-                            // Second attempt failed, this means an error in the request, continue to make it log the error
-                        } catch (Exception $e) {
+                        } catch (TransferException|Exception $e) {
                             $reason = $e;
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                         }
@@ -3044,10 +3038,7 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (TransferException $e) {
-                            // Second attempt failed, this means an error in the request, continue to make it log the error
-                            $reason = $e;
-                        } catch (Exception $e) {
+                        } catch (TransferException|Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                             $reason = $e;
                         }
@@ -3061,10 +3052,7 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (TransferException $e) {
-                            // Second attempt failed, this means an error in the request, continue to make it log the error
-                            $reason = $e;
-                        } catch (Exception $e) {
+                        } catch (TransferException|Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                             $reason = $e;
                         }
@@ -3223,10 +3211,7 @@ class MailChimp extends Module
                                 MailChimpPromo::duplicateCartRules($response['customer']['id']);
                             }
                             return;
-                        } catch (TransferException $e) {
-                            // Second attempt failed, this means an error in the request, continue to make it log the error
-                            $reason = $e;
-                        } catch (Exception $e) {
+                        } catch (TransferException|Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                             $reason = $e;
                         }
@@ -3243,10 +3228,7 @@ class MailChimp extends Module
                                 MailChimpPromo::duplicateCartRules($response['customer']['id']);
                             }
                             return;
-                        } catch (TransferException $e) {
-                            // Second attempt failed, this means an error in the request, continue to make it log the error
-                            $reason = $e;
-                        } catch (Exception $e) {
+                        } catch (TransferException|Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                             $reason = $e;
                         }
@@ -3423,10 +3405,7 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (TransferException $e) {
-                            // Second attempt failed, this means an error in the request, continue to make it log the error
-                            $reason = $e;
-                        } catch (Exception $e) {
+                        } catch (TransferException|Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                             $reason = $e;
                         }
@@ -3440,10 +3419,7 @@ class MailChimp extends Module
                                 ]
                             );
                             return;
-                        } catch (TransferException $e) {
-                            // Second attempt failed, this means an error in the request, continue to make it log the error
-                            $reason = $e;
-                        } catch (Exception $e) {
+                        } catch (TransferException|Exception $e) {
                             // Second attempt failed, this means an error in the request, continue to make it log the error
                             $reason = $e;
                         }
