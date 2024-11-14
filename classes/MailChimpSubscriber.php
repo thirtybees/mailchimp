@@ -206,7 +206,7 @@ class MailChimpSubscriber
         $nlQuery->select('\'\' AS `ip_registration_newsletter`, l.`iso_code`, n.`id_shop`');
         $nlQuery->select('n.`newsletter_date_add`, \'\' AS `company`, \'\' AS `website`, \'\' AS `birthday`');
         $nlQuery->from('newsletter', 'n');
-        $nlQuery->innerJoin('lang',  'l', 'l.`id_lang` = '.(int) \Configuration::get('PS_LANG_DEFAULT'));
+        $nlQuery->innerJoin('lang',  'l', 'l.`id_lang` = '.(int) Configuration::get('PS_LANG_DEFAULT'));
         if ($optedIn) {
             $nlQuery->where('n.`active` = 1');
         }
@@ -240,7 +240,7 @@ class MailChimpSubscriber
             $sql = $count ? 'SELECT COUNT(*) FROM ' : 'SELECT * FROM ';
             $sql .= "({$nlQuery->build()} UNION ALL {$customerQuery->build()}) AS `x` ";
             if ($count) {
-                return (int) \Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+                return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
             } else {
                 $sql .= ' LIMIT '.(int) $offset;
                 $sql .= ', '.(int) $limit;

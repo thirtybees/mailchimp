@@ -15,6 +15,8 @@
  *  @author    thirty bees <modules@thirtybees.com>
  *  @copyright 2017-2024 thirty bees
  *  @license   https://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ *
+ * @noinspection PhpUnhandledExceptionInspection
  */
 
 require_once __DIR__.'/../../config/config.inc.php';

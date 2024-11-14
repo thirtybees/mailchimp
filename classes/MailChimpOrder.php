@@ -129,7 +129,7 @@ class MailChimpOrder extends ObjectModel
         $defaultCurrencyCode = $defaultCurrency->iso_code;
         foreach ($results as &$order) {
             $orderObj = new Order($order['id_order']);
-            $orderHistory = isset($orderHistories[$order['id_order']]) ? $orderHistories[$order['id_order']] : [];
+            $orderHistory = $orderHistories[$order['id_order']] ?? [];
 
             $order['currency_code'] = $defaultCurrencyCode;
             $order['order_total'] = $orderObj->total_paid_tax_incl;

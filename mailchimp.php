@@ -27,7 +27,7 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Promise\EachPromise;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
-use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Utils;
 use MailChimpModule\MailChimpCart;
 use MailChimpModule\MailChimpOrder;
 use MailChimpModule\MailChimpProduct;
@@ -278,20 +278,22 @@ class MailChimp extends Module
         } else {
             $this->postProcess();
 
-            return $this->displayMainPage();
+            return $this->displayMainPage($this->getAdminController());
         }
     }
 
     /**
      * Get lists
      *
+     * @param AdminController $controller
      * @param bool $prepare Prepare for display in e.g. HelperForm
      *
      * @return array|bool
      * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
-    public function getLists($prepare = false)
+    public function getLists(AdminController $controller, $prepare = false)
     {
         $client = static::getGuzzle();
         if (!$client) {
@@ -311,7 +313,7 @@ class MailChimp extends Module
 
             return $lists['lists'];
         } catch (Exception $e) {
-            $this->addError($e->getMessage());
+            $this->addError($controller, $e->getMessage());
         }
 
         return false;
@@ -328,6 +330,7 @@ class MailChimp extends Module
      * @throws SmartyException
      * @since 1.1.0
      *
+     * @noinspection PhpUndefinedFieldInspection
      */
     public function hookDisplayHeader()
     {
@@ -411,6 +414,8 @@ class MailChimp extends Module
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
+     *
+     * @noinspection PhpUndefinedFieldInspection
      */
     public function hookActionValidateOrder($params)
     {
@@ -436,9 +441,9 @@ class MailChimp extends Module
                 $cookie->write();
             }
         } catch (Exception $e) {
-            if (isset($cookie) && isset ($cookie->mc_tc) && isset($params['order']->id)) {
+            if (isset($params['order']->id) && isset($cookie->mc_tc)) {
                 Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_tc for Order {$params['order']->id}", 2);
-            } elseif (isset($cookie) && isset ($cookie->mc_cid) && isset($params['order']->id)) {
+            } elseif (isset($params['order']->id) && isset($cookie->mc_cid)) {
                 Logger::addLog("Unable to set Mailchimp tracking code $cookie->mc_cid for Order {$params['order']->id}", 2);
             } else {
                 Logger::addLog('Unable to set Mailchimp tracking code for Order', 2);
@@ -455,13 +460,7 @@ class MailChimp extends Module
      */
     public static function getMailChimpLanguageByIso($iso)
     {
-        if (isset(static::$mailChimpLanguages[$iso])) {
-            $lang = static::$mailChimpLanguages[$iso];
-        } else {
-            $lang = 'en';
-        }
-
-        return $lang;
+        return static::$mailChimpLanguages[$iso] ?? 'en';
     }
 
     /**
@@ -600,6 +599,8 @@ class MailChimp extends Module
      *
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
+     *
+     * @noinspection PhpArrayWriteIsNotUsedInspection
      */
     public function hookActionAdminCartRulesListingFieldsModifier($params)
     {
@@ -638,7 +639,7 @@ class MailChimp extends Module
             $apiKey = static::getApiKey();
             $dc = static::getDc();
             if ($apiKey && $dc) {
-                $stack = HandlerStack::create(\GuzzleHttp\choose_handler());
+                $stack = HandlerStack::create(Utils::chooseHandler());
                 $stack->push(Middleware::retry(function (
                     $retries,
                     Request $request,
@@ -648,11 +649,6 @@ class MailChimp extends Module
                     // Limit the number of retries to 5
                     if ($retries >= static::RETRIES) {
                         return false;
-                    }
-
-                    // Retry connection exceptions
-                    if ($exception instanceof ConnectException) {
-                        return true;
                     }
 
                     if ($response) {
@@ -846,53 +842,19 @@ class MailChimp extends Module
     }
 
     /**
-     * Add information message
-     *
-     * @param string $message Message
-     * @param bool   $private
-     */
-    public function addInformation($message, $private = false)
-    {
-        if (!Tools::isSubmit('configure')) {
-            if (!$private) {
-                $this->context->controller->informations[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
-            }
-        } else {
-            $this->context->controller->informations[] = $message;
-        }
-    }
-
-    /**
      * Add confirmation message
      *
      * @param string $message Message
      * @param bool   $private
      */
-    public function addConfirmation($message, $private = false)
+    public function addConfirmation(AdminController $controller, $message, $private = false)
     {
         if (!Tools::isSubmit('configure')) {
             if (!$private) {
-                $this->context->controller->confirmations[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
+                $controller->confirmations[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
             }
         } else {
-            $this->context->controller->confirmations[] = $message;
-        }
-    }
-
-    /**
-     * Add warning message
-     *
-     * @param string $message Message
-     * @param bool   $private
-     */
-    public function addWarning($message, $private = false)
-    {
-        if (!Tools::isSubmit('configure')) {
-            if (!$private) {
-                $this->context->controller->warnings[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
-            }
-        } else {
-            $this->context->controller->warnings[] = $message;
+            $controller->confirmations[] = $message;
         }
     }
 
@@ -902,16 +864,16 @@ class MailChimp extends Module
      * @param string $message Message
      * @param bool   $private
      */
-    public function addError($message, $private = false)
+    public function addError(AdminController $controller, $message, $private = false)
     {
         if (!Tools::isSubmit('configure')) {
             if (!$private) {
-                $this->context->controller->errors[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
+                $controller->errors[] = '<a href="'.$this->baseUrl.'">'.$this->displayName.': '.$message.'</a>';
             }
         } else {
             // Do not add error in this case
             // It will break execution of AdminController
-            $this->context->controller->warnings[] = $message;
+            $controller->warnings[] = $message;
         }
     }
 
@@ -1008,9 +970,9 @@ class MailChimp extends Module
                 ]));
             }
             if ($exportRemaining) {
-                $success = $this->exportProducts(0, $idShops, $exportRemaining);
+                $success = $this->exportProducts(0, $idShops, true);
             } else {
-                $success = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+                $success = $this->exportProducts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, false);
             }
 
             die(json_encode([
@@ -1046,9 +1008,9 @@ class MailChimp extends Module
             $count = (int) Tools::getValue('count');
 
             if ($exportRemaining) {
-                $success = $this->exportCarts(0, $idShops, $exportRemaining);
+                $success = $this->exportCarts(0, $idShops, true);
             } else {
-                $success = $this->exportCarts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+                $success = $this->exportCarts(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, false);
             }
 
             die(json_encode([
@@ -1090,9 +1052,9 @@ class MailChimp extends Module
             }
 
             if ($exportRemaining) {
-                $success = $this->exportOrders(0, $idShops, $exportRemaining);
+                $success = $this->exportOrders(0, $idShops, true);
             } else {
-                $success = $this->exportOrders(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, $exportRemaining);
+                $success = $this->exportOrders(($count - 1) * static::EXPORT_CHUNK_SIZE, $idShops, false);
             }
             die(json_encode([
                 'success' => $success,
@@ -1268,11 +1230,12 @@ class MailChimp extends Module
      */
     protected function postProcess()
     {
+        $controller = $this->getAdminController();
         if (Tools::isSubmit('submitApiKey')) {
             // Check if MailChimp API key is valid
             static::setApiKey(Tools::getValue(static::API_KEY));
             Configuration::updateValue(static::API_KEY_VALID, false, false, 0, 0);
-            $this->checkApiKey();
+            $this->checkApiKey($controller);
         } elseif (Tools::isSubmit('submitSettings')) {
             // Update all the configuration
             // And check if updates were successful
@@ -1284,9 +1247,9 @@ class MailChimp extends Module
                 && Configuration::updateValue(static::GDPR, (bool) Tools::getvalue(static::GDPR, false))
                 && Configuration::updateValue(static::DISABLE_POPUP, (bool) Tools::getvalue(static::DISABLE_POPUP))
             ) {
-                $this->addConfirmation($this->l('Settings updated.'));
+                $this->addConfirmation($controller, $this->l('Settings updated.'));
             } else {
-                $this->addError($this->l('Some of the settings could not be saved.'));
+                $this->addError($controller, $this->l('Some of the settings could not be saved.'));
             }
         } elseif (Tools::isSubmit('submitShops')) {
             $shopLists = Tools::getValue('shop_list_id');
@@ -1365,7 +1328,7 @@ class MailChimp extends Module
                     if ($mailChimpShop->list_id) {
                         $register = $this->registerWebhookForList($mailChimpShop->list_id);
                         if (!$register) {
-                            $this->addError($this->l('MailChimp webhooks could not be implemented. Please try again.'));
+                            $this->addError($controller, $this->l('MailChimp webhooks could not be implemented. Please try again.'));
                         }
                     } else {
                         try {
@@ -1550,7 +1513,7 @@ class MailChimp extends Module
                     $responseBody = (string) $reason->getResponse()->getBody();
                     $requestBody = (string) $reason->getRequest()->getBody();
                     Logger::addLog("MailChimp client error: {$requestBody} -- {$responseBody}", 2);
-                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
+                } elseif ($reason instanceof Exception) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
                 $success = false;
@@ -1564,16 +1527,18 @@ class MailChimp extends Module
     /**
      * Display main page
      *
+     * @param AdminController $controller
      * @return string
+     *
      * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function displayMainPage()
+    protected function displayMainPage(AdminController $controller)
     {
-        $this->context->controller->addJS($this->_path.'views/js/sweetalert.min.js');
-        $this->loadTabs();
+        $controller->addJS($this->_path.'views/js/sweetalert.min.js');
+        $this->loadTabs($controller);
 
         $this->context->smarty->assign([
             'availableShops' => Shop::isFeatureActive()
@@ -1594,7 +1559,7 @@ class MailChimp extends Module
      * @throws SmartyException
      * @since 1.0.0
      */
-    protected function displayApiForm()
+    protected function displayApiForm(AdminController $controller)
     {
         $fields = [];
 
@@ -1624,7 +1589,7 @@ class MailChimp extends Module
 
         $fields[] = $fieldsForm1;
 
-        if ($this->checkApiKey()) {
+        if ($this->checkApiKey($controller)) {
             $inputs2 = [];
 
             $inputs2[] = [
@@ -1777,7 +1742,7 @@ class MailChimp extends Module
         $idShopString = is_array($idShop) ? implode(',', $idShop) : (string) $idShop;
 
         $idLang = array_values(Language::getLanguages(true, false, true));
-        if (is_array($idLang) && !empty($idLang)) {
+        if (!empty($idLang)) {
             $idLang = $idLang[0];
         } else {
             $idLang = $context->language->id;
@@ -1959,7 +1924,7 @@ class MailChimp extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function displayShopsForm()
+    protected function displayShopsForm(AdminController $controller)
     {
         $helper = new HelperForm();
 
@@ -1978,23 +1943,24 @@ class MailChimp extends Module
         $helper->token = '';
 
         $helper->tpl_vars = [
-            'languages'   => $this->context->controller->getLanguages(),
+            'languages'   => $controller->getLanguages(),
             'id_language' => $this->context->language->id,
         ];
 
-        return $helper->generateForm([$this->getShopsForm()]);
+        return $helper->generateForm([$this->getShopsForm($controller)]);
     }
 
     /**
+     * @param AdminController $controller
      * @return array
      * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
-    protected function getShopsForm()
+    protected function getShopsForm(AdminController $controller)
     {
         $lists = [0 => $this->l('Do not sync')];
-        $thisLists = $this->getLists(true);
+        $thisLists = $this->getLists($controller, true);
         if (is_array($thisLists)) {
             $lists = array_merge($lists, $thisLists);
         }
@@ -2041,7 +2007,7 @@ class MailChimp extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function displayProductsForm()
+    protected function displayProductsForm(AdminController $controller)
     {
         $helper = new HelperForm();
 
@@ -2060,7 +2026,7 @@ class MailChimp extends Module
         $helper->token = '';
 
         $helper->tpl_vars = [
-            'languages'   => $this->context->controller->getLanguages(),
+            'languages'   => $controller->getLanguages(),
             'id_language' => $this->context->language->id,
         ];
 
@@ -2096,12 +2062,13 @@ class MailChimp extends Module
     /**
      * Render Customer export form
      *
+     * @param AdminController $controller
      * @return string Form HTML
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function displayCartsForm()
+    protected function displayCartsForm(AdminController $controller)
     {
         $helper = new HelperForm();
 
@@ -2120,7 +2087,7 @@ class MailChimp extends Module
         $helper->token = '';
 
         $helper->tpl_vars = [
-            'languages'   => $this->context->controller->getLanguages(),
+            'languages'   => $controller->getLanguages(),
             'id_language' => $this->context->language->id,
         ];
 
@@ -2156,13 +2123,14 @@ class MailChimp extends Module
     /**
      * Render Customer export form
      *
+     * @param AdminController $controller
      * @return string Form HTML
      * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function displayOrdersForm()
+    protected function displayOrdersForm(AdminController $controller)
     {
         $helper = new HelperForm();
 
@@ -2181,21 +2149,25 @@ class MailChimp extends Module
         $helper->token = '';
 
         $helper->tpl_vars = [
-            'languages'    => $this->context->controller->getLanguages(),
+            'languages'    => $controller->getLanguages(),
             'id_language'  => $this->context->language->id,
             'fields_value' => $this->getConfigFieldsValues(),
         ];
 
-        return $helper->generateForm($this->getOrdersForm());
+        return $helper->generateForm($this->getOrdersForm($controller));
     }
 
     /**
+     * @param AdminController $controller
+     *
      * @return array
+     *
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
-    protected function getOrdersForm()
+    protected function getOrdersForm(AdminController $controller)
     {
-        $this->context->controller->addJqueryUI('ui.datepicker');
+        $controller->addJqueryUI('ui.datepicker');
 
         $otherStatuses = array_map(function ($state) {
             $state['name'] = "{$state['id_order_state']}. {$state['name']}";
@@ -2344,6 +2316,7 @@ class MailChimp extends Module
     }
 
     /**
+     * @param AdminController $controller
      * @return void
      *
      * @throws GuzzleException
@@ -2352,40 +2325,40 @@ class MailChimp extends Module
      * @throws SmartyException
      * @since 1.0.0
      */
-    protected function loadTabs()
+    protected function loadTabs(AdminController $controller)
     {
         $contents = [
             [
                 'name'  => $this->l('Export Settings'),
                 'icon'  => 'icon-upload',
-                'value' => $this->displayApiForm(),
+                'value' => $this->displayApiForm($controller),
                 'badge' => false,
             ],
         ];
 
-        if ($this->checkApiKey()) {
+        if ($this->checkApiKey($controller)) {
             $contents[] = [
                 'name'  => $this->l('Shops'),
                 'icon'  => 'icon-building',
-                'value' => $this->displayShopsForm(),
+                'value' => $this->displayShopsForm($controller),
                 'badge' => false,
             ];
             $contents[] = [
                 'name'  => $this->l('Products'),
                 'icon'  => 'icon-archive',
-                'value' => $this->displayProductsForm(),
+                'value' => $this->displayProductsForm($controller),
                 'badge' => false,
             ];
             $contents[] = [
                 'name'  => $this->l('Carts'),
                 'icon'  => 'icon-shopping-cart',
-                'value' => $this->displayCartsForm(),
+                'value' => $this->displayCartsForm($controller),
                 'badge' => false,
             ];
             $contents[] = [
                 'name'  => $this->l('Orders'),
                 'icon'  => 'icon-money',
-                'value' => $this->displayOrdersForm(),
+                'value' => $this->displayOrdersForm($controller),
                 'badge' => false,
             ];
         }
@@ -2405,8 +2378,8 @@ class MailChimp extends Module
         $this->context->smarty->assign('tab_contents', $tabContents);
         $this->context->smarty->assign('ps_version', _PS_VERSION_);
         $this->context->smarty->assign('new_base_dir', $this->_path);
-        $this->context->controller->addCss($this->_path.'/views/css/configtabs.css');
-        $this->context->controller->addJs($this->_path.'/views/js/configtabs.js');
+        $controller->addCss($this->_path.'/views/css/configtabs.css');
+        $controller->addJs($this->_path.'/views/js/configtabs.js');
     }
 
     /**
@@ -2416,7 +2389,7 @@ class MailChimp extends Module
      * @throws GuzzleException
      * @throws PrestaShopException
      */
-    protected function checkApiKey()
+    protected function checkApiKey(AdminController $controller)
     {
         if (static::getApiKey() && Configuration::get(static::API_KEY_VALID, false, 0, 0)) {
             return true;
@@ -2449,11 +2422,11 @@ class MailChimp extends Module
             } catch (ClientException $e) {
                 $responseBody = (string) $e->getResponse()->getBody();
                 $requestBody = (string) $e->getRequest()->getBody();
-                $this->addError("MailChimp client error: {$requestBody} -- {$responseBody}");
+                $this->addError($controller, "MailChimp client error: {$requestBody} -- {$responseBody}");
             } catch (TransferException $e) {
-                $this->addError("MailChimp connection error: {$e->getMessage()}");
+                $this->addError($controller, "MailChimp connection error: {$e->getMessage()}");
             } catch (Exception $e) {
-                $this->addError("MailChimp generic error: {$e->getMessage()}");
+                $this->addError($controller, "MailChimp generic error: {$e->getMessage()}");
             }
         }
 
@@ -2529,7 +2502,7 @@ class MailChimp extends Module
             }
         });
 
-        $result = true;
+        $success = true;
         static::signalSyncStart($idShops);
         (new EachPromise($promises, [
             'concurrency' => static::API_CONCURRENCY,
@@ -2547,7 +2520,7 @@ class MailChimp extends Module
         ]))->promise()->wait();
         static::signalSyncStop($idShops);
 
-        return $result;
+        return $success;
     }
 
     /**
@@ -2675,7 +2648,7 @@ class MailChimp extends Module
                     $variants[] = [
                         'id'                 => "{$product['id_product']}-0",
                         'title'              => (string) $product['name'],
-                        'sku'                => (string) (isset($product['reference']) ? $product['reference'] : ''),
+                        'sku'                => (string) ($product['reference'] ?? ''),
                         // Apply the tax rate here so the proper price shows up in emails
                         'price'              => (float) ($product['price'] * $rate),
                         // Add artificial stock when stock mgmt is disabled and/or oos and oos ordering allowed
@@ -2787,7 +2760,7 @@ class MailChimp extends Module
                         }
                     }
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
-                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
+                } elseif ($reason instanceof Exception) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -3076,7 +3049,7 @@ class MailChimp extends Module
                         }
                     }
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
-                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
+                } elseif ($reason instanceof Exception) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -3252,7 +3225,7 @@ class MailChimp extends Module
                         }
                     }
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
-                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
+                } elseif ($reason instanceof Exception) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -3443,7 +3416,7 @@ class MailChimp extends Module
                         }
                     }
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
-                } elseif ($reason instanceof Exception || $reason instanceof TransferException) {
+                } elseif ($reason instanceof Exception) {
                     Logger::addLog("MailChimp connection error: {$reason->getMessage()}", 2);
                 }
             },
@@ -3950,5 +3923,17 @@ WHERE
   AND TABLE_NAME = \''._DB_PREFIX_.'newsletter\'
   AND COLUMN_NAME IN(\'email\', \'id_shop\', \'newsletter_date_add\', \'ip_registration_newsletter\', \'active\')
 ') === 5;
+    }
+
+    /**
+     * @return AdminController
+     */
+    protected function getAdminController()
+    {
+        $controller = $this->context->controller;
+        if ($controller instanceof AdminController) {
+            return $controller;
+        }
+        throw new RuntimeException('Invariant: not admin controller');
     }
 }
