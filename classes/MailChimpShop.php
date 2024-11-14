@@ -22,6 +22,7 @@ namespace MailChimpModule;
 use Context;
 use Db;
 use DbQuery;
+use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\EachPromise;
 use mysqli_result;
@@ -84,10 +85,10 @@ class MailChimpShop extends ObjectModel
      *
      * @param bool $active
      *
-     * @return array|false|mysqli_result|null|PDOStatement|resource
+     * @return array|bool|PDOStatement
      *
-     * @since 1.1.0
      * @throws PrestaShopException
+     *@since 1.1.0
      */
     public static function getShops($active = false)
     {
@@ -201,7 +202,9 @@ class MailChimpShop extends ObjectModel
      *
      * @param int|int[]|null $idShops
      *
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
+     * @throws GuzzleException
      */
     public static function renewScripts($idShops = null)
     {

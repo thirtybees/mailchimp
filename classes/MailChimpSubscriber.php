@@ -23,6 +23,7 @@ use Configuration;
 use Context;
 use Db;
 use DbQuery;
+use GuzzleHttp\Exception\GuzzleException;
 use Logger;
 use MailChimp;
 use PrestaShopDatabaseException;
@@ -95,6 +96,7 @@ class MailChimpSubscriber
      *
      * @return array
      * @throws PrestaShopException
+     * @throws GuzzleException
      */
     public function getAsArray()
     {
@@ -156,7 +158,7 @@ class MailChimpSubscriber
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getEmail()
     {
@@ -172,7 +174,7 @@ class MailChimpSubscriber
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getSubscription()
     {
@@ -188,7 +190,7 @@ class MailChimpSubscriber
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getFname()
     {
@@ -204,7 +206,7 @@ class MailChimpSubscriber
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getLname()
     {
@@ -220,7 +222,7 @@ class MailChimpSubscriber
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getIpSignup()
     {
@@ -236,7 +238,7 @@ class MailChimpSubscriber
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getLanguage()
     {
@@ -252,7 +254,7 @@ class MailChimpSubscriber
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getTimestampSignup()
     {

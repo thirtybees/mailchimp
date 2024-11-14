@@ -77,7 +77,7 @@ class MailChimpOrder extends ObjectModel
      * @param bool           $remaining Remaining Orders only
      * @param bool           $count
      *
-     * @return array|false|int|mysqli_result|null|PDOStatement|resource
+     * @return array|bool|int|PDOStatement
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
@@ -189,7 +189,7 @@ class MailChimpOrder extends ObjectModel
      *
      * @param int|int[] $range
      *
-     * @return array|bool|false|null|PDOStatement
+     * @return array|bool|null
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */

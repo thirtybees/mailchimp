@@ -21,6 +21,11 @@ if (!defined('_TB_VERSION_')) {
     exit;
 }
 
+/**
+ * @return true
+ * @throws PrestaShopDatabaseException
+ * @throws PrestaShopException
+ */
 function upgrade_module_1_5_0()
 {
     if (!Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('

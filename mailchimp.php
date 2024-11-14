@@ -19,6 +19,7 @@
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\HandlerStack;
@@ -262,7 +263,8 @@ class MailChimp extends Module
      *
      * @return string
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
      * @since 1.0.0
@@ -286,6 +288,7 @@ class MailChimp extends Module
      * @param bool $prepare Prepare for display in e.g. HelperForm
      *
      * @return array|bool
+     * @throws GuzzleException
      * @throws PrestaShopException
      */
     public function getLists($prepare = false)
@@ -319,10 +322,12 @@ class MailChimp extends Module
      *
      * @return string
      *
-     * @since 1.1.0
-     *
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
+     * @since 1.1.0
+     *
      */
     public function hookDisplayHeader()
     {
@@ -359,7 +364,8 @@ class MailChimp extends Module
      *
      * @return void
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
      */
@@ -383,6 +389,7 @@ class MailChimp extends Module
     }
 
     /**
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -465,7 +472,8 @@ class MailChimp extends Module
      *
      * @return bool
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
      */
@@ -477,7 +485,8 @@ class MailChimp extends Module
     /**
      * @param array $params
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
      */
@@ -507,7 +516,8 @@ class MailChimp extends Module
      *
      * @param array $params
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
     public function hookActionObjectCustomerAddAfter($params)
@@ -533,7 +543,8 @@ class MailChimp extends Module
      *
      * @param array $params
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
     public function hookActionObjectCustomerUpdateAfter($params)
@@ -559,7 +570,8 @@ class MailChimp extends Module
     /**
      * @param array $params
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
      */
@@ -618,6 +630,8 @@ class MailChimp extends Module
      * Get the Guzzle client
      *
      * @return Client
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
     public static function getGuzzle()
@@ -688,6 +702,8 @@ class MailChimp extends Module
 
     /**
      * @return string
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
     public static function getApiKey()
@@ -730,6 +746,8 @@ class MailChimp extends Module
      *
      * @return string|false
      *
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
     public static function getDc()
@@ -747,6 +765,7 @@ class MailChimp extends Module
      *
      * @return bool
      *
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -791,7 +810,6 @@ class MailChimp extends Module
      *
      * @return string
      *
-     * @throws Exception
      * @throws PrestaShopException
      * @throws SmartyException
      * @since 1.1.0
@@ -928,7 +946,8 @@ class MailChimp extends Module
      *
      * @return void
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
      */
@@ -966,7 +985,7 @@ class MailChimp extends Module
      *
      * @return void
      *
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
@@ -1009,7 +1028,8 @@ class MailChimp extends Module
      *
      * @return void
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
      */
@@ -1046,7 +1066,7 @@ class MailChimp extends Module
      *
      * @return void
      *
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
@@ -1253,8 +1273,9 @@ class MailChimp extends Module
 
     /**
      * Process configuration
-     *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      */
     protected function postProcess()
     {
@@ -1389,7 +1410,8 @@ class MailChimp extends Module
      *
      * @return bool
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
      */
@@ -1439,12 +1461,13 @@ class MailChimp extends Module
     }
 
     /**
-     * @param int         $idList
+     * @param int $idList
      * @param string|null $url
      *
      * @return bool
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
      */
@@ -1508,7 +1531,8 @@ class MailChimp extends Module
      *
      * @return bool
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
      */
@@ -1523,7 +1547,6 @@ class MailChimp extends Module
         $mailChimpShop = MailChimpShop::getByShopId(Context::getContext()->shop->id);
         $promises = call_user_func(function () use ($list, $client, $mailChimpShop) {
             for ($i = 0; $i < count($list); $i++) {
-                /** @var MailChimpSubscriber $subscriber */
                 $subscriber = $list[$i];
                 $hash = md5(mb_strtolower($subscriber->getEmail()));
                 yield $client->putAsync(
@@ -1558,7 +1581,7 @@ class MailChimp extends Module
      * Display main page
      *
      * @return string
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -1581,7 +1604,7 @@ class MailChimp extends Module
     /**
      * @return string
      *
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -1765,7 +1788,7 @@ class MailChimp extends Module
     /**
      * @return string
      *
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -1914,8 +1937,10 @@ class MailChimp extends Module
     /**
      * @return array
      *
-     * @since 1.0.0
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
+     * @since 1.0.0
      */
     protected function getConfigFieldsValues()
     {
@@ -1966,7 +1991,7 @@ class MailChimp extends Module
      * Render Customer export form
      *
      * @return string Form HTML
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -1999,6 +2024,7 @@ class MailChimp extends Module
 
     /**
      * @return array
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
@@ -2048,7 +2074,6 @@ class MailChimp extends Module
      * Render Customer export form
      *
      * @return string Form HTML
-     * @throws Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -2109,7 +2134,6 @@ class MailChimp extends Module
      * Render Customer export form
      *
      * @return string Form HTML
-     * @throws Exception
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -2170,7 +2194,7 @@ class MailChimp extends Module
      * Render Customer export form
      *
      * @return string Form HTML
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -2359,7 +2383,7 @@ class MailChimp extends Module
     /**
      * @return void
      *
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @throws SmartyException
@@ -2426,6 +2450,7 @@ class MailChimp extends Module
      * Check if API key is valid
      *
      * @return bool Indicates whether the API key is valid
+     * @throws GuzzleException
      * @throws PrestaShopException
      */
     protected function checkApiKey()
@@ -2475,12 +2500,13 @@ class MailChimp extends Module
     /**
      * Export subscribers
      *
-     * @param int            $offset
+     * @param int $offset
      * @param int[]|int|null $idShops
      *
-     * @return string
+     * @return bool
      *
-     * @throws Exception
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
      */
@@ -2493,7 +2519,6 @@ class MailChimp extends Module
         }
 
         $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mcs) {
-            /** @var MailChimpShop $mcs */
             return $mcs->list_id;
         });
         $idShops = array_map('intval', array_filter($idShops, function ($idShop) use ($mailChimpShops) {
@@ -2574,13 +2599,13 @@ class MailChimp extends Module
     /**
      * Export products
      *
-     * @param int  $offset
-     * @param int  $idShops
+     * @param int $offset
+     * @param null $idShops
      * @param bool $remaining
      *
      * @return bool Success
      *
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
@@ -2595,7 +2620,6 @@ class MailChimp extends Module
 
         $idLang = (int) Configuration::get('PS_LANG_DEFAULT');
         $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mcs) {
-            /** @var MailChimpShop $mcs */
             return $mcs->list_id;
         });
         $idShops = array_map('intval', array_filter($idShops, function ($idShop) use ($mailChimpShops) {
@@ -2835,13 +2859,13 @@ class MailChimp extends Module
     /**
      * Export products
      *
-     * @param int[] $range       Product IDs
-     * @param int   $idShops     Shop IDs
-     * @param bool  $orderDetail Use the order detail table to find the missing pieces
+     * @param int[] $range Product IDs
+     * @param null $idShops Shop IDs
+     * @param bool $orderDetail Use the order detail table to find the missing pieces
      *
      * @return bool Status
      *
-     * @throws Exception
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.0.0
@@ -2860,7 +2884,6 @@ class MailChimp extends Module
 
         $idLang = (int) Configuration::get('PS_LANG_DEFAULT');
         $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mcs) {
-            /** @var MailChimpShop $mcs */
             return $mcs->list_id;
         });
         $idShops = array_map('intval', array_filter($idShops, function ($idShop) use ($mailChimpShops) {
@@ -3137,12 +3160,13 @@ class MailChimp extends Module
     /**
      * Export all carts
      *
-     * @param int            $offset
+     * @param int $offset
      * @param int|int[]|null $idShops
-     * @param bool           $remaining
+     * @param bool $remaining
      *
      * @return bool $success
      *
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
@@ -3155,7 +3179,6 @@ class MailChimp extends Module
             $idShops = Shop::getContextListShopID(Shop::SHARE_CUSTOMER);
         }
         $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mc) {
-            /** @var MailChimpShop $mc */
             return $mc->list_id;
         });
         $idShops = array_map('intval', array_filter($idShops, function ($idShop) use ($mailChimpShops) {
@@ -3325,12 +3348,13 @@ class MailChimp extends Module
     /**
      * Export orders
      *
-     * @param int  $offset
+     * @param int $offset
      * @param int|int[]|null $idShops
      * @param bool $exportRemaining
      *
      * @return bool $success
      *
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      * @since 1.1.0
@@ -3344,7 +3368,6 @@ class MailChimp extends Module
         }
         $idShops = array_map('intval', $idShops);
         $mailChimpShops = array_filter(MailChimpShop::getByShopIds($idShops), function ($mcs) {
-            /** @var MailChimpShop $mcs */
             return $mcs->list_id;
         });
         if (empty($mailChimpShops) || empty($idShops)) {
@@ -3535,10 +3558,9 @@ class MailChimp extends Module
      *
      * @return bool
      *
-     * @throws Exception
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
-     * @throws ClientException
-     * @throws TransferException
+     * @throws GuzzleException
      * @since 1.1.0
      */
     protected function checkMergeFields($idList)
@@ -3840,6 +3862,7 @@ class MailChimp extends Module
      * @param string $ip
      *
      * @return array|false
+     * @throws GuzzleException
      * @throws PrestaShopException
      */
     public static function getUserLatLongByIp($ip)
@@ -3927,9 +3950,9 @@ class MailChimp extends Module
     /**
      * @return string
      *
+     * @throws GuzzleException
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
-     * @throws SmartyException
      */
     protected static function getMailChimpScript()
     {
@@ -4010,6 +4033,8 @@ class MailChimp extends Module
      *
      * @param int|int[] $idShops
      *
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
     public static function signalSyncStart($idShops)
@@ -4048,6 +4073,8 @@ class MailChimp extends Module
      *
      * @return void
      *
+     * @throws GuzzleException
+     * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
     public static function signalSyncStop($idShops)

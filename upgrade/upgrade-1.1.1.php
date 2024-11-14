@@ -21,6 +21,12 @@ if (!defined('_TB_VERSION_')) {
     exit;
 }
 
+/**
+ * @param $module
+ * @return bool
+ * @throws PrestaShopDatabaseException
+ * @throws PrestaShopException
+ */
 function upgrade_module_1_1_1($module)
 {
     $sql = [];

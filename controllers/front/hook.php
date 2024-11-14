@@ -29,6 +29,9 @@ class MailChimpHookModuleFrontController extends ModuleFrontController
     /** @var MailChimp $module */
     public $module;
 
+    /**
+     * @var string
+     */
     public $status = '0';
 
     /**

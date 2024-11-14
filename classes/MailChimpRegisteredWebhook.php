@@ -158,7 +158,7 @@ class MailChimpRegisteredWebhook extends ObjectModel
      *
      * @param string|null $idList
      *
-     * @return array|false|mysqli_result|null|PDOStatement|resource
+     * @return array|bool|PDOStatement
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
