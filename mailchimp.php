@@ -3682,30 +3682,31 @@ class MailChimp extends Module
     /**
      * Install Db Indices
      *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.1.0
      */
     protected function installDbIndices()
     {
-        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_product` ADD INDEX `mc_product_product` (`id_product`, `id_shop`)');
-        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_cart` ADD INDEX `mc_cart_cart` (`id_cart`)');
-        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_order` ADD INDEX `mc_order_order` (`id_order`)');
-        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_shop` ADD INDEX `mc_shop_shop` (`id_shop`)');
-        $this->installDbIndex('ALTER TABLE `PREFIX_mailchimp_tracking` ADD INDEX `mc_tracking_order` (`id_order`)');
+        $this->installDbIndex('ALTER TABLE `'._DB_PREFIX_.'mailchimp_product` ADD INDEX `mc_product_product` (`id_product`, `id_shop`)');
+        $this->installDbIndex('ALTER TABLE `'._DB_PREFIX_.'mailchimp_cart` ADD INDEX `mc_cart_cart` (`id_cart`)');
+        $this->installDbIndex('ALTER TABLE `'._DB_PREFIX_.'mailchimp_order` ADD INDEX `mc_order_order` (`id_order`)');
+        $this->installDbIndex('ALTER TABLE `'._DB_PREFIX_.'mailchimp_shop` ADD INDEX `mc_shop_shop` (`id_shop`)');
+        $this->installDbIndex('ALTER TABLE `'._DB_PREFIX_.'mailchimp_tracking` ADD INDEX `mc_tracking_order` (`id_order`)');
     }
 
     /**
      * Install Db Index
      *
+     * @param string $sql
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
      * @since 1.1.0
      *
-     * @param string $sql
      */
     protected function installDbIndex($sql)
     {
-        try {
-            Db::getInstance()->execute($sql);
-        } catch (Exception $e) {
-        }
+        Db::getInstance()->execute($sql);
     }
 
     /**
