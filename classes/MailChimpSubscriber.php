@@ -48,27 +48,48 @@ class MailChimpSubscriber
     const SUBSCRIPTION_PENDING = 'pending';
     const SUBSCRIPTION_CLEANED = 'cleaned';
 
-    /** @var string $email */
+    /**
+     * @var string $email
+     */
     private $email;
-    /** @var string $subscription */
+
+    /**
+     * @var string $subscription
+     */
     private $subscription;
-    /** @var string $fname */
+
+    /**
+     * @var string|null $fname
+     */
     private $fname;
-    /** @var string $lname */
+
+    /**
+     * @var string|null $lname
+     */
     private $lname;
-    /** @var string $ipSignup */
+
+    /**
+     * @var string $ipSignup
+     */
     private $ipSignup;
-    /** @var string $language */
-    private $language;         // example: "de"
-    /** @var string $timestampSignup */
-    private $timestampSignup;  // example: "2013-01-18T16:48:09+00:00"
+
+    /**
+     * @var string $language
+     */
+    private $language;
+
+    /**
+     * @var string $timestampSignup
+     */
+    private $timestampSignup;
 
     /**
      * MailChimpSubscriber constructor.
+     *
      * @param string $email
      * @param string $subscription
-     * @param string $fname
-     * @param string $lname
+     * @param string|null $fname
+     * @param string|null $lname
      * @param string $ipSignup
      * @param string $language
      * @param string $timestampSignup
@@ -141,19 +162,14 @@ class MailChimpSubscriber
         switch ($subscription) {
             case self::SUBSCRIPTION_SUBSCRIBED:
                 return 'subscribed';
-                break;
             case self::SUBSCRIPTION_UNSUBSCRIBED:
                 return 'unsubscribed';
-                break;
             case self::SUBSCRIPTION_PENDING:
                 return 'pending';
-                break;
             case self::SUBSCRIPTION_CLEANED:
                 return 'cleaned';
-                break;
             default:
                 return 'pending';
-                break;
         }
     }
 
@@ -163,110 +179,6 @@ class MailChimpSubscriber
     public function getEmail()
     {
         return $this->email;
-    }
-
-    /**
-     * @param mixed $email
-     */
-    public function setEmail($email)
-    {
-        $this->email = $email;
-    }
-
-    /**
-     * @return string
-     */
-    public function getSubscription()
-    {
-        return $this->subscription;
-    }
-
-    /**
-     * @param mixed $subscription
-     */
-    public function setSubscription($subscription)
-    {
-        $this->subscription = $subscription;
-    }
-
-    /**
-     * @return string
-     */
-    public function getFname()
-    {
-        return $this->fname;
-    }
-
-    /**
-     * @param mixed $fname
-     */
-    public function setFname($fname)
-    {
-        $this->fname = $fname;
-    }
-
-    /**
-     * @return string
-     */
-    public function getLname()
-    {
-        return $this->lname;
-    }
-
-    /**
-     * @param mixed $lname
-     */
-    public function setLname($lname)
-    {
-        $this->lname = $lname;
-    }
-
-    /**
-     * @return string
-     */
-    public function getIpSignup()
-    {
-        return $this->ipSignup;
-    }
-
-    /**
-     * @param mixed $ipSignup
-     */
-    public function setIpSignup($ipSignup)
-    {
-        $this->ipSignup = $ipSignup;
-    }
-
-    /**
-     * @return string
-     */
-    public function getLanguage()
-    {
-        return $this->language;
-    }
-
-    /**
-     * @param mixed $language
-     */
-    public function setLanguage($language)
-    {
-        $this->language = $language;
-    }
-
-    /**
-     * @return string
-     */
-    public function getTimestampSignup()
-    {
-        return $this->timestampSignup;
-    }
-
-    /**
-     * @param mixed $timestampSignup
-     */
-    public function setTimestampSignup($timestampSignup)
-    {
-        $this->timestampSignup = $timestampSignup;
     }
 
     /**
