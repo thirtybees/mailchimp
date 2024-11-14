@@ -28,7 +28,6 @@ use Order;
 use PrestaShopDatabaseException;
 use PrestaShopException;
 use Shop;
-use Validate;
 
 if (!defined('_TB_VERSION_')) {
     exit;
