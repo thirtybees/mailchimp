@@ -49,14 +49,24 @@ class MailChimpTracking extends ObjectModel
             'landing_site' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'required' => false, 'default' => '', 'db_type' => 'VARCHAR(255)'    ],
         ],
     ];
-    // @codingStandardsIgnoreStart
-    /** @var int $id_order */
+
+    /**
+     * @var int $id_order
+     */
     public $id_order;
-    /** @var string $mc_tc */
+
+    /**
+     * @var string $mc_tc
+     */
     public $mc_tc;
-    /** @var string $mc_cid */
+
+    /**
+     * @var string $mc_cid
+     */
     public $mc_cid;
-    /** @var string $landing_site */
+
+    /**
+     * @var string $landing_site
+     */
     public $landing_site;
-    // @codingStandardsIgnoreEnd
 }

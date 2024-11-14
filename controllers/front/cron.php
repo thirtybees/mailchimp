@@ -28,7 +28,9 @@ if (!defined('_TB_VERSION_') && !defined('_PS_VERSION_')) {
  */
 class MailChimpCronModuleFrontController extends ModuleFrontController
 {
-    /** @var MailChimp $module */
+    /**
+     * @var MailChimp $module
+     */
     public $module;
 
     /**

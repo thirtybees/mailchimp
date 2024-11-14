@@ -54,14 +54,21 @@ class MailChimpProduct extends ObjectModel
             'last_synced' => ['type' => self::TYPE_DATE, 'validate' => 'isDate', 'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'           ],
         ],
     ];
-    // @codingStandardsIgnoreStart
-    /** @var int $id_product */
+
+    /**
+     * @var int $id_product
+     */
     public $id_product;
-    /** @var int $id_shop */
+
+    /**
+     * @var int $id_shop
+     */
     public $id_shop;
-    /** @var string $last_synced */
+
+    /**
+     * @var string $last_synced
+     */
     public $last_synced;
-    // @codingStandardsIgnoreEnd
 
     /**
      * Get products

@@ -57,14 +57,21 @@ class MailChimpPromo extends ObjectModel
             'locked'       => ['type' => self::TYPE_INT, 'validate' => 'isBool', 'required' => true, 'default' => '0', 'db_type' => 'TINYINT(1) UNSIGNED'],
         ],
     ];
-    // @codingStandardsIgnoreStart
-    /** @var int $id_cart_rule */
+
+    /**
+     * @var int $id_cart_rule
+     */
     public $id_cart_rule;
-    /** @var bool $locked */
+
+    /**
+     * @var bool $locked
+     */
     public $locked;
-    /** @var bool $enabled */
+
+    /**
+     * @var bool $enabled
+     */
     public $enabled;
-    // @codingStandardsIgnoreEnd
 
     /**
      * @param int   $id
@@ -214,8 +221,8 @@ class MailChimpPromo extends ObjectModel
         }
         $tbRef = MailChimpSubscriber::getTbRef($customer->email);
         foreach (static::getCartRules() as $cartRule) {
-            /** @var CartRule $duplicate */
             if (!CartRule::getIdByCode("$tbRef-{$cartRule->code}")) {
+                /** @var CartRule $duplicate */
                 $duplicate = $cartRule->duplicateObject();
                 $duplicate->id_customer = $customer->id;
                 $duplicate->code = "$tbRef-{$cartRule->code}";

@@ -94,9 +94,14 @@ class MailChimp extends Module
     const EXPORT_COUNTRY = 'MAILCHIMP_EXPORT_COUNTRY';
     const DISABLE_POPUP = 'MAILCHIMP_DISABLE_POPUP';
 
-    /** @var string $baseUrl */
+    /**
+     * @var string $baseUrl
+     */
     public $baseUrl;
-    /** @var array $mailChimpLanguages */
+
+    /**
+     * @var array $mailChimpLanguages
+     */
     public static $mailChimpLanguages = [
         'en' => 'en',
         'ar' => 'ar',
@@ -151,11 +156,20 @@ class MailChimp extends Module
         'vi' => 'vi',
         'gb' => 'en',
     ];
-    /** @var string $apiKey MailChimp API key */
+
+    /**
+     * @var string $apiKey MailChimp API key
+     */
     protected static $apiKey;
-    /** @var string $uuid MailChimp account ID */
+
+    /**
+     * @var string $uuid MailChimp account ID
+     */
     protected static $uuid;
-    /** @var Client $guzzle */
+
+    /**
+     * @var Client $guzzle
+     */
     protected static $guzzle;
 
     /**
@@ -422,7 +436,6 @@ class MailChimp extends Module
         try {
             $cookie = new Cookie('tb_mailchimp');
             if ($cookie->mc_tc || $cookie->mc_cid) {
-                /** @var Order $order */
                 $order = $params['order'];
                 if (!($order instanceof Order)) {
                     return;
@@ -518,8 +531,10 @@ class MailChimp extends Module
      */
     public function hookActionObjectCustomerAddAfter($params)
     {
-        /** @var Customer $customer */
         $customer = $params['object'];
+        if (! ($customer instanceof Customer)) {
+            return;
+        }
         $subscription = (string) $customer->newsletter ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;
         $iso = LanguageCore::getIsoById($customer->id_lang);
         $customerMC = new MailChimpSubscriber(
@@ -545,8 +560,10 @@ class MailChimp extends Module
      */
     public function hookActionObjectCustomerUpdateAfter($params)
     {
-        /** @var Customer $customer */
         $customer = $params['object'];
+        if (! ($customer instanceof Customer)) {
+            return;
+        }
         $subscription = (string) $customer->newsletter
             ? MailChimpSubscriber::SUBSCRIPTION_SUBSCRIBED
             : MailChimpSubscriber::SUBSCRIPTION_UNSUBSCRIBED;

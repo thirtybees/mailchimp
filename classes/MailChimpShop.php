@@ -61,22 +61,41 @@ class MailChimpShop extends ObjectModel
             'date_upd'  => ['type' => self::TYPE_STRING, 'validate' => 'isDate',                                         'db_type' => 'DATETIME'           ],
         ],
     ];
-    // @codingStandardsIgnoreStart
-    /** @var int $id_shop */
+
+    /**
+     * @var int $id_shop
+     */
     public $id_shop;
-    /** @var string $list_id */
+
+    /**
+     * @var string $list_id
+     */
     public $list_id;
-    /** @var int $id_tax */
+
+    /**
+     * @var int $id_tax
+     */
     public $id_tax;
-    /** @var bool $synced */
+
+    /**
+     * @var bool $synced
+     */
     public $synced;
-    /** @var string $mc_script */
+
+    /**
+     * @var string $mc_script
+     */
     public $mc_script;
-    /** @var string $date_add */
+
+    /**
+     * @var string $date_add
+     */
     public $date_add;
-    /** @var string $date_upd */
+
+    /**
+     * @var string $date_upd
+     */
     public $date_upd;
-    // @codingStandardsIgnoreEnd
 
     /**
      * Get shops

@@ -48,14 +48,21 @@ class MailChimpRegisteredWebhook extends ObjectModel
             'date_recv' => ['type' => self::TYPE_DATE,   'validate' => 'isDate',   'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'],
         ],
     ];
-    // @codingStandardsIgnoreStart
-    /** @var string $url */
+
+    /**
+     * @var string $url
+     */
     public $url;
-    /** @var string $id_list */
+
+    /**
+     * @var string $id_list
+     */
     public $id_list;
-    /** @var string $date_recv */
+
+    /**
+     * @var string $date_recv
+     */
     public $date_recv;
-    // @codingStandardsIgnoreEnd
 
     /**
      * Save webhook URL to database

@@ -55,12 +55,16 @@ class MailChimpOrder extends ObjectModel
             'last_synced' => ['type' => self::TYPE_DATE, 'validate' => 'isDate', 'required' => true, 'default' => '1970-01-01 00:00:00', 'db_type' => 'DATETIME'        ],
         ],
     ];
-    // @codingStandardsIgnoreStart
-    /** @var int $id_order */
+
+    /**
+     * @var int $id_order
+     */
     public $id_order;
-    /** @var string $last_synced */
+
+    /**
+     * @var string $last_synced
+     */
     public $last_synced;
-    // @codingStandardsIgnoreEnd
 
     /**
      * Get orders
