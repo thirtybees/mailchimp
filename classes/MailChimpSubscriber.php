@@ -136,15 +136,6 @@ class MailChimpSubscriber
         if (!Configuration::get(MailChimp::GDPR)) {
             $subscriber['ip_signup'] = (string) ($this->ipSignup ?: '');
         }
-        if (Configuration::get(MailChimp::EXPORT_COUNTRY) && !empty($subscriber['ip_signup'])) {
-            $coords = MailChimp::getUserLatLongByIp($this->ipSignup);
-            if ($coords) {
-                $subscriber['location'] = [
-                    'latitude'  => $coords['lat'],
-                    'longitude' => $coords['long'],
-                ];
-            }
-        }
 
         return $subscriber;
     }

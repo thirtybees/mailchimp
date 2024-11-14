@@ -35,7 +35,6 @@ use MailChimpModule\MailChimpPromo;
 use MailChimpModule\MailChimpRegisteredWebhook;
 use MailChimpModule\MailChimpShop;
 use MailChimpModule\MailChimpSubscriber;
-use MailChimpModule\MailChimpTools;
 use MailChimpModule\MailChimpTracking;
 
 if (!defined('_TB_VERSION_')) {
@@ -1293,7 +1292,6 @@ class MailChimp extends Module
             if (Configuration::updateValue(static::CONFIRMATION_EMAIL, $confirmationEmail)
                 && Configuration::updateValue(static::EXPORT_OPT_IN, $importOptedIn)
                 && Configuration::updateValue(static::GDPR, (bool) Tools::getvalue(static::GDPR, false))
-                && Configuration::updateValue(static::EXPORT_COUNTRY, (bool) Tools::getvalue(static::EXPORT_COUNTRY))
                 && Configuration::updateValue(static::DISABLE_POPUP, (bool) Tools::getvalue(static::DISABLE_POPUP))
             ) {
                 $this->addConfirmation($this->l('Settings updated.'));
@@ -1702,26 +1700,6 @@ class MailChimp extends Module
                 ],
             ];
 
-            $inputs2[] = [
-                'type'   => 'switch',
-                'label'  => $this->l('Export country code'),
-                'name'   => static::EXPORT_COUNTRY,
-                'desc'   => $this->l('This will export the user\'s country code in a GDPR compliant way.'),
-                'id'     => static::EXPORT_COUNTRY,
-                'values' => [
-                    [
-                        'id'    => static::EXPORT_COUNTRY.'_on',
-                        'value' => 1,
-                        'label' => $this->l('Enabled'),
-                    ],
-                    [
-                        'id'    => static::EXPORT_COUNTRY.'_off',
-                        'value' => 0,
-                        'label' => $this->l('Disabled'),
-                    ],
-                ],
-            ];
-
             $fields[] = [
                 'form' => [
                     'legend' => [
@@ -1950,7 +1928,6 @@ class MailChimp extends Module
             static::EXPORT_OPT_IN      => Configuration::get(static::EXPORT_OPT_IN),
             static::DATE_CUTOFF        => date('Y-m-d', strtotime(static::getOrderDateCutoff())),
             static::GDPR               => (bool) Configuration::get(static::GDPR),
-            static::EXPORT_COUNTRY     => (bool) Configuration::get(static::EXPORT_COUNTRY),
             static::DISABLE_POPUP      => (bool) Configuration::get(static::DISABLE_POPUP),
         ];
 
@@ -2556,15 +2533,6 @@ class MailChimp extends Module
                 ];
                 if (!Configuration::get(static::GDPR)) {
                     $subscriberBody['ip_signup'] = (string) ($subscriber['ip_address'] ?: '');
-                }
-                if (Configuration::get(static::EXPORT_COUNTRY) && $subscriber['ip_address']) {
-                    $coords = static::getUserLatLongByIp($subscriber['id_address']);
-                    if ($coords) {
-                        $subscriberBody['location'] = [
-                            'latitude'  => $coords['lat'],
-                            'longitude' => $coords['long'],
-                        ];
-                    }
                 }
                 yield $client->putAsync(
                     "lists/{$mailChimpShops[$subscriber['id_shop']]->list_id}/members/{$subscriberHash}",
@@ -3833,7 +3801,7 @@ class MailChimp extends Module
     }
 
     /**
-     * Get shipped order statuses
+     * Get shRipped order statuses
      *
      * @return int[]
      *
@@ -3855,97 +3823,6 @@ class MailChimp extends Module
         }
 
         return array_map('intval', $statuses);
-    }
-
-    /**
-     * Get user lat long by IP
-     *
-     * @param string $ip
-     *
-     * @return array|false
-     * @throws GuzzleException
-     * @throws PrestaShopException
-     */
-    public static function getUserLatLongByIp($ip)
-    {
-        static $cache = [];
-        $requests = static::getIpRequests();
-
-        if (array_key_exists($ip, $cache)) {
-            return $cache[$ip];
-        }
-
-        $cc = '';
-        if (@filemtime(_PS_GEOIP_DIR_._PS_GEOIP_CITY_FILE_)) {
-            $gi = geoip_open(realpath(_PS_GEOIP_DIR_._PS_GEOIP_CITY_FILE_), GEOIP_STANDARD);
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-                $cc = strtoupper(geoip_country_code_by_addr_v6($gi, $ip));
-            } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-                $cc = strtoupper(geoip_country_code_by_addr($gi, $ip));
-            }
-        } elseif (!$cc && isset($_SERVER['HTTP_CF_IPCOUNTRY'])) {
-            $cc = strtoupper($_SERVER['HTTP_CF_IPCOUNTRY']);
-        } elseif (!$cc) {
-            try {
-                while (count(array_filter($requests, function ($date) {
-                    return $date > date('Y-m-d H:i:s', strtotime("-1 min"));
-                })) > static::IP_SERVICE_RATE_LIMIT) {
-                    // Slow down, beautiful. We're going to get banned!
-                    sleep(1);
-                }
-                $requests = array_filter($requests, function ($date) {
-                    return $date > date('Y-m-d H:i:s', strtotime("-1 min"));
-                });
-                $requests[] = date('Y-m-d H:i:s');
-                static::saveIpRequests($requests);
-
-                $cc = trim(strtoupper((string) (new Client(['timeout' => 1]))->get("http://ip-api.com/line/{$ip}?fields=countryCode")->getBody()));
-            } catch (TransferException $e) {
-            }
-        }
-
-        if ($cc) {
-            $coords = MailChimpTools::getCountryCoordinates();
-            $idx = array_search($cc, array_column($coords, 'code'));
-            if ($idx === false) {
-                return false;
-            }
-
-            return $coords[$idx];
-        }
-
-        return false;
-    }
-
-    /**
-     * Get IP service requests
-     *
-     * @return string[]
-     *
-     * @throws PrestaShopException
-     */
-    protected static function getIpRequests()
-    {
-        $requests = json_decode(Configuration::get(static::IP_SERVICE_REQUESTS));
-        if (!is_array($requests)) {
-            $requests = [];
-        }
-
-        return $requests;
-    }
-
-    /**
-     * Save IP service requests
-     *
-     * @param string[] $requests
-     *
-     * @return bool
-     *
-     * @throws PrestaShopException
-     */
-    protected static function saveIpRequests($requests)
-    {
-        return Configuration::updateValue(static::IP_SERVICE_REQUESTS, json_encode($requests));
     }
 
     /**
